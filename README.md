@@ -56,7 +56,7 @@ output/
 ### Setup
 ```bash
 # Clone the repository
-git clone https://github.com/yourusername/oas-cli.git
+git clone https://github.com/aswhitehouse/open-agent-spec.git
 cd oas-cli
 
 # Install development dependencies
