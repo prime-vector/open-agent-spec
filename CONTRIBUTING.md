@@ -8,6 +8,91 @@ By participating in this project, you agree to maintain a respectful and inclusi
 
 ## How to Contribute
 
+### Creating Agent Spec Files
+
+The Open Agent Spec (OAS) uses YAML files to define agent configurations. Here's how to create your own:
+
+#### Basic Structure
+```yaml
+info:
+  name: my-agent
+  description: A fantastic agent that changes the world
+
+intelligence:
+  endpoint: https://api.openai.com/v1
+  model: gpt-4
+  config:
+    temperature: 0.7
+    max_tokens: 1000
+```
+
+#### Required Fields
+
+1. `info` section:
+   - `name`: A unique identifier for your agent (will be converted to snake_case for Python)
+   - `description`: A clear description of what your agent does
+
+2. `intelligence` section:
+   - `endpoint`: The API endpoint for your LLM provider
+   - `model`: The specific model to use (e.g., "gpt-4", "gpt-3.5-turbo")
+   - `config`: Model-specific configuration
+     - `temperature`: Controls randomness (0.0 to 1.0)
+     - `max_tokens`: Maximum length of the response
+
+#### Example Use Cases
+
+1. Trading Agent:
+```yaml
+info:
+  name: market-analyzer
+  description: An agent that analyzes market signals and provides trading recommendations
+
+intelligence:
+  endpoint: https://api.openai.com/v1
+  model: gpt-4
+  config:
+    temperature: 0.3  # Lower temperature for more consistent outputs
+    max_tokens: 2000  # Longer responses for detailed analysis
+```
+
+2. Content Generator:
+```yaml
+info:
+  name: content-creator
+  description: An agent that generates creative content based on prompts
+
+intelligence:
+  endpoint: https://api.openai.com/v1
+  model: gpt-4
+  config:
+    temperature: 0.8  # Higher temperature for more creative outputs
+    max_tokens: 1000
+```
+
+#### Best Practices
+
+1. **Naming**:
+   - Use kebab-case for the agent name (e.g., `market-analyzer`)
+   - Make names descriptive and unique
+   - Avoid special characters
+
+2. **Description**:
+   - Be clear and concise
+   - Include the agent's primary purpose
+   - Mention any key capabilities
+
+3. **Configuration**:
+   - Adjust temperature based on task:
+     - Lower (0.1-0.3) for analytical tasks
+     - Higher (0.7-0.9) for creative tasks
+   - Set max_tokens based on expected response length
+   - Use appropriate model for your use case
+
+4. **Validation**:
+   - Test your spec file with `oas init --dry-run`
+   - Ensure all required fields are present
+   - Check that values are of correct types
+
 ### Reporting Bugs
 
 - Check if the bug has already been reported in the Issues section
