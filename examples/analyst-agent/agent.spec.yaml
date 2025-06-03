@@ -1,0 +1,67 @@
+openagentspec: 1.0.0
+
+info:
+  name: analyst-agent
+  version: 0.1.0
+  description: An agent that processes market signals and provides trading recommendations
+
+intelligence:
+  type: llm
+  engine: openai
+  model: gpt-4
+  endpoint: https://api.openai.com/v1/chat/completions
+  config:
+    temperature: 0.3
+    max_tokens: 512
+  prompt_template: prompts/analyst_prompt.jinja2
+
+tasks:
+  analyze-signal:
+    description: Analyze market signal and provide recommendation
+    input:
+      symbol: string
+      signal_data: string
+      timestamp: string
+    output:
+      recommendation: string
+      confidence: float
+      rationale: string
+
+contracts: 
+  enabled: true
+
+health:
+  rules:
+    empty_rationale:
+      description: Rationale must not be empty
+      threshold: 1
+    repetition:
+      description: Track repeated identical output
+      threshold: 2
+  teardown_policy:
+    strike_limit: 3
+    action: reset_memory
+
+memory:
+  mode: ephemeral
+  strategy: window
+  window_size: 5
+
+tools:
+  - name: market_api
+    type: rest
+    url: https://api.fake.exchange/market
+    method: GET
+    params:
+      symbol: string
+
+logging:
+  level: info
+  redact_fields: [signal_data]
+
+safety:
+  role_lock: true
+  fallback_behavior: return_empty
+  observation_limits:
+    max_tokens_seen: 4096
+    max_calls: 5 
