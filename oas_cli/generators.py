@@ -83,11 +83,43 @@ text_field: This is a sample response  # string"""
 
     # Parse the response into the expected output format
     output_dict = {{}}
-    output_fields = task_def.get('output', {{}})
-    for key in output_fields:
-        # Simple parsing - could be made more sophisticated
-        if key in result:
-            output_dict[key] = result.split(key + ":")[1].split("\\n")[0].strip()
+    output_fields = list(task_def.get('output', {{}}).keys())
+    
+    # Split response into lines and process each line
+    lines = result.strip().split('\n')
+    current_key = None
+    current_value = []
+    
+    for line in lines:
+        line = line.strip()
+        if not line:
+            continue
+            
+        # Check if this line starts a new field
+        for key in output_fields:
+            if line.startswith(key + ":"):
+                # Save previous field if exists
+                if current_key and current_value:
+                    output_dict[current_key] = ' '.join(current_value).strip()
+                # Start new field
+                current_key = key
+                current_value = [line[len(key)+1:].strip()]
+                break
+        else:
+            # If no new field found, append to current value
+            if current_key:
+                current_value.append(line)
+    
+    # Save the last field
+    if current_key and current_value:
+        output_dict[current_key] = ' '.join(current_value).strip()
+    
+    # Validate all required fields are present
+    missing_fields = [field for field in output_fields if field not in output_dict]
+    if missing_fields:
+        log.warning(f"Missing output fields: {{missing_fields}}")
+        for field in missing_fields:
+            output_dict[field] = ""  # Provide empty string for missing fields
     
     return output_dict
 '''
@@ -180,12 +212,13 @@ python agent.py
 from agent import {spec_data['info']['name'].title().replace('-', '')}Agent
 
 agent = {spec_data['info']['name'].title().replace('-', '')}Agent()
-result = agent.analyze_signal(
-    symbol="AAPL",
-    signal_data="RSI at 70",
-    timestamp="2024-03-20T12:00:00Z"
-)
-print(result)
+# Example usage
+task_name = "{next(iter(spec_data.get('tasks', {}).keys()), '')}"
+if task_name:
+    result = getattr(agent, task_name.replace("-", "_"))(
+        {', '.join(f'{k}="example_{k}"' for k in spec_data['tasks'][task_name].get('input', {}))}
+    )
+    print(result)
 ```
 """
     (output / "README.md").write_text(readme_content)
@@ -217,10 +250,10 @@ def generate_prompt_template(output: Path) -> None:
     prompts_dir = output / "prompts"
     prompts_dir.mkdir(exist_ok=True)
     
-    if (prompts_dir / "analyst_prompt.jinja2").exists():
-        log.warning("analyst_prompt.jinja2 already exists and will be overwritten")
+    if (prompts_dir / "agent_prompt.jinja2").exists():
+        log.warning("agent_prompt.jinja2 already exists and will be overwritten")
     
-    prompt_content = """You are a professional analyst with expertise in data analysis and decision making.
+    prompt_content = """You are a professional AI agent designed to process tasks according to the Open Agent Spec.
 
 TASK:
 Process the following task:
@@ -247,5 +280,5 @@ CONSTRAINTS:
 - Focus on actionable insights
 - Maintain professional objectivity
 """
-    (prompts_dir / "analyst_prompt.jinja2").write_text(prompt_content)
-    log.info("analyst_prompt.jinja2 created")
+    (prompts_dir / "agent_prompt.jinja2").write_text(prompt_content)
+    log.info("agent_prompt.jinja2 created")
