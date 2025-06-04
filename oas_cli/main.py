@@ -112,7 +112,7 @@ def init(
         log.info("- README.md")
         log.info("- requirements.txt")
         log.info("- .env.example")
-        log.info("- prompts/analyst_prompt.jinja2")
+        log.info("- prompts/agent_prompt.jinja2")
         return
 
     generate_files(output, spec_data, agent_name, class_name, log)
@@ -147,7 +147,7 @@ def update(
         log.info("- README.md")
         log.info("- requirements.txt")
         log.info("- .env.example")
-        log.info("- prompts/analyst_prompt.jinja2")
+        log.info("- prompts/agent_prompt.jinja2")
         return
 
     # Generate updated files
