@@ -2,6 +2,7 @@
 from pathlib import Path
 from typing import Dict, Any
 import logging
+import json
 
 log = logging.getLogger("oas")
 
@@ -45,6 +46,7 @@ def generate_agent_code(output: Path, spec_data: Dict[str, Any], agent_name: str
     """'''
         
         # Generate function code
+        output_json = json.dumps(task_def.get('output', {}))
         task_func = f'''
 @behavioral_contract({{
     "version": "1.1",
@@ -53,6 +55,10 @@ def generate_agent_code(output: Path, spec_data: Dict[str, Any], agent_name: str
 }})
 def {func_name}({', '.join(input_params)}) -> {output_type}:
     {docstring}
+    # Define task_def for this function
+    task_def = {{
+        "output": {output_json}
+    }}
     prompt = f"""Process the following {task_name} task:
 {chr(10).join(f'{k}: {{{k}}}' for k in task_def.get('input', {}))}
 
@@ -86,7 +92,7 @@ text_field: This is a sample response  # string"""
     output_fields = list(task_def.get('output', {{}}).keys())
     
     # Split response into lines and process each line
-    lines = result.strip().split('\n')
+    lines = result.strip().split('\\n')
     current_key = None
     current_value = []
     
@@ -117,7 +123,7 @@ text_field: This is a sample response  # string"""
     # Validate all required fields are present
     missing_fields = [field for field in output_fields if field not in output_dict]
     if missing_fields:
-        log.warning(f"Missing output fields: {{missing_fields}}")
+        print(f"Warning: Missing output fields: {{missing_fields}}")
         for field in missing_fields:
             output_dict[field] = ""  # Provide empty string for missing fields
     
