@@ -1,10 +1,15 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
 [project]
 name = "open-agent-spec"
 version = "0.1.0"
 description = "Open Agent Spec CLI for bootstrapping ai agent projects"
 authors = [{ name="Andrew Whitehouse", email="andrewswhitehouse@gmail.com" }]
-license = "MIT"
+license = { text = "MIT" }
 readme = "README.md"
+requires-python = ">=3.8"
 dependencies = [
     "typer[all]>=0.9.0",
     "pyyaml",
@@ -13,3 +18,6 @@ dependencies = [
 
 [project.scripts]
 oas = "oas_cli.main:app"
+
+[tool.hatch.build.targets.wheel]
+packages = ["oas_cli"]
