@@ -3,6 +3,8 @@ from pathlib import Path
 from typing import Dict, Any
 import logging
 import json
+import openai
+from behavioral_contracts import behavioral_contract
 
 log = logging.getLogger("oas")
 
@@ -144,7 +146,7 @@ text_field: This is a sample response  # string"""
     agent_code = f'''from typing import Dict, Any
 import openai
 import json
-from behavioral_contract import behavioral_contract
+from behavioral_contracts import behavioral_contract
 
 ROLE = "{agent_name.title()}"
 
@@ -236,7 +238,7 @@ def generate_requirements(output: Path) -> None:
         log.warning("requirements.txt already exists and will be overwritten")
     
     requirements = """openai>=1.0.0
-behavioral-contract>=0.1.0
+behavioral-contracts @ https://test.pypi.org/simple/behavioral-contracts
 python-dotenv>=0.19.0
 """
     (output / "requirements.txt").write_text(requirements)
