@@ -90,7 +90,7 @@ def generate_files(output: Path, spec_data: dict, agent_name: str, class_name: s
         generate_readme(output, spec_data)
         generate_requirements(output)
         generate_env_example(output)
-        generate_prompt_template(output)
+        generate_prompt_template(output, spec_data)
         
         console.print("\n[bold green]✅ Agent project initialized![/] ✨")
         log.info("Project initialized")
