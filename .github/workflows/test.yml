@@ -20,14 +20,10 @@ jobs:
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
-        # Install core dependencies from main PyPI
-        pip install pytest pytest-cov pydantic>=2.0.0 build
-        # Install behavioral-contracts from TestPyPI only
-        pip install --index-url https://test.pypi.org/simple/ --no-deps behavioral-contracts
-        # Build the package
-        python -m build
-        # Install the built package
-        pip install dist/*.whl
+        # Install test dependencies
+        pip install pytest pytest-cov
+        # Install project with TestPyPI as primary and PyPI as secondary
+        pip install -e . --index-url https://test.pypi.org/simple/ --extra-index-url https://pypi.org/simple/
     
     - name: Run tests
       run: |

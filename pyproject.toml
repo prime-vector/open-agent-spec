@@ -15,7 +15,7 @@ dependencies = [
     "pyyaml",
     "rich",
     "openai>=1.0.0",
-    "behavioral-contracts @ https://test.pypi.org/simple/behavioral-contracts"
+    "behavioral-contracts>=0.1.0"
 ]
 
 [project.optional-dependencies]
