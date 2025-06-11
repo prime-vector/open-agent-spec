@@ -28,9 +28,3 @@ jobs:
     - name: Run tests
       run: |
         pytest tests/ --cov=oas_cli --cov-report=xml
-    
-    - name: Upload coverage to Codecov
-      uses: codecov/codecov-action@v4
-      with:
-        file: ./coverage.xml
-        fail_ci_if_error: true
