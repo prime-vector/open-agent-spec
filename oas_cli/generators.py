@@ -238,6 +238,7 @@ def generate_requirements(output: Path) -> None:
         log.warning("requirements.txt already exists and will be overwritten")
     
     requirements = """openai>=1.0.0
+# Note: This will be updated to 'behavioral-contracts>=0.1.0' once published to PyPI
 behavioral-contracts @ https://test.pypi.org/simple/behavioral-contracts
 python-dotenv>=0.19.0
 """
