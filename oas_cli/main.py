@@ -87,6 +87,17 @@ def generate_files(output: Path, spec_data: dict, agent_name: str, class_name: s
         raise typer.Exit(1)
 
 @app.command()
+def version():
+    """Show the Open Agent Spec CLI version."""
+    from importlib.metadata import version
+    try:
+        cli_version = version("open-agent-spec")
+        console.print(f"[bold cyan]Open Agent Spec CLI[/] version [green]{cli_version}[/]")
+    except Exception as e:
+        console.print("[red]Error: Could not determine version[/]")
+        raise typer.Exit(1)
+
+@app.command()
 def init(
     spec: Path = typer.Option(..., help="Path to Open Agent Spec YAML file"),
     output: Path = typer.Option(..., help="Directory to scaffold the agent into"),
