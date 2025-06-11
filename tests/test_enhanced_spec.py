@@ -24,13 +24,13 @@ memory:
   required: true
   description: "Memory context for market analysis"
 
-behavioral_contract:
+behavioural_contract:
   version: "1.1"
   policy:
     pii: false
     compliance_tags: ["EU-AI-ACT"]
     allowed_tools: ["search", "summary", "confidence_estimator"]
-  behavioral_flags:
+  behavioural_flags:
     conservatism: "moderate"
     verbosity: "compact"
     temperature_control:
@@ -138,8 +138,8 @@ def test_enhanced_spec_generation(enhanced_spec_yaml, tmp_path):
     # Read the generated agent.py to verify structure
     agent_code = (output_dir / "agent.py").read_text()
     
-    # Verify behavioral contract is included
-    assert "@behavioral_contract" in agent_code
+    # Verify behavioural contract is included
+    assert "@behavioural_contract" in agent_code
     
     # Verify task function is generated
     assert "def analyze_signal" in agent_code

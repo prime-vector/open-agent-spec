@@ -26,12 +26,12 @@ def validate_spec(spec_data: dict) -> Tuple[str, str]:
         if not isinstance(agent.get("role"), str):
             raise ValueError("agent.role must be a string")
             
-        # Validate behavioral contract
-        contract = spec_data.get("behavioral_contract", {})
+        # Validate behavioural contract
+        contract = spec_data.get("behavioural_contract", {})
         if not isinstance(contract.get("version"), str):
-            raise ValueError("behavioral_contract.version must be a string")
+            raise ValueError("behavioural_contract.version must be a string")
         if not isinstance(contract.get("policy"), dict):
-            raise ValueError("behavioral_contract.policy must be a dictionary")
+            raise ValueError("behavioural_contract.policy must be a dictionary")
             
         # Validate tasks
         tasks = spec_data.get("tasks", {})

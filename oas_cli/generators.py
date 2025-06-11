@@ -4,7 +4,7 @@ from typing import Dict, Any
 import logging
 import json
 import openai
-from behavioral_contracts import behavioral_contract
+from behavioural_contracts import behavioural_contract, generate_contract
 from jinja2 import Environment, FileSystemLoader
 
 log = logging.getLogger("oas")
@@ -98,59 +98,37 @@ def generate_agent_code(output: Path, spec_data: Dict[str, Any], agent_name: str
         # Generate function code
         output_json = json.dumps(task_def.get('output', {}))
         
-        # Get behavioral contract config
-        behavioral_section = spec_data.get("behavioral_contract", {})
-        if not behavioral_section:
-            behavioral_section = {
+        # Get behavioural contract config
+        behavioural_section = spec_data.get("behavioural_contract", {})
+        if not behavioural_section:
+            # Create a properly structured contract
+            contract_data = {
                 "version": "1.1",
                 "description": task_def.get('description', ''),
                 "role": agent_name,
-                "memory": memory_config
-            }
-        elif "memory" not in behavioral_section:
-            behavioral_section["memory"] = memory_config
-            
-        # Ensure all values are properly formatted
-        formatted_contract = {
-            "version": str(behavioral_section.get("version", "1.1")),
-            "description": str(behavioral_section.get("description", "")),
-            "role": str(behavioral_section.get("role", agent_name)),
-            "memory": {
-                "enabled": str(memory_config["enabled"]).lower(),
-                "format": str(memory_config["format"]),
-                "usage": str(memory_config["usage"]),
-                "required": str(memory_config["required"]).lower(),
-                "description": str(memory_config["description"])
-            }
-        }
-
-        # Add policy if present
-        if "policy" in behavioral_section:
-            formatted_contract["policy"] = {
-                "pii": str(behavioral_section["policy"].get("pii", "false")).lower(),
-                "compliance_tags": [str(tag) for tag in behavioral_section["policy"].get("compliance_tags", [])],
-                "allowed_tools": [str(tool) for tool in behavioral_section["policy"].get("allowed_tools", [])]
-            }
-
-        # Add behavioral flags if present
-        if "behavioral_flags" in behavioral_section:
-            formatted_contract["behavioral_flags"] = {
-                "conservatism": str(behavioral_section["behavioral_flags"].get("conservatism", "moderate")),
-                "verbosity": str(behavioral_section["behavioral_flags"].get("verbosity", "compact")),
-                "temperature_control": {
-                    "mode": str(behavioral_section["behavioral_flags"]["temperature_control"].get("mode", "adaptive")),
-                    "range": [float(x) for x in behavioral_section["behavioral_flags"]["temperature_control"].get("range", [0.2, 0.6])]
+                "memory": {
+                    "enabled": memory_config["enabled"],
+                    "format": memory_config["format"],
+                    "usage": memory_config["usage"],
+                    "required": memory_config["required"],
+                    "description": memory_config["description"]
                 }
             }
+        else:
+            # Ensure memory config is included
+            if "memory" not in behavioural_section:
+                behavioural_section["memory"] = memory_config
+            contract_data = behavioural_section
 
-        contract_json = json.dumps(formatted_contract)
+        # Use the behavioural_contracts library to generate the contract
+        contract_json = generate_contract(contract_data)
         
         # Generate input dict for template
         input_dict = {k: k for k in task_def.get('input', {}).keys()}
         input_dict_str = json.dumps(input_dict, indent=12)
         
         task_func = f'''
-@behavioral_contract({contract_json})
+@behavioural_contract({contract_json})
 def {func_name}({', '.join(input_params)}) -> {output_type}:
     {docstring}
     # Define task_def for this function
@@ -278,7 +256,7 @@ def {func_name}({', '.join(input_params)}) -> {output_type}:
     agent_code = f'''from typing import Dict, Any
 import openai
 import json
-from behavioral_contracts import behavioral_contract
+from behavioural_contracts import behavioural_contract
 from jinja2 import Environment, FileSystemLoader
 
 ROLE = "{agent_name.title()}"
@@ -362,25 +340,25 @@ def generate_readme(output: Path, spec_data: Dict[str, Any]) -> None:
         memory_docs.append(f"- Required: {memory_config['required']}\n")
         memory_docs.append("\nTo implement memory support, override the `get_memory()` method in the agent class.\n")
     
-    # Add behavioral contract documentation if defined
-    behavioral_docs = []
-    if behavioral_contract := spec_data.get("behavioral_contract"):
-        behavioral_docs.append("## Behavioral Contract\n\n")
-        behavioral_docs.append("This agent is governed by the following behavioral contract policy:\n\n")
+    # Add behavioural contract documentation if defined
+    behavioural_docs = []
+    if behavioural_contract := spec_data.get("behavioural_contract"):
+        behavioural_docs.append("## Behavioural Contract\n\n")
+        behavioural_docs.append("This agent is governed by the following behavioural contract policy:\n\n")
         
         # Add PII policy
-        if "pii" in behavioral_contract:
-            behavioral_docs.append(f"- PII: {behavioral_contract['pii']}\n")
+        if "pii" in behavioural_contract:
+            behavioural_docs.append(f"- PII: {behavioural_contract['pii']}\n")
         
         # Add compliance tags
-        if "compliance_tags" in behavioral_contract:
-            behavioral_docs.append(f"- Compliance Tags: {', '.join(behavioral_contract['compliance_tags'])}\n")
+        if "compliance_tags" in behavioural_contract:
+            behavioural_docs.append(f"- Compliance Tags: {', '.join(behavioural_contract['compliance_tags'])}\n")
         
         # Add allowed tools
-        if "allowed_tools" in behavioral_contract:
-            behavioral_docs.append(f"- Allowed Tools: {', '.join(behavioral_contract['allowed_tools'])}\n")
+        if "allowed_tools" in behavioural_contract:
+            behavioural_docs.append(f"- Allowed Tools: {', '.join(behavioural_contract['allowed_tools'])}\n")
         
-        behavioral_docs.append("\nRefer to `behavioral_contracts` for enforcement logic.\n")
+        behavioural_docs.append("\nRefer to `behavioural_contracts` for enforcement logic.\n")
     
     readme_content = f"""# {agent_info['name'].title().replace('-', ' ')}
 
@@ -398,7 +376,7 @@ python agent.py
 
 {chr(10).join(task_docs)}
 {chr(10).join(memory_docs)}
-{chr(10).join(behavioral_docs)}
+{chr(10).join(behavioural_docs)}
 
 ## Example Usage
 
@@ -425,7 +403,7 @@ def generate_requirements(output: Path) -> None:
     
     requirements = """openai>=1.0.0
 # Note: During development, install with: pip install -r requirements.txt --index-url https://test.pypi.org/simple/ --extra-index-url https://pypi.org/simple/
-behavioral-contracts>=0.1.0
+behavioural-contracts>=0.1.0
 python-dotenv>=0.19.0
 """
     (output / "requirements.txt").write_text(requirements)

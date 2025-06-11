@@ -41,6 +41,24 @@ def sample_spec():
             "required": False,
             "description": "Memory support for maintaining context"
         },
+        "behavioural_contract": {
+            "version": "1.1",
+            "description": "A test agent",
+            "role": "test_agent",
+            "policy": {
+                "pii": False,
+                "compliance_tags": ["TEST"],
+                "allowed_tools": ["analyze"]
+            },
+            "behavioural_flags": {
+                "conservatism": "moderate",
+                "verbosity": "compact",
+                "temperature_control": {
+                    "mode": "adaptive",
+                    "range": [0.2, 0.6]
+                }
+            }
+        },
         "tasks": {
             "analyze": {
                 "description": "Analyze the given input",
@@ -75,7 +93,7 @@ def test_generate_agent_code(temp_dir, sample_spec):
     assert agent_file.exists()
     
     content = agent_file.read_text()
-    assert "from behavioral_contracts import behavioral_contract" in content
+    assert "from behavioural_contracts import behavioural_contract" in content
     assert "class TestAgent:" in content  # Should not be TestAgentAgent
     assert "def analyze(" in content
     assert "memory_summary: str = ''" in content  # Check for memory parameter
@@ -112,7 +130,7 @@ def test_generate_requirements(temp_dir):
     
     content = requirements_file.read_text()
     assert "openai>=" in content
-    assert "behavioral-contracts" in content
+    assert "behavioural-contracts" in content
     assert "python-dotenv>=" in content
 
 def test_generate_env_example(temp_dir):
