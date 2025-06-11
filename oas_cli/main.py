@@ -14,6 +14,8 @@ from .generators import (
     generate_env_example,
     generate_prompt_template
 )
+from importlib.metadata import version
+import toml
 
 app = typer.Typer(help="Open Agent Spec (OAS) CLI")
 console = Console()
@@ -29,9 +31,25 @@ def setup_logging(verbose: bool = False) -> logging.Logger:
     )
     return logging.getLogger("oas")
 
+def get_version_from_pyproject():
+    """Read the version from pyproject.toml."""
+    import os
+    pyproject_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'pyproject.toml')
+    try:
+        with open(pyproject_path, 'r') as f:
+            pyproject_data = toml.load(f)
+        return pyproject_data['project']['version']
+    except Exception:
+        return "unknown"
+
 @app.callback(invoke_without_command=True)
-def main(ctx: typer.Context):
+def main(ctx: typer.Context, version: bool = typer.Option(False, "--version", help="Show version and exit")):
     """Main CLI entry point."""
+    if version:
+        cli_version = get_version_from_pyproject()
+        console.print(f"[bold cyan]Open Agent Spec CLI[/] version [green]{cli_version}[/]")
+        raise typer.Exit()
+    
     if ctx.invoked_subcommand is None or ctx.invoked_subcommand == "help":
         console.print(f"[bold cyan]{ASCII_TITLE}[/]\n")
         console.print(Panel.fit(
@@ -89,13 +107,8 @@ def generate_files(output: Path, spec_data: dict, agent_name: str, class_name: s
 @app.command()
 def version():
     """Show the Open Agent Spec CLI version."""
-    from importlib.metadata import version
-    try:
-        cli_version = version("open-agent-spec")
-        console.print(f"[bold cyan]Open Agent Spec CLI[/] version [green]{cli_version}[/]")
-    except Exception as e:
-        console.print("[red]Error: Could not determine version[/]")
-        raise typer.Exit(1)
+    cli_version = get_version_from_pyproject()
+    console.print(f"[bold cyan]Open Agent Spec CLI[/] version [green]{cli_version}[/]")
 
 @app.command()
 def init(

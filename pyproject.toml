@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "open-agent-spec"
-version = "0.1.8"
+version = "0.2.2"
 description = "Open Agent Spec CLI for bootstrapping AI agent projects"
 authors = [{ name = "Andrew Whitehouse", email = "andrewswhitehouse@gmail.com" }]
 license = { text = "AGPL-3.0-only" }
@@ -20,7 +20,9 @@ dependencies = [
 
 [project.optional-dependencies]
 dev = [
-    "pytest>=7.0.0"
+    "pytest>=8.0.0",
+    "typer[all]",
+    "toml"
 ]
 
 [project.scripts]

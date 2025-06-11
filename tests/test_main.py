@@ -2,11 +2,28 @@
 import pytest
 from typer.testing import CliRunner
 from oas_cli.main import app
+import toml
+import os
 
 runner = CliRunner()
 
+def get_version_from_pyproject():
+    pyproject_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'pyproject.toml')
+    with open(pyproject_path, 'r') as f:
+        pyproject_data = toml.load(f)
+    return pyproject_data['project']['version']
+
 def test_version_command():
     """Test that the version command returns the correct version."""
+    version = get_version_from_pyproject()
     result = runner.invoke(app, ["version"])
     assert result.exit_code == 0
-    assert "0.1.8" in result.stdout  # This should match the version in pyproject.toml 
+    assert version in result.stdout
+
+def test_version_flag():
+    """Test that the --version flag works correctly."""
+    version = get_version_from_pyproject()
+    result = runner.invoke(app, ["--version"])
+    assert result.exit_code == 0
+    assert "Open Agent Spec CLI version" in result.stdout
+    assert version in result.stdout 
