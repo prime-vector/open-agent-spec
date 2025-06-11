@@ -16,8 +16,11 @@ def validate_spec(spec_data: dict) -> Tuple[str, str]:
     """
     try:
         # Check spec version
-        if not isinstance(spec_data.get("open_agent_spec"), str):
-            raise ValueError("open_agent_spec version must be specified")
+        version = spec_data.get("open_agent_spec")
+        if not isinstance(version, str):
+            raise ValueError("open_agent_spec version must be specified as a string")
+        if not version:
+            raise ValueError("open_agent_spec version cannot be empty")
             
         # Validate agent section
         agent = spec_data.get("agent", {})

@@ -88,7 +88,7 @@ def generate_agent_code(output: Path, spec_data: Dict[str, Any], agent_name: str
         docstring = f'''"""Process {task_name} task.
 
     Args:
-{chr(10).join(f"        {param_name}: {param_type}" for param_name, param_type in task_def.get("input", {}).items())}
+{chr(10).join(f"        {param_name}: {param_type}" for param_name, param_type in task_def.get("input", {}).get("properties", {}).items())}
         memory_summary: Optional memory context for the task
 
     Returns:
@@ -115,9 +115,11 @@ def generate_agent_code(output: Path, spec_data: Dict[str, Any], agent_name: str
                 }
             }
         else:
-            # Ensure memory config is included
+            # Ensure memory config and role are included
             if "memory" not in behavioural_section:
                 behavioural_section["memory"] = memory_config
+            if "role" not in behavioural_section:
+                behavioural_section["role"] = agent_name
             contract_data = behavioural_section
 
         # Use the behavioural_contracts library to generate the contract
@@ -227,11 +229,12 @@ def {func_name}({', '.join(input_params)}) -> {output_type}:
         task_functions.append(task_func)
         
         # Generate corresponding class method
+        input_params_without_memory = [param.split(':')[0] for param in input_params if param != 'memory_summary: str = \'\'']
         class_method = f'''
-    def {func_name}(self, {', '.join(param.split(':')[0] for param in input_params if param != 'memory_summary: str = \'\'')}) -> {output_type}:
+    def {func_name}(self, {', '.join(input_params_without_memory)}) -> {output_type}:
         """Process {task_name} task."""
         memory_summary = self.get_memory() if hasattr(self, 'get_memory') else ""
-        return {func_name}({', '.join(param.split(':')[0] for param in input_params if param != 'memory_summary: str = \'\'')}, memory_summary=memory_summary)
+        return {func_name}({', '.join(input_params_without_memory)}, memory_summary=memory_summary)
 '''
         class_methods.append(class_method)
 
@@ -277,7 +280,7 @@ def main():
     # Example usage
     if "{first_task_name}":
         result = getattr(agent, "{first_task_name}".replace("-", "_"))(
-            {', '.join(f'{k}="example_{k}"' for k in tasks[first_task_name].get('input', {}))}
+            {', '.join(f'{k}="example_{k}"' for k in tasks[first_task_name].get('input', {}).get('properties', {}))}
         )
         print(json.dumps(result, indent=2))
     else:

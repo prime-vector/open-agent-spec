@@ -14,7 +14,7 @@ from .generators import (
     generate_env_example,
     generate_prompt_template
 )
-from importlib.metadata import version
+from pkg_resources import get_distribution
 import toml
 
 app = typer.Typer(help="Open Agent Spec (OAS) CLI")
@@ -32,13 +32,9 @@ def setup_logging(verbose: bool = False) -> logging.Logger:
     return logging.getLogger("oas")
 
 def get_version_from_pyproject():
-    """Read the version from pyproject.toml."""
-    import os
-    pyproject_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'pyproject.toml')
+    """Get the version from package metadata."""
     try:
-        with open(pyproject_path, 'r') as f:
-            pyproject_data = toml.load(f)
-        return pyproject_data['project']['version']
+        return get_distribution("open-agent-spec").version
     except Exception:
         return "unknown"
 

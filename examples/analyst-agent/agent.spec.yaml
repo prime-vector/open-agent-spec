@@ -1,9 +1,8 @@
-openagentspec: 1.0.0
+open_agent_spec: 0.2.5
 
-info:
-  name: analyst-agent
-  version: 0.1.0
-  description: An agent that processes market signals and provides trading recommendations
+agent:
+  name: "analyst-agent"
+  role: "A financial analyst that processes market signals and provides trading recommendations"
 
 intelligence:
   type: llm
@@ -19,19 +18,21 @@ tasks:
   analyze-signal:
     description: Analyze market signal and provide recommendation
     input:
-      symbol: string
-      signal_data: string
-      timestamp: string
+      properties:
+        symbol:
+          type: string
+        signal_data:
+          type: string
+        timestamp:
+          type: string
     output:
       recommendation: string
       confidence: float
       rationale: string
 
-contracts: 
-  enabled: true
-
-health:
-  rules:
+behavioural_contract:
+  version: "0.1.0"
+  policy:
     empty_rationale:
       description: Rationale must not be empty
       threshold: 1
@@ -42,10 +43,17 @@ health:
     strike_limit: 3
     action: reset_memory
 
-memory:
-  mode: ephemeral
-  strategy: window
-  window_size: 5
+integration:
+  memory:
+    mode: ephemeral
+    strategy: window
+    window_size: 5
+  task_queue:
+    enabled: true
+
+prompts:
+  system: "You are a financial analyst agent that processes market signals and provides trading recommendations."
+  user: "Analyze the following market signal and provide a recommendation."
 
 tools:
   - name: market_api
