@@ -115,4 +115,66 @@ def test_generate_prompt_template(temp_dir, sample_spec):
     content = prompt_file.read_text()
     assert "You are a professional AI agent" in content
     assert "TASK:" in content
+    assert "Process the following task:" in content
+
+def test_generate_prompt_template_with_custom_prompt(temp_dir, sample_spec):
+    """Test that the prompt template is generated correctly with a custom prompt."""
+    # Add custom prompt to the spec
+    sample_spec["prompt"] = {
+        "template": """You are a specialized trading agent with deep market expertise.
+
+MARKET ANALYSIS REQUEST:
+{task}
+
+MARKET CONTEXT:
+{% for key, value in context.items() %}
+{{ key }}: {{ value }}
+{% endfor %}
+
+ANALYSIS STEPS:
+1. Review market conditions
+2. Identify key patterns
+3. Consider risk factors
+4. Formulate trading strategy
+
+REQUIRED OUTPUT:
+{% for key in output.keys() %}
+{{ key }}: <value>  # Provide detailed analysis
+{% endfor %}
+
+CONSTRAINTS:
+- Focus on actionable insights
+- Consider market volatility
+- Include risk assessment
+- Maintain professional objectivity"""
+    }
+    
+    generate_prompt_template(temp_dir, sample_spec)
+    
+    prompt_file = temp_dir / "prompts" / "agent_prompt.jinja2"
+    assert prompt_file.exists()
+    
+    content = prompt_file.read_text()
+    # Verify custom prompt content
+    assert "You are a specialized trading agent" in content
+    assert "MARKET ANALYSIS REQUEST:" in content
+    assert "MARKET CONTEXT:" in content
+    assert "ANALYSIS STEPS:" in content
+    assert "REQUIRED OUTPUT:" in content
+    assert "Consider market volatility" in content
+    # Verify it's not using default template
+    assert "You are a professional AI agent" not in content
+    assert "Process the following task:" not in content
+    assert "Review the input data carefully" not in content
+
+def test_generate_prompt_template_without_custom_prompt(temp_dir, sample_spec):
+    """Test that the default prompt template is generated when no custom prompt is provided."""
+    generate_prompt_template(temp_dir, sample_spec)
+    
+    prompt_file = temp_dir / "prompts" / "agent_prompt.jinja2"
+    assert prompt_file.exists()
+    
+    content = prompt_file.read_text()
+    assert "You are a professional AI agent" in content
+    assert "TASK:" in content
     assert "Process the following task:" in content 

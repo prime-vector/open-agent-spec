@@ -262,7 +262,11 @@ def generate_prompt_template(output: Path, spec_data: Dict[str, Any]) -> None:
     if (prompts_dir / "agent_prompt.jinja2").exists():
         log.warning("agent_prompt.jinja2 already exists and will be overwritten")
     
-    prompt_content = """You are a professional AI agent designed to process tasks according to the Open Agent Spec.
+    # Use custom prompt if provided, otherwise use default template
+    if "prompt" in spec_data and "template" in spec_data["prompt"]:
+        prompt_content = spec_data["prompt"]["template"]
+    else:
+        prompt_content = """You are a professional AI agent designed to process tasks according to the Open Agent Spec.
 
 TASK:
 Process the following task:
