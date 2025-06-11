@@ -15,7 +15,8 @@ dependencies = [
     "pyyaml",
     "rich",
     "openai>=1.0.0",
-    "behavioral-contracts>=0.1.0"
+    "behavioral-contracts>=0.1.0",
+    "jinja2>=3.0.0"
 ]
 
 [project.optional-dependencies]
