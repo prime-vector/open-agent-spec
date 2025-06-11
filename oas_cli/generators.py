@@ -5,8 +5,41 @@ import logging
 import json
 import openai
 from behavioral_contracts import behavioral_contract
+from jinja2 import Environment, FileSystemLoader
 
 log = logging.getLogger("oas")
+
+def get_agent_info(spec_data: Dict[str, Any]) -> Dict[str, str]:
+    """Get agent info from either old or new spec format."""
+    # Try new format first
+    agent = spec_data.get("agent", {})
+    if agent:
+        return {
+            "name": agent.get("name", ""),
+            "description": agent.get("description", "")
+        }
+    
+    # Fall back to old format
+    info = spec_data.get("info", {})
+    return {
+        "name": info.get("name", ""),
+        "description": info.get("description", "")
+    }
+
+def get_memory_config(spec_data: Dict[str, Any]) -> Dict[str, Any]:
+    """Get memory configuration from spec."""
+    memory = spec_data.get("memory", {})
+    return {
+        "enabled": memory.get("enabled", False),
+        "format": memory.get("format", "string"),
+        "usage": memory.get("usage", "prompt-append"),
+        "required": memory.get("required", False),
+        "description": memory.get("description", "")
+    }
+
+def to_pascal_case(name: str) -> str:
+    """Convert snake_case to PascalCase."""
+    return ''.join(word.capitalize() for word in name.split('_'))
 
 def generate_agent_code(output: Path, spec_data: Dict[str, Any], agent_name: str, class_name: str) -> None:
     """Generate the agent.py file."""
@@ -19,6 +52,16 @@ def generate_agent_code(output: Path, spec_data: Dict[str, Any], agent_name: str
         log.warning("No tasks defined in spec file")
         return
 
+    # Get config values
+    config = spec_data.get("config", {})
+    endpoint = config.get("endpoint", "https://api.openai.com/v1")
+    model = config.get("model", "gpt-3.5-turbo")
+    temperature = config.get("temperature", 0.7)
+    max_tokens = config.get("max_tokens", 1000)
+
+    # Get memory config
+    memory_config = get_memory_config(spec_data)
+
     # Generate task functions and class methods
     task_functions = []
     class_methods = []
@@ -29,8 +72,12 @@ def generate_agent_code(output: Path, spec_data: Dict[str, Any], agent_name: str
         
         # Generate input parameters
         input_params = []
-        for param_name, param_type in task_def.get("input", {}).items():
-            input_params.append(f"{param_name}: str")  # Force string type for now
+        for param_name, param_def in task_def.get("input", {}).get("properties", {}).items():
+            param_type = map_type_to_python(param_def.get("type", "string"))
+            input_params.append(f"{param_name}: {param_type}")
+        
+        # Add memory_summary parameter
+        input_params.append("memory_summary: str = ''")
         
         # Generate return type annotation
         output_type = "Dict[str, Any]"
@@ -42,6 +89,7 @@ def generate_agent_code(output: Path, spec_data: Dict[str, Any], agent_name: str
 
     Args:
 {chr(10).join(f"        {param_name}: {param_type}" for param_name, param_type in task_def.get("input", {}).items())}
+        memory_summary: Optional memory context for the task
 
     Returns:
         {output_type}
@@ -49,42 +97,63 @@ def generate_agent_code(output: Path, spec_data: Dict[str, Any], agent_name: str
         
         # Generate function code
         output_json = json.dumps(task_def.get('output', {}))
+        
+        # Get behavioral contract config
+        behavioral_section = spec_data.get("behavioral_contract", {})
+        if not behavioral_section:
+            behavioral_section = {
+                "version": "1.1",
+                "description": task_def.get('description', ''),
+                "role": agent_name,
+                "memory": memory_config
+            }
+        elif "memory" not in behavioral_section:
+            behavioral_section["memory"] = memory_config
+            
+        contract_json = json.dumps(behavioral_section)
+        
+        # Generate input dict for template
+        input_dict = {k: k for k in task_def.get('input', {}).keys()}
+        input_dict_str = json.dumps(input_dict, indent=12)
+        
         task_func = f'''
-@behavioral_contract({{
-    "version": "1.1",
-    "description": "{task_def.get('description', '')}",
-    "role": "{agent_name}"
-}})
+@behavioral_contract({contract_json})
 def {func_name}({', '.join(input_params)}) -> {output_type}:
     {docstring}
     # Define task_def for this function
     task_def = {{
         "output": {output_json}
     }}
-    prompt = f"""Process the following {task_name} task:
-{chr(10).join(f'{k}: {{{k}}}' for k in task_def.get('input', {}))}
-
-Provide a response in the following format, replacing <value> with actual values:
-{chr(10).join(f'{k}: <value>  # {task_def.get("output", {}).get(k, "string")}' for k in task_def.get('output', {}))}
-
-Example format:
-input_field: example input  # string
-numeric_field: 42  # number
-text_field: This is a sample response  # string"""
+    
+    # Load and render the prompt template
+    env = Environment(loader=FileSystemLoader("prompts"))
+    try:
+        template = env.get_template("{func_name}.jinja2")
+    except:
+        template = env.get_template("agent_prompt.jinja2")
+    
+    # Render the prompt with all necessary context
+    prompt = template.render(
+        input={input_dict_str},
+        memory_summary=memory_summary,
+        indicators_summary="",  # TODO: Implement indicators if needed
+        output=task_def["output"],
+        memory_config={memory_config}
+    )
 
     client = openai.OpenAI(
-        base_url="{spec_data['intelligence']['endpoint']}",
+        base_url="{endpoint}",
         api_key=openai.api_key
     )
 
     response = client.chat.completions.create(
-        model="{spec_data['intelligence']['model']}",
+        model="{model}",
         messages=[
             {{"role": "system", "content": "You are a professional {agent_name}."}},
             {{"role": "user", "content": prompt}}
         ],
-        temperature={spec_data['intelligence']['config']['temperature']},
-        max_tokens={spec_data['intelligence']['config']['max_tokens']}
+        temperature={temperature},
+        max_tokens={max_tokens}
     )
     
     result = response.choices[0].message.content
@@ -93,7 +162,20 @@ text_field: This is a sample response  # string"""
     output_dict = {{}}
     output_fields = list(task_def.get('output', {{}}).keys())
     
-    # Split response into lines and process each line
+    # Try JSON parsing first
+    try:
+        # Look for JSON block in the response
+        json_start = result.find("{{")
+        json_end = result.rfind("}}") + 2
+        if json_start >= 0 and json_end > json_start:
+            json_str = result[json_start:json_end]
+            parsed = json.loads(json_str)
+            if all(key in parsed for key in output_fields):
+                return parsed
+    except (json.JSONDecodeError, ValueError):
+        pass
+    
+    # Fall back to line-based parsing
     lines = result.strip().split('\\n')
     current_key = None
     current_value = []
@@ -135,11 +217,28 @@ text_field: This is a sample response  # string"""
         
         # Generate corresponding class method
         class_method = f'''
-    def {func_name}(self, {', '.join(input_params)}) -> {output_type}:
+    def {func_name}(self, {', '.join(param.split(':')[0] for param in input_params if param != 'memory_summary: str = \'\'')}) -> {output_type}:
         """Process {task_name} task."""
-        return {func_name}({', '.join(param.split(':')[0] for param in input_params)})
+        memory_summary = self.get_memory() if hasattr(self, 'get_memory') else ""
+        return {func_name}({', '.join(param.split(':')[0] for param in input_params if param != 'memory_summary: str = \'\'')}, memory_summary=memory_summary)
 '''
         class_methods.append(class_method)
+
+    # Generate memory-related methods if memory is enabled
+    memory_methods = []
+    if memory_config["enabled"]:
+        memory_methods.append(f'''
+    def get_memory(self) -> str:
+        """Get memory for the current context.
+        
+        This is a stub method that should be implemented by the developer.
+        The memory format and retrieval mechanism are not prescribed by OAS.
+        
+        Returns:
+            str: Memory string in the format specified by the spec
+        """
+        return ""  # Implement your memory retrieval logic here
+''')
 
     # Generate the complete agent code
     first_task_name = next(iter(tasks.keys())) if tasks else None
@@ -147,6 +246,7 @@ text_field: This is a sample response  # string"""
 import openai
 import json
 from behavioral_contracts import behavioral_contract
+from jinja2 import Environment, FileSystemLoader
 
 ROLE = "{agent_name.title()}"
 
@@ -154,11 +254,12 @@ ROLE = "{agent_name.title()}"
 
 class {class_name}:
     def __init__(self, api_key: str | None = None):
-        self.model = "{spec_data['intelligence']['model']}"
+        self.model = "{model}"
         if api_key:
             openai.api_key = api_key
 
 {chr(10).join(class_methods)}
+{chr(10).join(memory_methods)}
 
 def main():
     agent = {class_name}()
@@ -177,11 +278,27 @@ if __name__ == "__main__":
     (output / "agent.py").write_text(agent_code)
     log.info("agent.py created")
     log.debug(f"Agent class name generated: {class_name}")
+    
+def map_type_to_python(t):
+    return {
+        "string": "str",
+        "number": "float",
+        "integer": "int",
+        "boolean": "bool",
+        "object": "Dict[str, Any]",
+        "array": "List[Any]"
+    }.get(t, "Any")
 
 def generate_readme(output: Path, spec_data: Dict[str, Any]) -> None:
     """Generate the README.md file."""
     if (output / "README.md").exists():
         log.warning("README.md already exists and will be overwritten")
+    
+    # Get agent info from either format
+    agent_info = get_agent_info(spec_data)
+    
+    # Get memory config
+    memory_config = get_memory_config(spec_data)
     
     # Generate task documentation
     task_docs = []
@@ -189,18 +306,52 @@ def generate_readme(output: Path, spec_data: Dict[str, Any]) -> None:
         task_docs.append(f"### {task_name.title()}\n")
         task_docs.append(f"{task_def.get('description', '')}\n")
         
-        task_docs.append("#### Input:")
-        for param_name, param_type in task_def.get("input", {}).items():
-            task_docs.append(f"- {param_name}: {param_type}")
+        if task_def.get("input"):
+            task_docs.append("#### Input:")
+            for param_name, param_type in task_def.get("input", {}).items():
+                task_docs.append(f"- {param_name}: {param_type}")
+            task_docs.append("")
         
-        task_docs.append("\n#### Output:")
-        for param_name, param_type in task_def.get("output", {}).items():
-            task_docs.append(f"- {param_name}: {param_type}")
-        task_docs.append("")
+        if task_def.get("output"):
+            task_docs.append("#### Output:")
+            for param_name, param_type in task_def.get("output", {}).items():
+                task_docs.append(f"- {param_name}: {param_type}")
+            task_docs.append("")
     
-    readme_content = f"""# {spec_data['info']['name'].title().replace('-', ' ')}
+    # Add memory documentation if enabled
+    memory_docs = []
+    if memory_config["enabled"]:
+        memory_docs.append("## Memory Support\n")
+        memory_docs.append(f"{memory_config['description']}\n")
+        memory_docs.append("### Configuration\n")
+        memory_docs.append(f"- Format: {memory_config['format']}\n")
+        memory_docs.append(f"- Usage: {memory_config['usage']}\n")
+        memory_docs.append(f"- Required: {memory_config['required']}\n")
+        memory_docs.append("\nTo implement memory support, override the `get_memory()` method in the agent class.\n")
+    
+    # Add behavioral contract documentation if defined
+    behavioral_docs = []
+    if behavioral_contract := spec_data.get("behavioral_contract"):
+        behavioral_docs.append("## Behavioral Contract\n\n")
+        behavioral_docs.append("This agent is governed by the following behavioral contract policy:\n\n")
+        
+        # Add PII policy
+        if "pii" in behavioral_contract:
+            behavioral_docs.append(f"- PII: {behavioral_contract['pii']}\n")
+        
+        # Add compliance tags
+        if "compliance_tags" in behavioral_contract:
+            behavioral_docs.append(f"- Compliance Tags: {', '.join(behavioral_contract['compliance_tags'])}\n")
+        
+        # Add allowed tools
+        if "allowed_tools" in behavioral_contract:
+            behavioral_docs.append(f"- Allowed Tools: {', '.join(behavioral_contract['allowed_tools'])}\n")
+        
+        behavioral_docs.append("\nRefer to `behavioral_contracts` for enforcement logic.\n")
+    
+    readme_content = f"""# {agent_info['name'].title().replace('-', ' ')}
 
-{spec_data['info']['description']}
+{agent_info['description']}
 
 ## Usage
 
@@ -213,13 +364,15 @@ python agent.py
 ## Tasks
 
 {chr(10).join(task_docs)}
+{chr(10).join(memory_docs)}
+{chr(10).join(behavioral_docs)}
 
 ## Example Usage
 
 ```python
-from agent import {spec_data['info']['name'].title().replace('-', '')}Agent
+from agent import {to_pascal_case(agent_info['name'])}
 
-agent = {spec_data['info']['name'].title().replace('-', '')}Agent()
+agent = {to_pascal_case(agent_info['name'])}()
 # Example usage
 task_name = "{next(iter(spec_data.get('tasks', {}).keys()), '')}"
 if task_name:
@@ -259,39 +412,101 @@ def generate_prompt_template(output: Path, spec_data: Dict[str, Any]) -> None:
     prompts_dir = output / "prompts"
     prompts_dir.mkdir(exist_ok=True)
     
-    if (prompts_dir / "agent_prompt.jinja2").exists():
-        log.warning("agent_prompt.jinja2 already exists and will be overwritten")
+    # Get memory config
+    memory_config = get_memory_config(spec_data)
     
-    # Use custom prompt if provided, otherwise use default template
-    if "prompt" in spec_data and "template" in spec_data["prompt"]:
-        prompt_content = spec_data["prompt"]["template"]
-    else:
-        prompt_content = """You are a professional AI agent designed to process tasks according to the Open Agent Spec.
-
-TASK:
-Process the following task:
-
-{% for key, value in input.items() %}
-{{ key }}: {{ value }}
-{% endfor %}
-
-INSTRUCTIONS:
-1. Review the input data carefully
-2. Consider all relevant factors
-3. Provide a clear, actionable response
-4. Explain your reasoning in detail
-
-OUTPUT FORMAT:
-Your response should be structured as follows:
-
-{% for key in output.keys() %}
-{{ key }}: <value>
-{% endfor %}
-
-CONSTRAINTS:
-- Be clear and specific
-- Focus on actionable insights
-- Maintain professional objectivity
-"""
-    (prompts_dir / "agent_prompt.jinja2").write_text(prompt_content)
-    log.info("agent_prompt.jinja2 created")
+    # Generate task-specific templates
+    for task_name, task_def in spec_data.get("tasks", {}).items():
+        template_name = f"{task_name.replace('-', '_')}.jinja2"
+        if (prompts_dir / template_name).exists():
+            log.warning(f"{template_name} already exists and will be overwritten")
+        
+        # Handle both old and new prompt formats
+        if "prompt" in spec_data and "template" in spec_data["prompt"]:
+            # Old format - use the template directly
+            prompt_content = spec_data["prompt"]["template"]
+        else:
+            # New format - use system and user prompts
+            prompts = spec_data.get("prompts", {})
+            if "system" in prompts and "user" in prompts:
+                # Merge system and user prompts with memory support
+                prompt_content = (
+                    "{% if memory_summary %}\n"
+                    "--- MEMORY CONTEXT ---\n"
+                    "{{ memory_summary }}\n"
+                    "------------------------\n"
+                    "{% endif %}\n\n"
+                    "{% if indicators_summary %}\n"
+                    "--- INDICATORS ---\n"
+                    "{{ indicators_summary }}\n"
+                    "------------------\n"
+                    "{% endif %}\n\n"
+                    f"{prompts['system']}\n\n"
+                    f"{prompts['user']}\n\n"
+                    "OUTPUT FORMAT:\n"
+                    "Respond **exactly** in this format:\n\n"
+                    "{% for key in output.keys() %}\n"
+                    "{{ key }}: <value>\n"
+                    "{% endfor %}\n\n"
+                    "Or as a JSON object:\n"
+                    "{\n"
+                    "{% for key in output.keys() %}\n"
+                    '    "{{ key }}": <value>{% if not loop.last %},{% endif %}\n'
+                    "{% endfor %}\n"
+                    "}\n\n"
+                    "CONSTRAINTS:\n"
+                    "- Be clear and specific\n"
+                    "- Focus on actionable insights\n"
+                    "- Maintain professional objectivity\n"
+                    "{% if memory_summary and memory_config.required %}\n"
+                    "- Must reference and incorporate memory context\n"
+                    "{% endif %}"
+                )
+            else:
+                prompt_content = (
+                    "You are a professional AI agent designed to process tasks according to the Open Agent Spec.\n\n"
+                    "{% if memory_summary %}\n"
+                    "--- MEMORY CONTEXT ---\n"
+                    "{{ memory_summary }}\n"
+                    "------------------------\n"
+                    "{% endif %}\n\n"
+                    "{% if indicators_summary %}\n"
+                    "--- INDICATORS ---\n"
+                    "{{ indicators_summary }}\n"
+                    "------------------\n"
+                    "{% endif %}\n\n"
+                    "TASK:\n"
+                    "Process the following task:\n\n"
+                    "{% for key, value in input.items() %}\n"
+                    "{{ key }}: {{ value }}\n"
+                    "{% endfor %}\n\n"
+                    "INSTRUCTIONS:\n"
+                    "1. Review the input data carefully\n"
+                    "2. Consider all relevant factors\n"
+                    "{% if memory_summary %}\n"
+                    "3. Take into account the provided memory context\n"
+                    "{% endif %}\n"
+                    "4. Provide a clear, actionable response\n"
+                    "5. Explain your reasoning in detail\n\n"
+                    "OUTPUT FORMAT:\n"
+                    "Respond **exactly** in this format:\n\n"
+                    "{% for key in output.keys() %}\n"
+                    "{{ key }}: <value>\n"
+                    "{% endfor %}\n\n"
+                    "Or as a JSON object:\n"
+                    "{\n"
+                    "{% for key in output.keys() %}\n"
+                    '    "{{ key }}": <value>{% if not loop.last %},{% endif %}\n'
+                    "{% endfor %}\n"
+                    "}\n\n"
+                    "CONSTRAINTS:\n"
+                    "- Be clear and specific\n"
+                    "- Focus on actionable insights\n"
+                    "- Maintain professional objectivity\n"
+                    "{% if memory_summary and memory_config.required %}\n"
+                    "- Must reference and incorporate memory context\n"
+                    "{% endif %}"
+                )
+        
+        (prompts_dir / template_name).write_text(prompt_content)
+        log.info(f"{template_name} created")

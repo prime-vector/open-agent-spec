@@ -9,7 +9,8 @@ from oas_cli.generators import (
     generate_readme,
     generate_requirements,
     generate_env_example,
-    generate_prompt_template
+    generate_prompt_template,
+    to_pascal_case
 )
 
 @pytest.fixture
@@ -27,19 +28,28 @@ def sample_spec():
             "name": "test-agent",
             "description": "A test agent"
         },
-        "intelligence": {
+        "config": {
             "endpoint": "https://api.openai.com/v1",
             "model": "gpt-4",
-            "config": {
-                "temperature": 0.7,
-                "max_tokens": 1000
-            }
+            "temperature": 0.7,
+            "max_tokens": 1000
+        },
+        "memory": {
+            "enabled": True,
+            "format": "string",
+            "usage": "prompt-append",
+            "required": False,
+            "description": "Memory support for maintaining context"
         },
         "tasks": {
             "analyze": {
                 "description": "Analyze the given input",
                 "input": {
-                    "text": "string"
+                    "properties": {
+                        "text": {
+                            "type": "string"
+                        }
+                    }
                 },
                 "output": {
                     "summary": "string",
@@ -48,6 +58,13 @@ def sample_spec():
             }
         }
     }
+
+def test_to_pascal_case():
+    """Test the to_pascal_case utility function."""
+    assert to_pascal_case("test_agent") == "TestAgent"
+    assert to_pascal_case("custom_agent") == "CustomAgent"
+    assert to_pascal_case("multi_word_name") == "MultiWordName"
+    assert to_pascal_case("single") == "Single"
 
 def test_generate_agent_code(temp_dir, sample_spec):
     """Test that agent.py is generated correctly."""
@@ -61,6 +78,7 @@ def test_generate_agent_code(temp_dir, sample_spec):
     assert "from behavioral_contracts import behavioral_contract" in content
     assert "class TestAgent:" in content  # Should not be TestAgentAgent
     assert "def analyze(" in content
+    assert "memory_summary: str = ''" in content  # Check for memory parameter
     
     # Test with a different name to ensure it works consistently
     temp_dir2 = Path(tempfile.mkdtemp())
@@ -82,6 +100,8 @@ def test_generate_readme(temp_dir, sample_spec):
     assert "# Test Agent" in content
     assert "## Tasks" in content
     assert "### Analyze" in content
+    assert "## Memory Support" in content  # Check for memory section
+    assert "Memory support for maintaining context" in content
 
 def test_generate_requirements(temp_dir):
     """Test that requirements.txt is generated correctly."""
@@ -109,21 +129,23 @@ def test_generate_prompt_template(temp_dir, sample_spec):
     """Test that the prompt template is generated correctly."""
     generate_prompt_template(temp_dir, sample_spec)
     
-    prompt_file = temp_dir / "prompts" / "agent_prompt.jinja2"
+    # Check for task-specific template
+    prompt_file = temp_dir / "prompts" / "analyze.jinja2"
     assert prompt_file.exists()
     
     content = prompt_file.read_text()
     assert "You are a professional AI agent" in content
     assert "TASK:" in content
     assert "Process the following task:" in content
+    assert "{% if memory_summary %}" in content
+    assert "--- MEMORY CONTEXT ---" in content
 
 def test_generate_prompt_template_with_custom_prompt(temp_dir, sample_spec):
     """Test that the prompt template is generated correctly with a custom prompt."""
     # Add custom prompt to the spec
-    sample_spec["prompt"] = {
-        "template": """You are a specialized trading agent with deep market expertise.
-
-MARKET ANALYSIS REQUEST:
+    sample_spec["prompts"] = {
+        "system": "You are a specialized trading agent with deep market expertise.",
+        "user": """MARKET ANALYSIS REQUEST:
 {task}
 
 MARKET CONTEXT:
@@ -151,7 +173,8 @@ CONSTRAINTS:
     
     generate_prompt_template(temp_dir, sample_spec)
     
-    prompt_file = temp_dir / "prompts" / "agent_prompt.jinja2"
+    # Check for task-specific template
+    prompt_file = temp_dir / "prompts" / "analyze.jinja2"
     assert prompt_file.exists()
     
     content = prompt_file.read_text()
@@ -162,19 +185,21 @@ CONSTRAINTS:
     assert "ANALYSIS STEPS:" in content
     assert "REQUIRED OUTPUT:" in content
     assert "Consider market volatility" in content
-    # Verify it's not using default template
-    assert "You are a professional AI agent" not in content
-    assert "Process the following task:" not in content
-    assert "Review the input data carefully" not in content
+    # Verify memory support is included
+    assert "{% if memory_summary %}" in content
+    assert "--- MEMORY CONTEXT ---" in content
 
 def test_generate_prompt_template_without_custom_prompt(temp_dir, sample_spec):
     """Test that the default prompt template is generated when no custom prompt is provided."""
     generate_prompt_template(temp_dir, sample_spec)
     
-    prompt_file = temp_dir / "prompts" / "agent_prompt.jinja2"
+    # Check for task-specific template
+    prompt_file = temp_dir / "prompts" / "analyze.jinja2"
     assert prompt_file.exists()
     
     content = prompt_file.read_text()
     assert "You are a professional AI agent" in content
     assert "TASK:" in content
-    assert "Process the following task:" in content 
+    assert "Process the following task:" in content
+    assert "{% if memory_summary %}" in content
+    assert "--- MEMORY CONTEXT ---" in content 
