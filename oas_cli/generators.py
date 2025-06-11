@@ -115,11 +115,13 @@ def generate_agent_code(output: Path, spec_data: Dict[str, Any], agent_name: str
                 }
             }
         else:
-            # Ensure memory config and role are included
+            # Ensure memory config, role, and description are included
             if "memory" not in behavioural_section:
                 behavioural_section["memory"] = memory_config
             if "role" not in behavioural_section:
                 behavioural_section["role"] = agent_name
+            if "description" not in behavioural_section:
+                behavioural_section["description"] = task_def.get('description', '')
             contract_data = behavioural_section
 
         # Use the behavioural_contracts library to generate the contract

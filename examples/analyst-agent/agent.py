@@ -7,7 +7,7 @@ from jinja2 import Environment, FileSystemLoader
 ROLE = "Analyst_Agent"
 
 
-@behavioural_contract({"version": "0.1.0", "description": "", "role": "analyst_agent", "memory": {"enabled": "false", "format": "string", "usage": "prompt-append", "required": "false", "description": ""}, "policy": {"pii": "false", "compliance_tags": [], "allowed_tools": []}})
+@behavioural_contract({"version": "0.1.0", "description": "Analyze market signal and provide recommendation", "role": "analyst_agent", "memory": {"enabled": "false", "format": "string", "usage": "prompt-append", "required": "false", "description": ""}, "policy": {"pii": "false", "compliance_tags": [], "allowed_tools": []}})
 def analyze_signal(symbol: str, signal_data: str, timestamp: str, memory_summary: str = '') -> Dict[str, Any]:
     """Process analyze-signal task.
 
