@@ -21,11 +21,13 @@ jobs:
       run: |
         python -m pip install --upgrade pip
         # Install core dependencies from main PyPI
-        pip install pytest pytest-cov pydantic>=2.0.0
-        # Install behavioral-contracts from TestPyPI
+        pip install pytest pytest-cov pydantic>=2.0.0 build
+        # Install behavioral-contracts from TestPyPI only
         pip install --index-url https://test.pypi.org/simple/ --no-deps behavioral-contracts
-        # Then install project dependencies
-        pip install -e .
+        # Build the package
+        python -m build
+        # Install the built package
+        pip install dist/*.whl
     
     - name: Run tests
       run: |
@@ -35,4 +37,4 @@ jobs:
       uses: codecov/codecov-action@v4
       with:
         file: ./coverage.xml
-        fail_ci_if_error: true 
+        fail_ci_if_error: true
