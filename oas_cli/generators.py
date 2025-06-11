@@ -30,11 +30,11 @@ def get_memory_config(spec_data: Dict[str, Any]) -> Dict[str, Any]:
     """Get memory configuration from spec."""
     memory = spec_data.get("memory", {})
     return {
-        "enabled": memory.get("enabled", False),
-        "format": memory.get("format", "string"),
-        "usage": memory.get("usage", "prompt-append"),
-        "required": memory.get("required", False),
-        "description": memory.get("description", "")
+        "enabled": str(memory.get("enabled", False)).lower(),
+        "format": str(memory.get("format", "string")),
+        "usage": str(memory.get("usage", "prompt-append")),
+        "required": str(memory.get("required", False)).lower(),
+        "description": str(memory.get("description", ""))
     }
 
 def to_pascal_case(name: str) -> str:
@@ -110,7 +110,40 @@ def generate_agent_code(output: Path, spec_data: Dict[str, Any], agent_name: str
         elif "memory" not in behavioral_section:
             behavioral_section["memory"] = memory_config
             
-        contract_json = json.dumps(behavioral_section)
+        # Ensure all values are properly formatted
+        formatted_contract = {
+            "version": str(behavioral_section.get("version", "1.1")),
+            "description": str(behavioral_section.get("description", "")),
+            "role": str(behavioral_section.get("role", agent_name)),
+            "memory": {
+                "enabled": str(memory_config["enabled"]).lower(),
+                "format": str(memory_config["format"]),
+                "usage": str(memory_config["usage"]),
+                "required": str(memory_config["required"]).lower(),
+                "description": str(memory_config["description"])
+            }
+        }
+
+        # Add policy if present
+        if "policy" in behavioral_section:
+            formatted_contract["policy"] = {
+                "pii": str(behavioral_section["policy"].get("pii", "false")).lower(),
+                "compliance_tags": [str(tag) for tag in behavioral_section["policy"].get("compliance_tags", [])],
+                "allowed_tools": [str(tool) for tool in behavioral_section["policy"].get("allowed_tools", [])]
+            }
+
+        # Add behavioral flags if present
+        if "behavioral_flags" in behavioral_section:
+            formatted_contract["behavioral_flags"] = {
+                "conservatism": str(behavioral_section["behavioral_flags"].get("conservatism", "moderate")),
+                "verbosity": str(behavioral_section["behavioral_flags"].get("verbosity", "compact")),
+                "temperature_control": {
+                    "mode": str(behavioral_section["behavioral_flags"]["temperature_control"].get("mode", "adaptive")),
+                    "range": [float(x) for x in behavioral_section["behavioral_flags"]["temperature_control"].get("range", [0.2, 0.6])]
+                }
+            }
+
+        contract_json = json.dumps(formatted_contract)
         
         # Generate input dict for template
         input_dict = {k: k for k in task_def.get('input', {}).keys()}
