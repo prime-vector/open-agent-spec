@@ -17,6 +17,11 @@ dependencies = [
     "behavioral-contracts"
 ]
 
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0.0"
+]
+
 [project.scripts]
 oas = "oas_cli.main:app"
 

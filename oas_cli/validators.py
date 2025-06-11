@@ -33,7 +33,8 @@ def validate_spec(spec_data: dict) -> Tuple[str, str]:
             raise ValueError("intelligence.config must be a dictionary")
             
         agent_name = info["name"].replace("-", "_")
-        class_name = agent_name.title().replace("_", "") + "Agent"
+        base_class_name = agent_name.title().replace("_", "")
+        class_name = base_class_name if base_class_name.endswith("Agent") else base_class_name + "Agent"
         return agent_name, class_name
         
     except KeyError as e:

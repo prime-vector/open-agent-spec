@@ -253,7 +253,7 @@ def generate_env_example(output: Path) -> None:
     (output / ".env.example").write_text(env_content)
     log.info(".env.example created")
 
-def generate_prompt_template(output: Path) -> None:
+def generate_prompt_template(output: Path, spec_data: Dict[str, Any]) -> None:
     """Generate the prompt template file."""
     prompts_dir = output / "prompts"
     prompts_dir.mkdir(exist_ok=True)
