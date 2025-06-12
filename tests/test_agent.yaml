@@ -16,4 +16,4 @@ tasks:
       text: string
     output:
       summary: string
-      key_points: string 
+      key_points: string

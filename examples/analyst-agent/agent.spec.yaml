@@ -72,4 +72,4 @@ safety:
   fallback_behavior: return_empty
   observation_limits:
     max_tokens_seen: 4096
-    max_calls: 5 
+    max_calls: 5

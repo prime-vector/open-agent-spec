@@ -76,4 +76,4 @@ dmypy.json
 # Project specific
 output/
 *.spec.yaml
-!example.spec.yaml 
+!example.spec.yaml

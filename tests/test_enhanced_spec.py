@@ -1,10 +1,12 @@
 """Tests for the enhanced Open Agent Spec functionality."""
+
 import pytest
-from pathlib import Path
 from typer.testing import CliRunner
+
 from oas_cli.main import app
 
 runner = CliRunner()
+
 
 @pytest.fixture
 def enhanced_spec_yaml(tmp_path):
@@ -100,7 +102,7 @@ prompts:
     - decision: one of "buy", "hold", or "sell"
     - confidence: one of "low", "medium", or "high"
     - summary: a 1-line summary of your judgment
-    - reasoning: 2–3 sentences explaining your thought process
+    - reasoning: 2-3 sentences explaining your thought process
     - compliance_tags: ["EU-AI-ACT"]  # Required for compliance
   user: |
     Here's the latest signal data:
@@ -109,7 +111,7 @@ prompts:
     - Price: ${price:,}
     - Market Cap: ${market_cap:,}
     - Timestamp: {timestamp}
-    
+
     {memory_summary}
     {indicators_summary}
     Based on this, what would you recommend?
@@ -118,46 +120,52 @@ prompts:
     spec_file.write_text(yaml_content)
     return spec_file
 
+
 def test_enhanced_spec_validation(enhanced_spec_yaml):
     """Test that the enhanced spec is properly validated."""
-    result = runner.invoke(app, ["init", "--spec", str(enhanced_spec_yaml), "--output", "test_output"])
+    result = runner.invoke(
+        app, ["init", "--spec", str(enhanced_spec_yaml), "--output", "test_output"]
+    )
     assert result.exit_code == 0
     # Add more specific assertions as we implement the enhanced spec features
+
 
 def test_enhanced_spec_generation(enhanced_spec_yaml, tmp_path):
     """Test that the enhanced spec generates the correct agent code structure."""
     output_dir = tmp_path / "test_output"
-    result = runner.invoke(app, ["init", "--spec", str(enhanced_spec_yaml), "--output", str(output_dir)])
+    result = runner.invoke(
+        app, ["init", "--spec", str(enhanced_spec_yaml), "--output", str(output_dir)]
+    )
     assert result.exit_code == 0
-    
+
     # Check that the generated files exist
     assert (output_dir / "agent.py").exists()
     assert (output_dir / "requirements.txt").exists()
     assert (output_dir / "README.md").exists()
-    
+
     # Read the generated agent.py to verify structure
     agent_code = (output_dir / "agent.py").read_text()
-    
+
     # Verify behavioural contract is included
     assert "@behavioural_contract" in agent_code
-    
+
     # Verify task function is generated
     assert "def analyze_signal" in agent_code
-    
+
     # Verify memory support is included
     assert "memory" in agent_code
     assert "get_memory" in agent_code
     assert "enabled" in agent_code
     assert "format" in agent_code
     assert "usage" in agent_code
-    
+
     # Read the generated README.md to verify memory documentation
     readme_content = (output_dir / "README.md").read_text()
     assert "Memory Support" in readme_content
     assert "Configuration" in readme_content
     assert "Format" in readme_content
     assert "Usage" in readme_content
-    
+
     # Read the generated prompt template to verify memory support
     prompt_content = (output_dir / "prompts" / "analyze_signal.jinja2").read_text()
     assert "{% if memory_summary %}" in prompt_content
