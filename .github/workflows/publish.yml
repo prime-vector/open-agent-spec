@@ -22,7 +22,7 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install build twine
+          pip install build twine tomli
           pip install -e ".[dev]" --index-url https://test.pypi.org/simple/ --extra-index-url https://pypi.org/simple/
 
       - name: Verify version matches tag
