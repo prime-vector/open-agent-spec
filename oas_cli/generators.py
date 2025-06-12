@@ -118,7 +118,7 @@ def _generate_task_function(
 
     return f"""
 @behavioural_contract({contract_json})
-def {func_name}({', '.join(input_params)}) -> {output_type}:
+def {func_name}({", ".join(input_params)}) -> {output_type}:
     {docstring}
     # Define task_def for this function
     task_def = {{
@@ -142,18 +142,18 @@ def {func_name}({', '.join(input_params)}) -> {output_type}:
     )
 
     client = openai.OpenAI(
-        base_url="{config['endpoint']}",
+        base_url="{config["endpoint"]}",
         api_key=openai.api_key
     )
 
     response = client.chat.completions.create(
-        model="{config['model']}",
+        model="{config["model"]}",
         messages=[
             {{"role": "system", "content": "You are a professional {agent_name}."}},
             {{"role": "user", "content": prompt}}
         ],
-        temperature={config['temperature']},
-        max_tokens={config['max_tokens']}
+        temperature={config["temperature"]},
+        max_tokens={config["max_tokens"]}
     )
 
     result = response.choices[0].message.content
@@ -267,10 +267,10 @@ def generate_agent_code(
             if param != "memory_summary: str = ''"
         ]
         class_methods.append(f'''
-    def {task_name.replace("-", "_")}(self, {', '.join(input_params_without_memory)}) -> Dict[str, Any]:
+    def {task_name.replace("-", "_")}(self, {", ".join(input_params_without_memory)}) -> Dict[str, Any]:
         """Process {task_name} task."""
         memory_summary = self.get_memory() if hasattr(self, 'get_memory') else ""
-        return {task_name.replace("-", "_")}({', '.join(input_params_without_memory)}, memory_summary=memory_summary)
+        return {task_name.replace("-", "_")}({", ".join(input_params_without_memory)}, memory_summary=memory_summary)
 ''')
 
     # Generate memory-related methods if memory is enabled
@@ -304,7 +304,7 @@ ROLE = "{agent_name.title()}"
 
 class {class_name}:
     def __init__(self, api_key: str | None = None):
-        self.model = "{config['model']}"
+        self.model = "{config["model"]}"
         if api_key:
             openai.api_key = api_key
 
@@ -316,7 +316,7 @@ def main():
     # Example usage
     if "{first_task_name}":
         result = getattr(agent, "{first_task_name}".replace("-", "_"))(
-            {', '.join(f'{k}="example_{k}"' for k in tasks[first_task_name].get('input', {}).get('properties', {}))}
+            {", ".join(f'{k}="example_{k}"' for k in tasks[first_task_name].get("input", {}).get("properties", {}))}
         )
         print(json.dumps(result, indent=2))
     else:
@@ -413,14 +413,14 @@ def _generate_example_usage(agent_info: Dict[str, str], tasks: Dict[str, Any]) -
         return ""
 
     return f"""```python
-from agent import {to_pascal_case(agent_info['name'])}
+from agent import {to_pascal_case(agent_info["name"])}
 
-agent = {to_pascal_case(agent_info['name'])}()
+agent = {to_pascal_case(agent_info["name"])}()
 # Example usage
 task_name = "{first_task_name}"
 if task_name:
     result = getattr(agent, task_name.replace("-", "_"))(
-        {', '.join(f'{k}="example_{k}"' for k in tasks[first_task_name].get('input', {}))}
+        {", ".join(f'{k}="example_{k}"' for k in tasks[first_task_name].get("input", {}))}
     )
     print(result)
 ```"""
@@ -444,9 +444,9 @@ def generate_readme(output: Path, spec_data: Dict[str, Any]) -> None:
     )
     example_usage = _generate_example_usage(agent_info, tasks)
 
-    readme_content = f"""# {agent_info['name'].title().replace('-', ' ')}
+    readme_content = f"""# {agent_info["name"].title().replace("-", " ")}
 
-{agent_info['description']}
+{agent_info["description"]}
 
 ## Usage
 
