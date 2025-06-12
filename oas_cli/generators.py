@@ -193,7 +193,9 @@ def _parse_line_based_response(
                 if current_key and current_value:
                     output_dict[current_key] = " ".join(current_value).strip()
                 current_key = key
-                current_value = [line[len(key) + 1 :].strip()]
+                # fmt: off
+                current_value = [line[len(key) + 1:].strip()]
+                # fmt: on
                 break
         else:
             if current_key:
