@@ -296,6 +296,7 @@ import openai
 import json
 from behavioural_contracts import behavioural_contract
 from jinja2 import Environment, FileSystemLoader
+from oas_cli.generators import _parse_response
 
 ROLE = "{agent_name.title()}"
 
