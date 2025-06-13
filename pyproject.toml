@@ -15,7 +15,7 @@ dependencies = [
     "pyyaml",
     "rich",
     "openai>=1.0.0",
-    "behavioural-contracts>=0.1.2",
+    "behavioural-contracts==0.1.4",
     "jinja2>=3.0.0",
     "setuptools>=69.0.0"
 ]
