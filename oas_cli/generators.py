@@ -29,11 +29,11 @@ def get_memory_config(spec_data: Dict[str, Any]) -> Dict[str, Any]:
     """Get memory configuration from spec."""
     memory = spec_data.get("memory", {})
     return {
-        "enabled": str(memory.get("enabled", False)).lower(),
-        "format": str(memory.get("format", "string")),
-        "usage": str(memory.get("usage", "prompt-append")),
-        "required": str(memory.get("required", False)).lower(),
-        "description": str(memory.get("description", "")),
+        "enabled": memory.get("enabled", False),
+        "format": memory.get("format", "string"),
+        "usage": memory.get("usage", "prompt-append"),
+        "required": memory.get("required", False),
+        "description": memory.get("description", ""),
     }
 
 
@@ -94,6 +94,241 @@ def _generate_contract_data(
     return behavioural_section
 
 
+def _generate_pydantic_model(
+    name: str, schema: Dict[str, Any], is_root: bool = True
+) -> str:
+    """Generate a Pydantic model from a JSON schema.
+
+    Args:
+        name: The name of the model
+        schema: The JSON schema to convert
+        is_root: Whether this is the root model (affects class inheritance)
+
+    Returns:
+        String containing the generated Pydantic model code
+    """
+    if not schema.get("properties"):
+        return ""
+
+    model_code = []
+    nested_models = []
+
+    # First, generate nested models
+    for field_name, field_schema in schema.get("properties", {}).items():
+        # Handle nested objects
+        if field_schema.get("type") == "object" and field_schema.get("properties"):
+            nested_name = f"{name}{field_name.title()}"
+            nested_model = _generate_pydantic_model(nested_name, field_schema, False)
+            if nested_model:
+                nested_models.append(nested_model)
+
+        # Handle arrays of objects
+        elif (
+            field_schema.get("type") == "array"
+            and field_schema.get("items", {}).get("type") == "object"
+        ):
+            nested_name = f"{name}{field_name.title()}Item"
+            nested_model = _generate_pydantic_model(
+                nested_name, field_schema["items"], False
+            )
+            if nested_model:
+                nested_models.append(nested_model)
+
+    # Then generate the main model
+    if is_root:
+        model_code.append(f"class {name}(BaseModel):")
+    else:
+        model_code.append(
+            f"class {name}(BaseModel):"
+        )  # Always use BaseModel for nested models
+
+    # Add field definitions
+    for field_name, field_schema in schema.get("properties", {}).items():
+        field_type = _get_pydantic_type(field_schema, name, field_name)
+        description = field_schema.get("description", "")
+
+        # Handle required fields
+        is_required = field_name in schema.get("required", [])
+        if not is_required:
+            field_type = f"Optional[{field_type}] = None"
+
+        # Add field with description
+        if description:
+            model_code.append(f'    """{description}"""')
+        model_code.append(f"    {field_name}: {field_type}")
+
+    # Combine nested models and main model
+    return "\n".join(nested_models + model_code)
+
+
+def _get_pydantic_type(
+    schema: Dict[str, Any], parent_name: str, field_name: str
+) -> str:
+    """Convert JSON schema type to Pydantic type."""
+    schema_type = schema.get("type")
+
+    if schema_type == "string":
+        return "str"
+    elif schema_type == "integer":
+        return "int"
+    elif schema_type == "number":
+        return "float"
+    elif schema_type == "boolean":
+        return "bool"
+    elif schema_type == "array":
+        items = schema.get("items", {})
+        if items.get("type") == "object":
+            # For array of objects, use the nested model type
+            return f"List[{parent_name}{field_name.title()}Item]"
+        else:
+            item_type = _get_pydantic_type(items, parent_name, field_name)
+            return f"List[{item_type}]"
+    elif schema_type == "object":
+        # For nested objects, use the nested model type
+        return f"{parent_name}{field_name.title()}"
+    else:
+        return "Any"
+
+
+def generate_models(output: Path, spec_data: Dict[str, Any]) -> None:
+    """Generate models.py file with Pydantic models for task outputs."""
+    if (output / "models.py").exists():
+        log.warning("models.py already exists and will be overwritten")
+
+    tasks = spec_data.get("tasks", {})
+    if not tasks:
+        log.warning("No tasks defined in spec file")
+        return
+
+    # Generate imports
+    model_code = [
+        "from typing import Any, Dict, List, Optional",
+        "from pydantic import BaseModel",
+        "",
+    ]
+
+    # Generate models for each task
+    for task_name, task_def in tasks.items():
+        if "output" in task_def:
+            model_name = f"{task_name.replace('-', '_').title()}Output"
+            model_code.append(_generate_pydantic_model(model_name, task_def["output"]))
+            model_code.append("")  # Add blank line between models
+
+    # Write the file
+    (output / "models.py").write_text("\n".join(model_code))
+    log.info("models.py created")
+
+
+def _generate_llm_output_parser(task_name: str, output_schema: Dict[str, Any]) -> str:
+    """Generate a function for parsing LLM output into the task's model."""
+    model_name = f"{task_name.replace('-', '_').title()}Output"
+
+    return f'''def parse_llm_output(response: str) -> {model_name}:
+    """Parse LLM response into {model_name}.
+
+    Args:
+        response: Raw response from the LLM
+
+    Returns:
+        Parsed and validated {model_name} instance
+
+    Raises:
+        ValueError: If the response cannot be parsed as JSON or doesn't match the schema
+    """
+    try:
+        # Try to find JSON in the response
+        json_start = response.find("{{")
+        json_end = response.rfind("}}") + 2
+        if json_start >= 0 and json_end > json_start:
+            json_str = response[json_start:json_end]
+            parsed = json.loads(json_str)
+
+            # Convert to Pydantic model
+            return {model_name}(**parsed)
+
+        raise ValueError("No valid JSON found in response")
+    except json.JSONDecodeError as e:
+        raise ValueError(f"Invalid JSON in response: {{e}}")
+    except Exception as e:
+        raise ValueError(f"Error parsing response: {{e}}")
+'''
+
+
+def _generate_human_readable_output(schema: Dict[str, Any], indent: int = 0) -> str:
+    """Generate a human-readable description of the output schema.
+
+    Args:
+        schema: The JSON schema to convert
+        indent: Current indentation level
+
+    Returns:
+        String containing a human-readable description of the output format
+    """
+    if not schema.get("properties"):
+        return ""
+
+    lines = []
+    for field_name, field_schema in schema.get("properties", {}).items():
+        field_type = _get_human_readable_type(field_schema)
+        description = field_schema.get("description", "")
+
+        # Handle required fields
+        is_required = field_name in schema.get("required", [])
+        required_str = " (required)" if is_required else " (optional)"
+
+        # Add field with description
+        if description:
+            lines.append(f"{' ' * indent}- {field_name}{required_str}: {field_type}")
+            lines.append(f"{' ' * (indent + 2)}{description}")
+        else:
+            lines.append(f"{' ' * indent}- {field_name}{required_str}: {field_type}")
+
+        # Handle nested objects
+        if field_schema.get("type") == "object" and field_schema.get("properties"):
+            nested_desc = _generate_human_readable_output(field_schema, indent + 2)
+            if nested_desc:
+                lines.append(nested_desc)
+
+        # Handle arrays of objects
+        elif (
+            field_schema.get("type") == "array"
+            and field_schema.get("items", {}).get("type") == "object"
+        ):
+            lines.append(f"{' ' * (indent + 2)}Each item contains:")
+            nested_desc = _generate_human_readable_output(
+                field_schema["items"], indent + 4
+            )
+            if nested_desc:
+                lines.append(nested_desc)
+
+    return "\n".join(lines)
+
+
+def _get_human_readable_type(schema: Dict[str, Any]) -> str:
+    """Convert JSON schema type to human-readable type."""
+    schema_type = schema.get("type")
+
+    if schema_type == "string":
+        return "string"
+    elif schema_type == "integer":
+        return "integer"
+    elif schema_type == "number":
+        return "number"
+    elif schema_type == "boolean":
+        return "boolean"
+    elif schema_type == "array":
+        items = schema.get("items", {})
+        if items.get("type") == "object":
+            return "array of objects"
+        else:
+            item_type = _get_human_readable_type(items)
+            return f"array of {item_type}s"
+    elif schema_type == "object":
+        return "object"
+    else:
+        return "any"
+
+
 def _generate_task_function(
     task_name: str,
     task_def: Dict[str, Any],
@@ -105,7 +340,7 @@ def _generate_task_function(
     """Generate a single task function."""
     func_name = task_name.replace("-", "_")
     input_params = _generate_input_params(task_def)
-    output_type = "Dict[str, Any]"
+    output_type = f"{task_name.replace('-', '_').title()}Output"
     docstring = _generate_function_docstring(task_name, task_def, output_type)
     output_json = json.dumps(task_def.get("output", {}))
     contract_data = _generate_contract_data(
@@ -113,35 +348,22 @@ def _generate_task_function(
     )
     contract_json = generate_contract(contract_data)
 
-    input_dict = {k: k for k in task_def.get("input", {}).keys()}
-    input_dict_str = json.dumps(input_dict, indent=12)
+    # Create input dict with actual parameter values
+    input_dict = {}
+    for param in input_params:
+        if param != "memory_summary: str = ''":
+            param_name = param.split(":")[0]
+            input_dict[param_name] = param_name
 
-    return f"""
-@behavioural_contract({contract_json})
-def {func_name}({", ".join(input_params)}) -> {output_type}:
-    {docstring}
-    # Define task_def for this function
-    task_def = {{
-        "output": {output_json}
-    }}
+    # Add LLM output parser if this is an LLM-based agent
+    llm_parser = ""
+    if config.get("model"):  # If model is specified, this is an LLM agent
+        llm_parser = _generate_llm_output_parser(task_name, task_def.get("output", {}))
 
-    # Load and render the prompt template
-    env = Environment(loader=FileSystemLoader("prompts"))
-    try:
-        template = env.get_template("{func_name}.jinja2")
-    except FileNotFoundError:
-        template = env.get_template("agent_prompt.jinja2")
-
-    # Render the prompt with all necessary context
-    prompt = template.render(
-        input={input_dict_str},
-        memory_summary=memory_summary,
-        indicators_summary="",  # TODO: Implement indicators if needed
-        output=task_def["output"],
-        memory_config={memory_config}
-    )
-
-    client = openai.OpenAI(
+    # Determine OpenAI client usage based on engine
+    engine = spec_data.get("intelligence", {}).get("engine", "openai")
+    if engine == "openai":
+        client_code = f"""    client = openai.OpenAI(
         base_url="{config["endpoint"]}",
         api_key=openai.api_key
     )
@@ -156,75 +378,78 @@ def {func_name}({", ".join(input_params)}) -> {output_type}:
         max_tokens={config["max_tokens"]}
     )
 
-    result = response.choices[0].message.content
-    return _parse_response(result, task_def.get("output", {{}}))
-"""
+    result = response.choices[0].message.content"""
+    else:
+        client_code = f"""    response = openai.ChatCompletion.create(
+        model="{config["model"]}",
+        messages=[
+            {{"role": "system", "content": "You are a professional {agent_name}."}},
+            {{"role": "user", "content": prompt}}
+        ],
+        temperature={config["temperature"]},
+        max_tokens={config["max_tokens"]}
+    )
 
+    result = response.choices[0].message.content"""
 
-def _try_parse_json(result: str, output_fields: List[str]) -> Dict[str, Any] | None:
-    """Try to parse JSON from the response."""
+    # Generate prompt rendering with actual parameter values
+    prompt_render_params = []
+    for param in input_params:
+        if param != "memory_summary: str = ''":
+            param_name = param.split(":")[0]
+            prompt_render_params.append(f"{param_name}={param_name}")
+    prompt_render_str = ",\n        ".join(prompt_render_params)
+
+    # Define memory configuration with proper Python boolean values
+    memory_config_str = f"""{{
+        "enabled": {repr(memory_config['enabled'])},
+        "format": "{memory_config['format']}",
+        "usage": "{memory_config['usage']}",
+        "required": {repr(memory_config['required'])},
+        "description": "{memory_config['description']}"
+    }}"""
+    memory_summary_str = "memory_summary if memory_config['enabled'] else ''"
+
+    # Generate human-readable output description
+    output_description = _generate_human_readable_output(task_def.get("output", {}))
+    output_description_str = f'"""\n{output_description}\n"""'
+
+    return f"""
+{llm_parser}
+
+@behavioural_contract({contract_json})
+def {func_name}({", ".join(input_params)}) -> {output_type}:
+    {docstring}
+    # Define task_def for this function
+    task_def = {{
+        "output": {output_json}
+    }}
+
+    # Define memory configuration
+    memory_config = {memory_config_str}
+
+    # Define output format description
+    output_format = {output_description_str}
+
+    # Load and render the prompt template
+    env = Environment(loader=FileSystemLoader("prompts"))
     try:
-        json_start = result.find("{{")
-        json_end = result.rfind("}}") + 2
-        if json_start >= 0 and json_end > json_start:
-            json_str = result[json_start:json_end]
-            parsed = json.loads(json_str)
-            if all(key in parsed for key in output_fields):
-                return parsed
-    except (json.JSONDecodeError, ValueError):
-        pass
-    return None
+        template = env.get_template("{func_name}.jinja2")
+    except FileNotFoundError:
+        log.warning(f"Task-specific prompt template not found, using default template")
+        template = env.get_template("agent_prompt.jinja2")
 
+    # Render the prompt with all necessary context
+    prompt = template.render(
+        {prompt_render_str},
+        memory_summary={memory_summary_str},
+        output_format=output_format,
+        memory_config=memory_config
+    )
 
-def _parse_line_based_response(
-    lines: List[str], output_fields: List[str]
-) -> Dict[str, Any]:
-    """Parse response using line-based format."""
-    output_dict = {}
-    current_key = None
-    current_value = []
-
-    for line in lines:
-        line = line.strip()
-        if not line:
-            continue
-        for key in output_fields:
-            if line.startswith(key + ":"):
-                if current_key and current_value:
-                    output_dict[current_key] = " ".join(current_value).strip()
-                current_key = key
-                # fmt: off
-                current_value = [line[len(key) + 1:].strip()]
-                # fmt: on
-                break
-        else:
-            if current_key:
-                current_value.append(line)
-
-    if current_key and current_value:
-        output_dict[current_key] = " ".join(current_value).strip()
-
-    return output_dict
-
-
-def _parse_response(result: str, output_schema: Dict[str, Any]) -> Dict[str, Any]:
-    """Parse the response into the expected output format."""
-    output_fields = list(output_schema.keys())
-
-    # Try JSON parsing first
-    if parsed_json := _try_parse_json(result, output_fields):
-        return parsed_json
-
-    # Fall back to line-based parsing
-    lines = result.strip().split("\\n")
-    output_dict = _parse_line_based_response(lines, output_fields)
-
-    # Fill in missing fields
-    for field in output_fields:
-        if field not in output_dict:
-            output_dict[field] = ""
-
-    return output_dict
+{client_code}
+    return parse_llm_output(result)
+"""
 
 
 def generate_agent_code(
@@ -240,20 +465,32 @@ def generate_agent_code(
         return
 
     config = {
-        "endpoint": spec_data.get("config", {}).get(
+        "endpoint": spec_data.get("intelligence", {}).get(
             "endpoint", "https://api.openai.com/v1"
         ),
-        "model": spec_data.get("config", {}).get("model", "gpt-3.5-turbo"),
-        "temperature": spec_data.get("config", {}).get("temperature", 0.7),
-        "max_tokens": spec_data.get("config", {}).get("max_tokens", 1000),
+        "model": spec_data.get("intelligence", {}).get("model", "gpt-3.5-turbo"),
+        "temperature": spec_data.get("intelligence", {})
+        .get("config", {})
+        .get("temperature", 0.7),
+        "max_tokens": spec_data.get("intelligence", {})
+        .get("config", {})
+        .get("max_tokens", 1000),
     }
     memory_config = get_memory_config(spec_data)
 
     # Generate task functions and class methods
     task_functions = []
     class_methods = []
+    model_definitions = []
 
     for task_name, task_def in tasks.items():
+        # Generate model definition
+        model_name = f"{task_name.replace('-', '_').title()}Output"
+        model_def = _generate_pydantic_model(model_name, task_def.get("output", {}))
+        if model_def:
+            model_definitions.append(model_def)
+
+        # Generate task function
         task_functions.append(
             _generate_task_function(
                 task_name, task_def, spec_data, agent_name, memory_config, config
@@ -267,7 +504,7 @@ def generate_agent_code(
             if param != "memory_summary: str = ''"
         ]
         class_methods.append(f'''
-    def {task_name.replace("-", "_")}(self, {", ".join(input_params_without_memory)}) -> Dict[str, Any]:
+    def {task_name.replace("-", "_")}(self, {", ".join(input_params_without_memory)}) -> {model_name}:
         """Process {task_name} task."""
         memory_summary = self.get_memory() if hasattr(self, 'get_memory') else ""
         return {task_name.replace("-", "_")}({", ".join(input_params_without_memory)}, memory_summary=memory_summary)
@@ -289,16 +526,33 @@ def generate_agent_code(
         return ""  # Implement your memory retrieval logic here
 ''')
 
+    # Generate example task execution code
+    example_task_code = ""
+    if tasks:
+        first_task_name = next(iter(tasks))
+        first_task_def = tasks[first_task_name]
+        input_props = first_task_def.get("input", {}).get("properties", {})
+        example_params = ", ".join(f'{k}="example_{k}"' for k in input_props)
+        example_task_code = f"""
+    # Example usage with {first_task_name} task
+    result = agent.{first_task_name.replace("-", "_")}({example_params})
+    print(json.dumps(result.model_dump(), indent=2))"""
+
     # Generate the complete agent code
-    first_task_name = next(iter(tasks.keys())) if tasks else None
-    agent_code = f"""from typing import Dict, Any
+    agent_code = f"""from typing import Dict, Any, List, Optional
 import openai
 import json
+import logging
 from behavioural_contracts import behavioural_contract
 from jinja2 import Environment, FileSystemLoader
-from oas_cli.generators import _parse_response
+from pydantic import BaseModel
+
+log = logging.getLogger(__name__)
 
 ROLE = "{agent_name.title()}"
+
+# Generate output models
+{chr(10).join(model_definitions)}
 
 {chr(10).join(task_functions)}
 
@@ -313,14 +567,7 @@ class {class_name}:
 
 def main():
     agent = {class_name}()
-    # Example usage
-    if "{first_task_name}":
-        result = getattr(agent, "{first_task_name}".replace("-", "_"))(
-            {", ".join(f'{k}="example_{k}"' for k in tasks[first_task_name].get("input", {}).get("properties", {}))}
-        )
-        print(json.dumps(result, indent=2))
-    else:
-        print("No tasks defined in the spec file")
+{example_task_code}
 
 if __name__ == "__main__":
     main()
@@ -479,6 +726,7 @@ def generate_requirements(output: Path) -> None:
 # Note: During development, install with: pip install -r requirements.txt --index-url https://test.pypi.org/simple/ --extra-index-url https://pypi.org/simple/
 behavioural-contracts>=0.1.0
 python-dotenv>=0.19.0
+pydantic>=2.0.0
 """
     (output / "requirements.txt").write_text(requirements)
     log.info("requirements.txt created")
@@ -500,10 +748,15 @@ def generate_prompt_template(output: Path, spec_data: Dict[str, Any]) -> None:
     prompts_dir.mkdir(exist_ok=True)
 
     # Generate task-specific templates
-    for task_name in spec_data.get("tasks", {}).keys():
+    for task_name, task_def in spec_data.get("tasks", {}).items():
         template_name = f"{task_name.replace('-', '_')}.jinja2"
         if (prompts_dir / template_name).exists():
             log.warning(f"{template_name} already exists and will be overwritten")
+
+        # Get the output schema
+        output_schema = task_def.get("output", {})
+        output_schema_json = json.dumps(output_schema, indent=2)
+        human_readable_output = _generate_human_readable_output(output_schema)
 
         # Handle both old and new prompt formats
         if "prompt" in spec_data and "template" in spec_data["prompt"]:
@@ -528,16 +781,10 @@ def generate_prompt_template(output: Path, spec_data: Dict[str, Any]) -> None:
                     f"{prompts['system']}\n\n"
                     f"{prompts['user']}\n\n"
                     "OUTPUT FORMAT:\n"
-                    "Respond **exactly** in this format:\n\n"
-                    "{% for key in output.keys() %}\n"
-                    "{{ key }}: <value>\n"
-                    "{% endfor %}\n\n"
-                    "Or as a JSON object:\n"
-                    "{\n"
-                    "{% for key in output.keys() %}\n"
-                    '    "{{ key }}": <value>{% if not loop.last %},{% endif %}\n'
-                    "{% endfor %}\n"
-                    "}\n\n"
+                    "Your response should include the following fields:\n"
+                    f"{human_readable_output}\n\n"
+                    "Respond with a JSON object that exactly matches this structure:\n"
+                    f"{output_schema_json}\n\n"
                     "CONSTRAINTS:\n"
                     "- Be clear and specific\n"
                     "- Focus on actionable insights\n"
@@ -573,16 +820,10 @@ def generate_prompt_template(output: Path, spec_data: Dict[str, Any]) -> None:
                     "4. Provide a clear, actionable response\n"
                     "5. Explain your reasoning in detail\n\n"
                     "OUTPUT FORMAT:\n"
-                    "Respond **exactly** in this format:\n\n"
-                    "{% for key in output.keys() %}\n"
-                    "{{ key }}: <value>\n"
-                    "{% endfor %}\n\n"
-                    "Or as a JSON object:\n"
-                    "{\n"
-                    "{% for key in output.keys() %}\n"
-                    '    "{{ key }}": <value>{% if not loop.last %},{% endif %}\n'
-                    "{% endfor %}\n"
-                    "}\n\n"
+                    "Your response should include the following fields:\n"
+                    f"{human_readable_output}\n\n"
+                    "Respond with a JSON object that exactly matches this structure:\n"
+                    f"{output_schema_json}\n\n"
                     "CONSTRAINTS:\n"
                     "- Be clear and specific\n"
                     "- Focus on actionable insights\n"
