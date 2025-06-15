@@ -342,7 +342,6 @@ def _generate_task_function(
     input_params = _generate_input_params(task_def)
     output_type = f"{task_name.replace('-', '_').title()}Output"
     docstring = _generate_function_docstring(task_name, task_def, output_type)
-    output_json = json.dumps(task_def.get("output", {}))
     contract_data = _generate_contract_data(
         spec_data, task_def, agent_name, memory_config
     )
@@ -420,11 +419,6 @@ def _generate_task_function(
 @behavioural_contract({contract_json})
 def {func_name}({", ".join(input_params)}) -> {output_type}:
     {docstring}
-    # Define task_def for this function
-    task_def = {{
-        "output": {output_json}
-    }}
-
     # Define memory configuration
     memory_config = {memory_config_str}
 
