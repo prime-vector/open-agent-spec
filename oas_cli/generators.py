@@ -5,7 +5,6 @@ import logging
 from pathlib import Path
 from typing import Any, Dict, List
 
-from behavioural_contracts import generate_contract  # type: ignore
 
 log = logging.getLogger("oas")
 
@@ -79,19 +78,53 @@ def _generate_contract_data(
     behavioural_section = spec_data.get("behavioural_contract", {})
     if not behavioural_section:
         return {
-            "version": "1.1",
             "description": task_def.get("description", ""),
             "role": agent_name,
-            "memory": memory_config,
+            "policy": {
+                "pii": False,
+                "compliance_tags": [],
+                "allowed_tools": task_def.get("tools", []),
+            },
+            "behavioural_flags": {"conservatism": "moderate", "verbosity": "compact"},
+            "response_contract": {
+                "output_format": {
+                    "type": "object",
+                    "required_fields": list(
+                        task_def.get("output", {}).get("properties", {}).keys()
+                    ),
+                }
+            },
         }
 
-    if "memory" not in behavioural_section:
-        behavioural_section["memory"] = memory_config
-    if "role" not in behavioural_section:
-        behavioural_section["role"] = agent_name
-    if "description" not in behavioural_section:
-        behavioural_section["description"] = task_def.get("description", "")
-    return behavioural_section
+    # Ensure all required fields are present
+    contract_data = {
+        "description": behavioural_section.get(
+            "description", task_def.get("description", "")
+        ),
+        "role": behavioural_section.get("role", agent_name),
+        "policy": {
+            "pii": behavioural_section.get("policy", {}).get("pii", False),
+            "compliance_tags": behavioural_section.get("policy", {}).get(
+                "compliance_tags", []
+            ),
+            "allowed_tools": behavioural_section.get("policy", {}).get(
+                "allowed_tools", task_def.get("tools", [])
+            ),
+        },
+        "behavioural_flags": behavioural_section.get(
+            "behavioural_flags", {"conservatism": "moderate", "verbosity": "compact"}
+        ),
+        "response_contract": {
+            "output_format": {
+                "type": "object",
+                "required_fields": list(
+                    task_def.get("output", {}).get("properties", {}).keys()
+                ),
+            }
+        },
+    }
+
+    return contract_data
 
 
 def _generate_pydantic_model(
@@ -345,7 +378,6 @@ def _generate_task_function(
     contract_data = _generate_contract_data(
         spec_data, task_def, agent_name, memory_config
     )
-    contract_json = generate_contract(contract_data)
 
     # Create input dict with actual parameter values
     input_dict = {}
@@ -413,10 +445,29 @@ def _generate_task_function(
     output_description = _generate_human_readable_output(task_def.get("output", {}))
     output_description_str = f'"""\n{output_description}\n"""'
 
+    # Format the contract data for the decorator with proper Python values
+    def format_value(v):
+        if isinstance(v, bool):
+            return str(v)
+        elif isinstance(v, (list, tuple)):
+            return f"[{', '.join(format_value(x) for x in v)}]"
+        elif isinstance(v, dict):
+            items = [f'"{k}": {format_value(v)}' for k, v in v.items()]
+            return f"{{{', '.join(items)}}}"
+        elif isinstance(v, str):
+            return f'"{v}"'
+        return str(v)
+
+    contract_str = ",\n    ".join(
+        f"{k}={format_value(v)}" for k, v in contract_data.items()
+    )
+
     return f"""
 {llm_parser}
 
-@behavioural_contract({contract_json})
+@behavioural_contract(
+    {contract_str}
+)
 def {func_name}({", ".join(input_params)}) -> {output_type}:
     {docstring}
     # Define memory configuration
@@ -759,73 +810,42 @@ def generate_prompt_template(output: Path, spec_data: Dict[str, Any]) -> None:
         else:
             # New format - use system and user prompts
             prompts = spec_data.get("prompts", {})
-            if "system" in prompts and "user" in prompts:
-                # Merge system and user prompts with memory support
-                prompt_content = (
-                    "{% if memory_summary %}\n"
-                    "--- MEMORY CONTEXT ---\n"
-                    "{{ memory_summary }}\n"
-                    "------------------------\n"
-                    "{% endif %}\n\n"
-                    "{% if indicators_summary %}\n"
-                    "--- INDICATORS ---\n"
-                    "{{ indicators_summary }}\n"
-                    "------------------\n"
-                    "{% endif %}\n\n"
-                    f"{prompts['system']}\n\n"
-                    f"{prompts['user']}\n\n"
-                    "OUTPUT FORMAT:\n"
-                    "Your response should include the following fields:\n"
-                    f"{human_readable_output}\n\n"
-                    "Respond with a JSON object that exactly matches this structure:\n"
-                    f"{output_schema_json}\n\n"
-                    "CONSTRAINTS:\n"
-                    "- Be clear and specific\n"
-                    "- Focus on actionable insights\n"
-                    "- Maintain professional objectivity\n"
-                    "{% if memory_summary and memory_config.required %}\n"
-                    "- Must reference and incorporate memory context\n"
-                    "{% endif %}"
+            prompt_content = (
+                prompts.get(
+                    "system",
+                    "You are a professional AI agent designed to process tasks according to the Open Agent Spec.\n\n",
                 )
-            else:
-                prompt_content = (
-                    "You are a professional AI agent designed to process tasks according to the Open Agent Spec.\n\n"
-                    "{% if memory_summary %}\n"
-                    "--- MEMORY CONTEXT ---\n"
-                    "{{ memory_summary }}\n"
-                    "------------------------\n"
-                    "{% endif %}\n\n"
-                    "{% if indicators_summary %}\n"
-                    "--- INDICATORS ---\n"
-                    "{{ indicators_summary }}\n"
-                    "------------------\n"
-                    "{% endif %}\n\n"
-                    "TASK:\n"
-                    "Process the following task:\n\n"
-                    "{% for key, value in input.items() %}\n"
-                    "{{ key }}: {{ value }}\n"
-                    "{% endfor %}\n\n"
-                    "INSTRUCTIONS:\n"
-                    "1. Review the input data carefully\n"
-                    "2. Consider all relevant factors\n"
-                    "{% if memory_summary %}\n"
-                    "3. Take into account the provided memory context\n"
-                    "{% endif %}\n"
-                    "4. Provide a clear, actionable response\n"
-                    "5. Explain your reasoning in detail\n\n"
-                    "OUTPUT FORMAT:\n"
-                    "Your response should include the following fields:\n"
-                    f"{human_readable_output}\n\n"
-                    "Respond with a JSON object that exactly matches this structure:\n"
-                    f"{output_schema_json}\n\n"
-                    "CONSTRAINTS:\n"
-                    "- Be clear and specific\n"
-                    "- Focus on actionable insights\n"
-                    "- Maintain professional objectivity\n"
-                    "{% if memory_summary and memory_config.required %}\n"
-                    "- Must reference and incorporate memory context\n"
-                    "{% endif %}"
-                )
+                + "{% if memory_summary %}\n"
+                + "--- MEMORY CONTEXT ---\n"
+                + "{{ memory_summary }}\n"
+                + "------------------------\n"
+                + "{% endif %}\n\n"
+                + "TASK:\n"
+                + "Process the following task:\n\n"
+                + "{% for key, value in input.items() %}\n"
+                + "{{ key }}: {{ value }}\n"
+                + "{% endfor %}\n\n"
+                + "INSTRUCTIONS:\n"
+                + "1. Review the input data carefully\n"
+                + "2. Consider all relevant factors\n"
+                + "{% if memory_summary %}\n"
+                + "3. Take into account the provided memory context\n"
+                + "{% endif %}\n"
+                + "4. Provide a clear, actionable response\n"
+                + "5. Explain your reasoning in detail\n\n"
+                + "OUTPUT FORMAT:\n"
+                + "Your response should include the following fields:\n"
+                + f"{human_readable_output}\n\n"
+                + "Respond with a JSON object that exactly matches this structure:\n"
+                + f"{output_schema_json}\n\n"
+                + "CONSTRAINTS:\n"
+                + "- Be clear and specific\n"
+                + "- Focus on actionable insights\n"
+                + "- Maintain professional objectivity\n"
+                + "{% if memory_summary and memory_config.required %}\n"
+                + "- Must reference and incorporate memory context\n"
+                + "{% endif %}"
+            )
 
         (prompts_dir / template_name).write_text(prompt_content)
-        log.info(f"{template_name} created")
+        log.info(f"Created prompt template: {template_name}")
