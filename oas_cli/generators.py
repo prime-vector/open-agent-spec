@@ -74,26 +74,37 @@ def _generate_contract_data(
     agent_name: str,
     memory_config: Dict[str, Any],
 ) -> Dict[str, Any]:
-    """Generate behavioural contract data."""
+    """Generate behavioural contract data from spec."""
     behavioural_section = spec_data.get("behavioural_contract", {})
     if not behavioural_section:
         return {
+            "version": "0.1.2",
             "description": task_def.get("description", ""),
             "role": agent_name,
+            "behavioural_flags": {
+                "conservatism": "moderate",
+                "verbosity": "compact",
+                "temperature_control": {"mode": "adaptive", "range": [0.2, 0.6]},
+            },
+            "response_contract": {
+                "type": "object",
+                "properties": task_def.get("output", {}).get("properties", {}),
+            },
+            "memory_config": memory_config,
             "policy": {
                 "pii": False,
                 "compliance_tags": [],
                 "allowed_tools": task_def.get("tools", []),
-            },
-            "behavioural_flags": {"conservatism": "moderate", "verbosity": "compact"},
-            "response_contract": {
-                "output_format": {
-                    "type": "object",
-                    "required_fields": list(
-                        task_def.get("output", {}).get("properties", {}).keys()
-                    ),
+                "empty_results": {
+                    "description": "Search results must not be empty",
+                    "threshold": 1,
+                },
+                "repetition": {
+                    "description": "Track repeated identical output",
+                    "threshold": 2,
                 },
             },
+            "teardown_policy": {"strike_limit": 3, "action": "reset_memory"},
         }
 
     # Get policy from spec or use defaults
@@ -102,30 +113,46 @@ def _generate_contract_data(
         "pii": False,
         "compliance_tags": [],
         "allowed_tools": task_def.get("tools", []),
+        "empty_results": {
+            "description": "Search results must not be empty",
+            "threshold": 1,
+        },
+        "repetition": {
+            "description": "Track repeated identical output",
+            "threshold": 2,
+        },
     }
     merged_policy = {**default_policy, **policy}
 
+    # Get teardown policy from spec or use defaults
+    teardown_policy = behavioural_section.get("teardown_policy", {})
+    default_teardown = {"strike_limit": 3, "action": "reset_memory"}
+    merged_teardown = {**default_teardown, **teardown_policy}
+
     # Get behavioural flags from spec or use defaults
     behavioural_flags = behavioural_section.get("behavioural_flags", {})
-    default_flags = {"conservatism": "moderate", "verbosity": "compact"}
+    default_flags = {
+        "conservatism": "moderate",
+        "verbosity": "compact",
+        "temperature_control": {"mode": "adaptive", "range": [0.2, 0.6]},
+    }
     merged_flags = {**default_flags, **behavioural_flags}
 
     # Ensure all required fields are present
     contract_data = {
+        "version": behavioural_section.get("version", "0.1.2"),
         "description": behavioural_section.get(
             "description", task_def.get("description", "")
         ),
-        "role": behavioural_section.get("role", agent_name),
-        "policy": merged_policy,
+        "role": agent_name,
         "behavioural_flags": merged_flags,
         "response_contract": {
-            "output_format": {
-                "type": "object",
-                "required_fields": list(
-                    task_def.get("output", {}).get("properties", {}).keys()
-                ),
-            },
+            "type": "object",
+            "properties": task_def.get("output", {}).get("properties", {}),
         },
+        "memory_config": memory_config,
+        "policy": merged_policy,
+        "teardown_policy": merged_teardown,
     }
 
     return contract_data
@@ -481,7 +508,8 @@ def {func_name}({", ".join(input_params)}) -> {output_type}:
     output_format = {output_description_str}
 
     # Load and render the prompt template
-    env = Environment(loader=FileSystemLoader("prompts"))
+    prompts_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "prompts")
+    env = Environment(loader=FileSystemLoader([".", prompts_dir]))
     try:
         template = env.get_template("{func_name}.jinja2")
     except FileNotFoundError:
@@ -592,6 +620,7 @@ def generate_agent_code(
 import openai
 import json
 import logging
+import os
 from behavioural_contracts import behavioural_contract
 from jinja2 import Environment, FileSystemLoader
 from pydantic import BaseModel
