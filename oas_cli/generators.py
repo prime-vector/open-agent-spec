@@ -92,9 +92,23 @@ def _generate_contract_data(
                     "required_fields": list(
                         task_def.get("output", {}).get("properties", {}).keys()
                     ),
-                }
+                },
             },
         }
+
+    # Get policy from spec or use defaults
+    policy = behavioural_section.get("policy", {})
+    default_policy = {
+        "pii": False,
+        "compliance_tags": [],
+        "allowed_tools": task_def.get("tools", []),
+    }
+    merged_policy = {**default_policy, **policy}
+
+    # Get behavioural flags from spec or use defaults
+    behavioural_flags = behavioural_section.get("behavioural_flags", {})
+    default_flags = {"conservatism": "moderate", "verbosity": "compact"}
+    merged_flags = {**default_flags, **behavioural_flags}
 
     # Ensure all required fields are present
     contract_data = {
@@ -102,25 +116,15 @@ def _generate_contract_data(
             "description", task_def.get("description", "")
         ),
         "role": behavioural_section.get("role", agent_name),
-        "policy": {
-            "pii": behavioural_section.get("policy", {}).get("pii", False),
-            "compliance_tags": behavioural_section.get("policy", {}).get(
-                "compliance_tags", []
-            ),
-            "allowed_tools": behavioural_section.get("policy", {}).get(
-                "allowed_tools", task_def.get("tools", [])
-            ),
-        },
-        "behavioural_flags": behavioural_section.get(
-            "behavioural_flags", {"conservatism": "moderate", "verbosity": "compact"}
-        ),
+        "policy": merged_policy,
+        "behavioural_flags": merged_flags,
         "response_contract": {
             "output_format": {
                 "type": "object",
                 "required_fields": list(
                     task_def.get("output", {}).get("properties", {}).keys()
                 ),
-            }
+            },
         },
     }
 
