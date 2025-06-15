@@ -460,7 +460,6 @@ def _generate_task_function(
         if param != "memory_summary: str = ''":
             param_name = param.split(":")[0]
             prompt_render_params.append(f"{param_name}={param_name}")
-    prompt_render_str = ",\n        ".join(prompt_render_params)
 
     # Define memory configuration with proper Python boolean values
     memory_config_str = f"""{{
@@ -511,14 +510,19 @@ def {func_name}({", ".join(input_params)}) -> {output_type}:
     prompts_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "prompts")
     env = Environment(loader=FileSystemLoader([".", prompts_dir]))
     try:
-        template = env.get_template("{func_name}.jinja2")
+        template = env.get_template(f"{func_name}.jinja2")
     except FileNotFoundError:
         log.warning(f"Task-specific prompt template not found, using default template")
         template = env.get_template("agent_prompt.jinja2")
 
+    # Create input dictionary for template
+    input_dict = {{
+        {", ".join(f'"{param.split(":")[0]}": {param.split(":")[0]}' for param in input_params if param != "memory_summary: str = ''")}
+    }}
+
     # Render the prompt with all necessary context
     prompt = template.render(
-        {prompt_render_str},
+        input=input_dict,
         memory_summary={memory_summary_str},
         output_format=output_format,
         memory_config=memory_config
@@ -621,9 +625,12 @@ import openai
 import json
 import logging
 import os
+from dotenv import load_dotenv
 from behavioural_contracts import behavioural_contract
 from jinja2 import Environment, FileSystemLoader
 from pydantic import BaseModel
+
+load_dotenv()
 
 log = logging.getLogger(__name__)
 
@@ -827,7 +834,7 @@ def generate_prompt_template(output: Path, spec_data: Dict[str, Any]) -> None:
 
     # Generate task-specific templates
     for task_name, task_def in spec_data.get("tasks", {}).items():
-        template_name = f"{task_name.replace('-', '_')}.jinja2"
+        template_name = f"{task_name}.jinja2"
         if (prompts_dir / template_name).exists():
             log.warning(f"{template_name} already exists and will be overwritten")
 
@@ -882,3 +889,47 @@ def generate_prompt_template(output: Path, spec_data: Dict[str, Any]) -> None:
 
         (prompts_dir / template_name).write_text(prompt_content)
         log.info(f"Created prompt template: {template_name}")
+
+    # Generate default template
+    default_template = prompts_dir / "agent_prompt.jinja2"
+    if default_template.exists():
+        log.warning("agent_prompt.jinja2 already exists and will be overwritten")
+
+    default_content = """You are a professional AI agent designed to process tasks according to the Open Agent Spec.
+
+{% if memory_summary %}
+--- MEMORY CONTEXT ---
+{{ memory_summary }}
+------------------------
+{% endif %}
+
+TASK:
+Process the following task:
+
+{% for key, value in input.items() %}
+{{ key }}: {{ value }}
+{% endfor %}
+
+INSTRUCTIONS:
+1. Review the input data carefully
+2. Consider all relevant factors
+{% if memory_summary %}
+3. Take into account the provided memory context
+{% endif %}
+4. Provide a clear, actionable response
+5. Explain your reasoning in detail
+
+OUTPUT FORMAT:
+Your response should include the following fields:
+{{ output_format }}
+
+CONSTRAINTS:
+- Be clear and specific
+- Focus on actionable insights
+- Maintain professional objectivity
+{% if memory_summary and memory_config.required %}
+- Must reference and incorporate memory context
+{% endif %}"""
+
+    default_template.write_text(default_content)
+    log.info("Created default prompt template: agent_prompt.jinja2")
