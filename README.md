@@ -5,7 +5,7 @@ A command-line tool for generating agent projects based on Open Agent Spec YAML 
 ## Installation
 
 ```bash
-pip install oas-cli
+pip install open-agent-spec
 ```
 
 ## Usage
@@ -72,6 +72,10 @@ pytest
 ```bash
 python -m build
 ```
+
+### Pacakge Installation
+[![PyPI version](https://img.shields.io/pypi/v/open-agent-spec)](https://pypi.org/project/open-agent-spec/)
+[![Python versions](https://img.shields.io/pypi/pyversions/open-agent-spec)](https://pypi.org/project/open-agent-spec/)
 
 ## License
 
