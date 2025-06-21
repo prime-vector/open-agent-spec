@@ -26,8 +26,26 @@ def _validate_behavioural_contract(spec_data: dict) -> None:
     contract = spec_data.get("behavioural_contract", {})
     if not isinstance(contract.get("version"), str):
         raise ValueError("behavioural_contract.version must be a string")
-    if not isinstance(contract.get("policy"), dict):
+    if not isinstance(contract.get("description"), str):
+        raise ValueError("behavioural_contract.description must be a string")
+    if not isinstance(contract.get("role"), str):
+        raise ValueError("behavioural_contract.role must be a string")
+
+    # Optional fields - only validate if present
+    if "behavioural_flags" in contract and not isinstance(
+        contract["behavioural_flags"], dict
+    ):
+        raise ValueError("behavioural_contract.behavioural_flags must be a dictionary")
+    if "response_contract" in contract and not isinstance(
+        contract["response_contract"], dict
+    ):
+        raise ValueError("behavioural_contract.response_contract must be a dictionary")
+    if "policy" in contract and not isinstance(contract["policy"], dict):
         raise ValueError("behavioural_contract.policy must be a dictionary")
+    if "teardown_policy" in contract and not isinstance(
+        contract["teardown_policy"], dict
+    ):
+        raise ValueError("behavioural_contract.teardown_policy must be a dictionary")
 
 
 def _validate_tasks(spec_data: dict) -> None:

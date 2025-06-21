@@ -28,6 +28,8 @@ memory:
 
 behavioural_contract:
   version: "1.1"
+  description: "Financial market analyst agent"
+  role: "smart_analyst"
   policy:
     pii: false
     compliance_tags: ["EU-AI-ACT"]

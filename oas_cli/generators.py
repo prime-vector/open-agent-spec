@@ -76,84 +76,66 @@ def _generate_contract_data(
 ) -> Dict[str, Any]:
     """Generate behavioural contract data from spec."""
     behavioural_section = spec_data.get("behavioural_contract", {})
-    if not behavioural_section:
-        return {
-            "version": "0.1.2",
-            "description": task_def.get("description", ""),
-            "role": agent_name,
-            "behavioural_flags": {
-                "conservatism": "moderate",
-                "verbosity": "compact",
-                "temperature_control": {"mode": "adaptive", "range": [0.2, 0.6]},
-            },
-            "response_contract": {
-                "type": "object",
-                "properties": task_def.get("output", {}).get("properties", {}),
-            },
-            "memory_config": memory_config,
-            "policy": {
-                "pii": False,
-                "compliance_tags": [],
-                "allowed_tools": task_def.get("tools", []),
-                "empty_results": {
-                    "description": "Search results must not be empty",
-                    "threshold": 1,
-                },
-                "repetition": {
-                    "description": "Track repeated identical output",
-                    "threshold": 2,
-                },
-            },
-            "teardown_policy": {"strike_limit": 3, "action": "reset_memory"},
-        }
 
-    # Get policy from spec or use defaults
-    policy = behavioural_section.get("policy", {})
-    default_policy = {
-        "pii": False,
-        "compliance_tags": [],
-        "allowed_tools": task_def.get("tools", []),
-        "empty_results": {
-            "description": "Search results must not be empty",
-            "threshold": 1,
-        },
-        "repetition": {
-            "description": "Track repeated identical output",
-            "threshold": 2,
-        },
-    }
-    merged_policy = {**default_policy, **policy}
-
-    # Get teardown policy from spec or use defaults
-    teardown_policy = behavioural_section.get("teardown_policy", {})
-    default_teardown = {"strike_limit": 3, "action": "reset_memory"}
-    merged_teardown = {**default_teardown, **teardown_policy}
-
-    # Get behavioural flags from spec or use defaults
-    behavioural_flags = behavioural_section.get("behavioural_flags", {})
-    default_flags = {
-        "conservatism": "moderate",
-        "verbosity": "compact",
-        "temperature_control": {"mode": "adaptive", "range": [0.2, 0.6]},
-    }
-    merged_flags = {**default_flags, **behavioural_flags}
-
-    # Ensure all required fields are present
+    # Start with minimal defaults
     contract_data = {
         "version": behavioural_section.get("version", "0.1.2"),
         "description": behavioural_section.get(
             "description", task_def.get("description", "")
         ),
-        "role": agent_name,
-        "behavioural_flags": merged_flags,
-        "response_contract": {
-            "type": "object",
-            "properties": task_def.get("output", {}).get("properties", {}),
-        },
-        "memory_config": memory_config,
-        "policy": merged_policy,
-        "teardown_policy": merged_teardown,
+        "role": behavioural_section.get("role", agent_name),
     }
+
+    # Only add behavioural_flags if specified
+    if behavioural_section.get("behavioural_flags"):
+        contract_data["behavioural_flags"] = behavioural_section["behavioural_flags"]
+
+    # Handle response_contract - be flexible about structure
+    response_contract = behavioural_section.get("response_contract", {})
+    if response_contract:
+        # If response_contract is provided, use it as-is
+        contract_data["response_contract"] = response_contract
+    else:
+        # Only generate default response_contract if output schema exists
+        output_schema = task_def.get("output", {})
+        if output_schema and output_schema.get("properties"):
+            contract_data["response_contract"] = {
+                "output_format": {
+                    "type": "object",
+                    "required_fields": list(output_schema.get("properties", {}).keys()),
+                    "on_failure": {
+                        "action": "return_empty",
+                        "fallback": {
+                            k: []
+                            if isinstance(v, dict) and v.get("type") == "array"
+                            else ""
+                            for k, v in output_schema.get("properties", {}).items()
+                        },
+                        "default_value": {
+                            k: []
+                            if isinstance(v, dict) and v.get("type") == "array"
+                            else ""
+                            for k, v in output_schema.get("properties", {}).items()
+                        },
+                    },
+                },
+                "schema": {
+                    "type": "object",
+                    "properties": output_schema.get("properties", {}),
+                },
+            }
+
+    # Only add memory_config if memory is enabled
+    if memory_config.get("enabled", False):
+        contract_data["memory_config"] = memory_config
+
+    # Only add policy if specified
+    if behavioural_section.get("policy"):
+        contract_data["policy"] = behavioural_section["policy"]
+
+    # Only add teardown_policy if specified
+    if behavioural_section.get("teardown_policy"):
+        contract_data["teardown_policy"] = behavioural_section["teardown_policy"]
 
     return contract_data
 
@@ -617,7 +599,11 @@ def generate_agent_code(
         example_task_code = f"""
     # Example usage with {first_task_name} task
     result = agent.{first_task_name.replace("-", "_")}({example_params})
-    print(json.dumps(result.model_dump(), indent=2))"""
+    # Handle both Pydantic models and dictionaries
+    if hasattr(result, 'model_dump'):
+        print(json.dumps(result.model_dump(), indent=2))
+    else:
+        print(json.dumps(result, indent=2))"""
 
     # Generate the complete agent code
     agent_code = f"""from typing import Dict, Any, List, Optional
@@ -847,8 +833,33 @@ def generate_prompt_template(output: Path, spec_data: Dict[str, Any]) -> None:
         if "prompt" in spec_data and "template" in spec_data["prompt"]:
             # Old format - use the template directly
             prompt_content = spec_data["prompt"]["template"]
-        else:
+        elif "prompts" in spec_data and (
+            spec_data["prompts"].get("system") or spec_data["prompts"].get("user")
+        ):
             # New format - use system and user prompts
+            prompts = spec_data.get("prompts", {})
+            system_prompt = prompts.get(
+                "system",
+                "You are a professional AI agent designed to process tasks according to the Open Agent Spec.\n\n",
+            )
+            user_prompt = prompts.get("user", "")
+
+            # Combine system and user prompts
+            prompt_content = system_prompt
+            if user_prompt:
+                prompt_content += user_prompt
+
+            # Add memory context if not already present
+            if "{% if memory_summary %}" not in prompt_content:
+                prompt_content = (
+                    "{% if memory_summary %}\n"
+                    "--- MEMORY CONTEXT ---\n"
+                    "{{ memory_summary }}\n"
+                    "------------------------\n"
+                    "{% endif %}\n\n"
+                ) + prompt_content
+        else:
+            # Default format - use system and user prompts
             prompts = spec_data.get("prompts", {})
             prompt_content = (
                 prompts.get(
