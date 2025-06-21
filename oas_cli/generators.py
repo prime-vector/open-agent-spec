@@ -106,15 +106,19 @@ def _generate_contract_data(
                     "on_failure": {
                         "action": "return_empty",
                         "fallback": {
-                            k: []
-                            if isinstance(v, dict) and v.get("type") == "array"
-                            else ""
+                            k: (
+                                []
+                                if isinstance(v, dict) and v.get("type") == "array"
+                                else ""
+                            )
                             for k, v in output_schema.get("properties", {}).items()
                         },
                         "default_value": {
-                            k: []
-                            if isinstance(v, dict) and v.get("type") == "array"
-                            else ""
+                            k: (
+                                []
+                                if isinstance(v, dict) and v.get("type") == "array"
+                                else ""
+                            )
                             for k, v in output_schema.get("properties", {}).items()
                         },
                     },
@@ -566,17 +570,20 @@ def generate_agent_code(
             for param in _generate_input_params(task_def)
             if param != "memory_summary: str = ''"
         ]
-        class_methods.append(f'''
+        class_methods.append(
+            f'''
     def {task_name.replace("-", "_")}(self, {", ".join(input_params_without_memory)}) -> {model_name}:
         """Process {task_name} task."""
         memory_summary = self.get_memory() if hasattr(self, 'get_memory') else ""
         return {task_name.replace("-", "_")}({", ".join(input_params_without_memory)}, memory_summary=memory_summary)
-''')
+'''
+        )
 
     # Generate memory-related methods if memory is enabled
     memory_methods = []
     if memory_config["enabled"]:
-        memory_methods.append('''
+        memory_methods.append(
+            '''
     def get_memory(self) -> str:
         """Get memory for the current context.
 
@@ -587,7 +594,8 @@ def generate_agent_code(
             str: Memory string in the format specified by the spec
         """
         return ""  # Implement your memory retrieval logic here
-''')
+'''
+        )
 
     # Generate example task execution code
     example_task_code = ""
