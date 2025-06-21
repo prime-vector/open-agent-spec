@@ -449,11 +449,11 @@ def _generate_task_function(
 
     # Define memory configuration with proper Python boolean values
     memory_config_str = f"""{{
-        "enabled": {repr(memory_config['enabled'])},
-        "format": "{memory_config['format']}",
-        "usage": "{memory_config['usage']}",
-        "required": {repr(memory_config['required'])},
-        "description": "{memory_config['description']}"
+        "enabled": {repr(memory_config["enabled"])},
+        "format": "{memory_config["format"]}",
+        "usage": "{memory_config["usage"]}",
+        "required": {repr(memory_config["required"])},
+        "description": "{memory_config["description"]}"
     }}"""
     memory_summary_str = "memory_summary if memory_config['enabled'] else ''"
 
