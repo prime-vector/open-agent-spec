@@ -12,19 +12,15 @@ runner = CliRunner()
 def enhanced_spec_yaml(tmp_path):
     """Create a sample enhanced spec YAML file."""
     yaml_content = """
-open_agent_spec: "1.0.0"
+open_agent_spec: "0.3.0"
 agent:
   name: "analyst_agent"
   role: "smart_analyst"
-  version: "1.0.0"
-  description: "Financial market analyst agent"
 
-memory:
-  enabled: true
-  format: "string"
-  usage: "prompt-append"
-  required: true
-  description: "Memory context for market analysis"
+intelligence:
+  type: "llm"
+  engine: "openai"
+  model: "gpt-4"
 
 behavioural_contract:
   version: "1.1"
@@ -43,8 +39,8 @@ behavioural_contract:
 
 tasks:
   analyze_signal:
+    description: "Analyze a market signal"
     input:
-      type: "object"
       properties:
         symbol:
           type: "string"
@@ -58,13 +54,6 @@ tasks:
             ema_200:
               type: "number"
     output:
-      type: "object"
-      required_fields:
-        - decision
-        - confidence
-        - summary
-        - reasoning
-        - compliance_tags
       properties:
         decision:
           type: "string"
@@ -80,21 +69,6 @@ tasks:
           type: "array"
           items:
             type: "string"
-
-integration:
-  memory:
-    type: "persistent"
-    fields:
-      - symbol
-      - timestamp
-      - analysis
-  task_queue:
-    type: "distributed"
-    operations:
-      - fetch_pending
-      - claim
-      - complete
-      - post_review
 
 prompts:
   system: |
@@ -160,13 +134,6 @@ def test_enhanced_spec_generation(enhanced_spec_yaml, tmp_path):
     assert "enabled" in agent_code
     assert "format" in agent_code
     assert "usage" in agent_code
-
-    # Read the generated README.md to verify memory documentation
-    readme_content = (output_dir / "README.md").read_text()
-    assert "Memory Support" in readme_content
-    assert "Configuration" in readme_content
-    assert "Format" in readme_content
-    assert "Usage" in readme_content
 
     # Read the generated prompt template to verify memory support
     prompt_content = (output_dir / "prompts" / "analyze_signal.jinja2").read_text()

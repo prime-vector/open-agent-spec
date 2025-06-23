@@ -1,6 +1,13 @@
 """Validation functions for Open Agent Spec."""
 
 from typing import Tuple
+import json
+import logging
+
+from jsonschema import validate
+from jsonschema.exceptions import SchemaError, ValidationError
+
+log = logging.getLogger(__name__)
 
 
 def _validate_version(spec_data: dict) -> None:
@@ -89,6 +96,28 @@ def _generate_names(agent: dict) -> Tuple[str, str]:
         else base_class_name + "Agent"
     )
     return agent_name, class_name
+
+
+def validate_with_json_schema(spec_data: dict, schema_path: str) -> None:
+    """Validate spec data against a JSON schema."""
+    try:
+        with open(schema_path) as f:
+            schema = json.load(f)
+    except FileNotFoundError:
+        log.warning(
+            f"Schema file not found at {schema_path}, skipping schema validation."
+        )
+        return
+    except json.JSONDecodeError:
+        log.warning(
+            f"Invalid JSON in schema file at {schema_path}, skipping schema validation."
+        )
+        return
+
+    try:
+        validate(instance=spec_data, schema=schema)
+    except (ValidationError, SchemaError) as e:
+        raise ValueError(f"Spec validation failed: {e.message}")
 
 
 def validate_spec(spec_data: dict) -> Tuple[str, str]:
