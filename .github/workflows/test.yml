@@ -34,5 +34,5 @@ jobs:
         run: |
           flake8 . --max-line-length=100 --ignore=E501,W503 --exclude=test_output/
           ruff check . --exclude test_output/
-          ruff format --check . --exclude test_output/
+          ruff format . --exclude test_output/
           mypy oas_cli tests

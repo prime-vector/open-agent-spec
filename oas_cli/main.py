@@ -97,9 +97,11 @@ def resolve_spec_path(
     elif template == "minimal":
         # Load the template from the package resources
         try:
-            with pkg_resources.files("oas_cli.templates").joinpath(
-                "minimal-agent.yaml"
-            ).open("rb") as f:
+            with (
+                pkg_resources.files("oas_cli.templates")
+                .joinpath("minimal-agent.yaml")
+                .open("rb")
+            ) as f:
                 temp = tempfile.NamedTemporaryFile(delete=False, suffix=".yaml")
                 temp.write(f.read())
                 temp.close()
