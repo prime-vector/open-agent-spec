@@ -18,7 +18,7 @@ from .generators import (
     generate_readme,
     generate_requirements,
 )
-from .validators import validate_spec
+from .validators import validate_spec, validate_with_json_schema
 
 app = typer.Typer(help="Open Agent Spec (OAS) CLI")
 console = Console()
@@ -77,11 +77,15 @@ def load_and_validate_spec(
         with open(spec_path) as f:
             spec_data = yaml.safe_load(f)
         log.info("Spec file loaded successfully")
-    except yaml.YAMLError as err:
+    except (yaml.YAMLError, FileNotFoundError) as err:
         log.error(f"Error reading spec file: {err}")
-        raise ValueError("Invalid YAML format") from err
+        raise ValueError("Invalid YAML format or file not found") from err
 
     try:
+        # Get the path to the schema file relative to the main.py file
+        schema_path = Path(__file__).parent / "schemas" / "oas-schema.json"
+        validate_with_json_schema(spec_data, str(schema_path))
+
         agent_name, class_name = validate_spec(spec_data)
         return spec_data, agent_name, class_name
     except ValueError as err:

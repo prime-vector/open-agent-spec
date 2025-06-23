@@ -17,7 +17,8 @@ dependencies = [
     "openai>=1.0.0",
     "behavioural-contracts==0.1.1",
     "jinja2>=3.0.0",
-    "setuptools>=69.0.0"
+    "setuptools>=69.0.0",
+    "jsonschema>=4.0.0"
 ]
 
 [project.optional-dependencies]
@@ -35,6 +36,7 @@ dev = [
     "types-PyYAML>=6.0.0",
     "types-setuptools>=69.0.0",
     "types-toml>=0.10.0",
+    "types-jsonschema"
 ]
 
 [project.scripts]
@@ -42,7 +44,7 @@ oas = "oas_cli.main:app"
 
 [tool.hatch.build.targets.wheel]
 packages = ["oas_cli"]
-include = ["oas_cli/templates/*.yaml"]
+include = ["oas_cli/templates/*.yaml", "oas_cli/schemas/*.json"]
 
 [tool.hatch.metadata]
 allow-direct-references = true
