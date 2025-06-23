@@ -7,6 +7,8 @@ from pkg_resources import get_distribution
 from rich.console import Console
 from rich.logging import RichHandler
 from rich.panel import Panel
+import importlib.resources as pkg_resources
+import tempfile
 
 from .banner import ASCII_TITLE
 from .generators import (
@@ -87,6 +89,31 @@ def load_and_validate_spec(
         raise ValueError(f"Invalid spec: {err}") from err
 
 
+def resolve_spec_path(
+    spec: Path | None, template: str | None, log: logging.Logger
+) -> Path:
+    if spec is not None:
+        return spec
+    elif template == "minimal":
+        # Load the template from the package resources
+        try:
+            with (
+                pkg_resources.files("oas_cli.templates")
+                .joinpath("minimal-agent.yaml")
+                .open("rb")
+            ) as f:
+                temp = tempfile.NamedTemporaryFile(delete=False, suffix=".yaml")
+                temp.write(f.read())
+                temp.close()
+                return Path(temp.name)
+        except Exception as e:
+            log.error(f"Failed to load minimal template from package: {e}")
+            raise typer.Exit(1)
+    else:
+        log.error("You must provide either --spec or --template minimal.")
+        raise typer.Exit(1)
+
+
 def generate_files(
     output: Path, spec_data: dict, agent_name: str, class_name: str, log: logging.Logger
 ) -> None:
@@ -124,8 +151,9 @@ def version():
 
 @app.command()
 def init(
-    spec: Path = typer.Option(..., help="Path to Open Agent Spec YAML file"),
+    spec: Path = typer.Option(None, help="Path to Open Agent Spec YAML file"),
     output: Path = typer.Option(..., help="Directory to scaffold the agent into"),
+    template: str = typer.Option(None, help="Template name to use (e.g., 'minimal')"),
     verbose: bool = typer.Option(
         False, "--verbose", "-v", help="Enable verbose logging"
     ),
@@ -146,7 +174,9 @@ def init(
         )
     )
 
-    spec_data, agent_name, class_name = load_and_validate_spec(spec, log)
+    # Determine which spec to use
+    spec_path = resolve_spec_path(spec, template, log)
+    spec_data, agent_name, class_name = load_and_validate_spec(spec_path, log)
 
     if dry_run:
         console.print(

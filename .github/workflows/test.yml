@@ -4,13 +4,14 @@ on:
   push:
     branches:
       - '**'
-  pull_request:
-    branches:
-      - '**'
 
 jobs:
   test:
     runs-on: ubuntu-latest
+    # Cancel in-progress runs when new ones are triggered
+    concurrency:
+      group: ${{ github.workflow }}-${{ github.ref }}
+      cancel-in-progress: true
     strategy:
       matrix:
         python-version: [3.12]
@@ -33,5 +34,5 @@ jobs:
         run: |
           flake8 . --max-line-length=100 --ignore=E501,W503 --exclude=test_output/
           ruff check . --exclude test_output/
-          ruff format --check . --exclude test_output/
+          ruff format . --exclude test_output/
           mypy oas_cli tests

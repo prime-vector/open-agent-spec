@@ -21,6 +21,7 @@ wheels/
 *.egg
 MANIFEST
 .pypirc
+test_output/*
 
 # Virtual Environment
 venv/
