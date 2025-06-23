@@ -36,6 +36,7 @@ dev = [
     "types-PyYAML>=6.0.0",
     "types-setuptools>=69.0.0",
     "types-toml>=0.10.0",
+    "types-jsonschema"
 ]
 
 [project.scripts]
