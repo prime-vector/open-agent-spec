@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "open-agent-spec"
-version = "1.0.0"
+version = "1.0.2"
 description = "Open Agent Spec CLI for bootstrapping AI agent projects"
 authors = [{ name = "Andrew Whitehouse", email = "andrewswhitehouse@gmail.com" }]
 license = { text = "AGPL-3.0-only" }
@@ -15,7 +15,7 @@ dependencies = [
     "pyyaml",
     "rich",
     "openai>=1.0.0",
-    "behavioural-contracts==0.1.4",
+    "behavioural-contracts==0.1.1",
     "jinja2>=3.0.0",
     "setuptools>=69.0.0"
 ]
