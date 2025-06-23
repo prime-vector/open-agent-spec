@@ -21,6 +21,10 @@ oas init --spec path/to/spec.yaml --output path/to/output
 # Preview what would be created without writing files
 oas init --spec path/to/spec.yaml --output path/to/output --dry-run
 
+# Create a base working agent with minimal spec
+oas init --template minimal --output path/to/output
+```
+
 # Enable verbose logging
 oas init --spec path/to/spec.yaml --output path/to/output --verbose
 ```
@@ -29,16 +33,53 @@ oas init --spec path/to/spec.yaml --output path/to/output --verbose
 The spec file should be in YAML format with the following structure:
 
 ```yaml
-info:
-  name: my-agent
-  description: A fantastic agent that changes the world
+open_agent_spec: 1.0.4
+
+agent:
+  name: hello-world-agent
+  role: Responds with a greeting
 
 intelligence:
-  endpoint: https://api.openai.com/v1
+  type: llm
+  engine: openai
   model: gpt-4
-  config:
-    temperature: 0.7
-    max_tokens: 1000
+
+tasks:
+  greet:
+    description: Say hello
+    input:
+      properties:
+        name:
+          type: string
+    output:
+      properties:
+        response:
+          type: string
+
+prompts:
+  system: >
+    You are a friendly agent that greets people by name.
+    Respond with: "Hello <name>!"
+  user: "{{name}}"
+
+behavioural_contract:
+  version: "0.1.2"
+  description: "Simple contract requiring a greeting response"
+  role: "Friendly agent"
+  behavioural_flags:
+    conservatism: "moderate"
+    verbosity: "compact"
+  response_contract:
+    output_format:
+      required_fields: [response]
+
+interface:
+  cli:
+    enabled: true
+    arguments:
+      - name: name
+        type: string
+        required: true
 ```
 
 ### Generated Project Structure
@@ -75,7 +116,6 @@ python -m build
 
 ### Pacakge Installation
 [![PyPI version](https://img.shields.io/pypi/v/open-agent-spec)](https://pypi.org/project/open-agent-spec/)
-[![Python versions](https://img.shields.io/pypi/pyversions/open-agent-spec)](https://pypi.org/project/open-agent-spec/)
 
 ## License
 
