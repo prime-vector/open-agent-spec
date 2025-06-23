@@ -42,6 +42,7 @@ oas = "oas_cli.main:app"
 
 [tool.hatch.build.targets.wheel]
 packages = ["oas_cli"]
+include = ["oas_cli/templates/*.yaml"]
 
 [tool.hatch.metadata]
 allow-direct-references = true

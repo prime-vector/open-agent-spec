@@ -1,0 +1,47 @@
+open_agent_spec: 0.3.0
+
+agent:
+  name: hello-world-agent
+  role: Responds with a greeting
+
+intelligence:
+  type: llm
+  engine: openai
+  model: gpt-4
+
+tasks:
+  greet:
+    description: Say hello
+    input:
+      properties:
+        name:
+          type: string
+    output:
+      properties:
+        response:
+          type: string
+
+prompts:
+  system: >
+    You are a friendly agent that greets people by name.
+    Respond with: "Hello <name>!"
+  user: "{{name}}"
+
+behavioural_contract:
+  version: "0.1.2"
+  description: "Simple contract requiring a greeting response"
+  role: "Friendly agent"
+  behavioural_flags:
+    conservatism: "moderate"
+    verbosity: "compact"
+  response_contract:
+    output_format:
+      required_fields: [response]
+
+interface:
+  cli:
+    enabled: true
+    arguments:
+      - name: name
+        type: string
+        required: true

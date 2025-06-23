@@ -1,6 +1,5 @@
 """File generation functions for Open Agent Spec."""
 
-import json
 import logging
 from pathlib import Path
 from typing import Any, Dict, List
@@ -834,8 +833,33 @@ def generate_prompt_template(output: Path, spec_data: Dict[str, Any]) -> None:
 
         # Get the output schema
         output_schema = task_def.get("output", {})
-        output_schema_json = json.dumps(output_schema, indent=2)
         human_readable_output = _generate_human_readable_output(output_schema)
+
+        # Prepare example JSON for the output
+        # Use the output schema's properties to generate an example
+        example_json_lines = []
+        if output_schema.get("properties"):
+            example_json_lines.append("{")
+            for i, (k, v) in enumerate(output_schema["properties"].items()):
+                comma = "," if i < len(output_schema["properties"]) - 1 else ""
+                # For the example, use a meaningful value based on the field name
+                if k == "response":
+                    # If there's a 'name' input, use it in the response
+                    input_props = task_def.get("input", {}).get("properties", {})
+                    if "name" in input_props:
+                        example_json_lines.append(
+                            f'  "{k}": "Hello {{{{ input.name }}}}!"{comma}'
+                        )
+                    else:
+                        example_json_lines.append(
+                            f'  "{k}": "Your response here"{comma}'
+                        )
+                else:
+                    example_json_lines.append(f'  "{k}": "{{{{ input.{k} }}}}"{comma}')
+            example_json_lines.append("}")
+        else:
+            example_json_lines.append("{}")
+        example_json = "\n".join(example_json_lines)
 
         # Handle both old and new prompt formats
         if "prompt" in spec_data and "template" in spec_data["prompt"]:
@@ -895,16 +919,13 @@ def generate_prompt_template(output: Path, spec_data: Dict[str, Any]) -> None:
                 + "OUTPUT FORMAT:\n"
                 + "Your response should include the following fields:\n"
                 + f"{human_readable_output}\n\n"
-                + "Respond with a JSON object that exactly matches this structure:\n"
-                + f"{output_schema_json}\n\n"
-                + "CONSTRAINTS:\n"
-                + "- Be clear and specific\n"
-                + "- Focus on actionable insights\n"
-                + "- Maintain professional objectivity\n"
-                + "{% if memory_summary and memory_config.required %}\n"
-                + "- Must reference and incorporate memory context\n"
-                + "{% endif %}"
             )
+
+        # Always append the JSON schema instruction and example
+        prompt_content += (
+            "\nRespond ONLY with a JSON object like this (replace the value appropriately):\n"
+            f"{example_json}\n"
+        )
 
         (prompts_dir / template_name).write_text(prompt_content)
         log.info(f"Created prompt template: {template_name}")
