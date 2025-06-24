@@ -1,16 +1,15 @@
-name: Push Tests
+name: Feature Branch Tests
 
 on:
   push:
     branches:
-      - main
-      - develop
+      - 'feature/**'
 
 jobs:
   test:
     runs-on: ubuntu-latest
     concurrency:
-      group: push-test-${{ github.ref }}
+      group: feature-test-${{ github.ref }}
       cancel-in-progress: true
     strategy:
       matrix:

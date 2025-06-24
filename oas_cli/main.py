@@ -90,6 +90,7 @@ def load_and_validate_spec(
         return spec_data, agent_name, class_name
     except ValueError as err:
         log.error(str(err))
+        typer.echo(str(err), err=True)
         raise ValueError(f"Invalid spec: {err}") from err
 
 

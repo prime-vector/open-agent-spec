@@ -25,11 +25,12 @@ oas init --spec path/to/spec.yaml --output path/to/output --dry-run
 oas init --template minimal --output path/to/output
 ```
 
-# Enable verbose logging
+### Enable Verbose Logging
+```
 oas init --spec path/to/spec.yaml --output path/to/output --verbose
 ```
 
-### Spec File Format
+## Spec File Format
 The spec file should be in YAML format with the following structure:
 
 ```yaml
@@ -37,24 +38,39 @@ open_agent_spec: 1.0.4
 
 agent:
   name: hello-world-agent
-  role: Responds with a greeting
+  description: A simple agent that responds with a greeting
+  role: chat
 
 intelligence:
   type: llm
   engine: openai
   model: gpt-4
+  endpoint: https://api.openai.com/v1
+  config:
+    temperature: 0.7
+    max_tokens: 150
 
 tasks:
   greet:
-    description: Say hello
+    description: Say hello to a person by name
+    timeout: 30
     input:
+      type: object
       properties:
         name:
           type: string
+          description: The name of the person to greet
+          minLength: 1
+          maxLength: 100
+      required: [name]
     output:
+      type: object
       properties:
         response:
           type: string
+          description: The greeting response
+          minLength: 1
+      required: [response]
 
 prompts:
   system: >
