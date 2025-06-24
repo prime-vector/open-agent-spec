@@ -14,8 +14,8 @@
     "properties": {
       "open_agent_spec": {
         "type": "string",
-        "pattern": "^0\\.3\\.0$",
-        "description": "Version of the Open Agent Spec"
+        "pattern": "^(1\\.(0\\.[4-9]|[1-9]\\.[0-9]+)|[2-9]\\.[0-9]+\\.[0-9]+)$",
+        "description": "Version of the Open Agent Spec (minimum 1.0.4)"
       },
       "agent": {
         "type": "object",

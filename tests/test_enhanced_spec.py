@@ -12,7 +12,7 @@ runner = CliRunner()
 def enhanced_spec_yaml(tmp_path):
     """Create a sample enhanced spec YAML file."""
     yaml_content = """
-open_agent_spec: "0.3.0"
+open_agent_spec: "1.0.4"
 agent:
   name: "analyst_agent"
   role: "smart_analyst"
@@ -141,3 +141,113 @@ def test_enhanced_spec_generation(enhanced_spec_yaml, tmp_path):
     assert "{{ memory_summary }}" in prompt_content
     assert "You are a financial analyst agent" in prompt_content
     assert "Here's the latest signal data:" in prompt_content
+
+
+def test_schema_version(enhanced_spec_yaml):
+    """Test that schema version validation works correctly."""
+    # Test valid versions
+    valid_versions = ["1.0.4", "1.0.5", "1.1.0", "1.2.0", "2.0.0", "2.1.0"]
+
+    for version in valid_versions:
+        # Create a minimal valid spec with the test version
+        yaml_content = f"""
+open_agent_spec: "{version}"
+agent:
+  name: "test_agent"
+  role: "test_role"
+intelligence:
+  type: "llm"
+  engine: "openai"
+  model: "gpt-4"
+tasks:
+  greet:
+    description: Test description
+    input:
+      properties:
+        name:
+          type: string
+    output:
+      properties:
+        response:
+          type: string
+prompts:
+  system: "You are a test agent."
+  user: "Test input"
+behavioural_contract:
+  version: "0.1.2"
+  description: "Simple test contract"
+  role: "Friendly agent"
+  behavioural_flags:
+    conservatism: "moderate"
+    verbosity: "compact"
+  response_contract:
+    output_format:
+      required_fields: [response]
+"""
+        spec_file = (
+            enhanced_spec_yaml.parent / f"valid_spec_{version.replace('.', '_')}.yaml"
+        )
+        spec_file.write_text(yaml_content)
+
+        # Should pass validation
+        result = runner.invoke(
+            app,
+            ["init", "--spec", str(spec_file), "--output", "test_output", "--dry-run"],
+        )
+        assert (
+            result.exit_code == 0
+        ), f"Version {version} should be valid but failed: {result.stdout}"
+
+    # Test invalid versions
+    invalid_versions = ["1.0.0", "1.0.1", "1.0.2", "1.0.3", "0.3.0", "0.4.0"]
+
+    for version in invalid_versions:
+        # Create a minimal spec with the invalid version
+        yaml_content = f"""
+open_agent_spec: "{version}"
+agent:
+  name: "test_agent"
+  role: "test_role"
+intelligence:
+  type: "llm"
+  engine: "openai"
+  model: "gpt-4"
+tasks:
+  greet:
+    description: Test description
+    input:
+      properties:
+        name:
+          type: string
+    output:
+      properties:
+        response:
+          type: string
+prompts:
+  system: "You are a test agent."
+  user: "Test input"
+behavioural_contract:
+  version: "0.1.2"
+  description: "Simple test contract"
+  role: "Friendly agent"
+  behavioural_flags:
+    conservatism: "moderate"
+    verbosity: "compact"
+  response_contract:
+    output_format:
+      required_fields: [response]
+"""
+        spec_file = (
+            enhanced_spec_yaml.parent / f"invalid_spec_{version.replace('.', '_')}.yaml"
+        )
+        spec_file.write_text(yaml_content)
+
+        # Should fail validation
+        result = runner.invoke(
+            app,
+            ["init", "--spec", str(spec_file), "--output", "test_output", "--dry-run"],
+        )
+        assert result.exit_code != 0, f"Version {version} should be invalid but passed"
+        assert (
+            "Spec validation failed" in result.output
+        ), f"Version {version} should show validation error"

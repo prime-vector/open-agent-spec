@@ -1,4 +1,4 @@
-open_agent_spec: 0.3.0
+open_agent_spec: 1.0.4
 
 agent:
   name: hello-world-agent
