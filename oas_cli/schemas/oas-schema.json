@@ -23,13 +23,26 @@
           "name": {
             "type": "string"
           },
+          "description": {
+            "type": "string",
+            "description": "Free text description of what the agent does"
+          },
           "role": {
-            "type": "string"
+            "type": "string",
+            "enum": [
+              "analyst",
+              "reviewer",
+              "chat",
+              "retriever",
+              "planner",
+              "executor"
+            ],
+            "description": "Optional role type for the agent"
           }
         },
         "required": [
           "name",
-          "role"
+          "description"
         ]
       },
       "intelligence": {
@@ -39,16 +52,59 @@
             "type": "string",
             "enum": [
               "llm"
-            ]
+            ],
+            "description": "Type of intelligence (currently only LLM supported)"
           },
           "engine": {
             "type": "string",
             "enum": [
               "openai"
-            ]
+            ],
+            "description": "LLM engine provider"
           },
           "model": {
-            "type": "string"
+            "type": "string",
+            "description": "Model name/identifier"
+          },
+          "endpoint": {
+            "type": "string",
+            "pattern": "^(https?://)[^\\s]+$",
+            "description": "API endpoint URL for the LLM service (must be HTTP/HTTPS)"
+          },
+          "config": {
+            "type": "object",
+            "properties": {
+              "temperature": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 2,
+                "description": "Sampling temperature (0-2)"
+              },
+              "max_tokens": {
+                "type": "integer",
+                "minimum": 1,
+                "description": "Maximum number of tokens to generate"
+              },
+              "top_p": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 1,
+                "description": "Nucleus sampling parameter (0-1)"
+              },
+              "frequency_penalty": {
+                "type": "number",
+                "minimum": -2,
+                "maximum": 2,
+                "description": "Frequency penalty (-2 to 2)"
+              },
+              "presence_penalty": {
+                "type": "number",
+                "minimum": -2,
+                "maximum": 2,
+                "description": "Presence penalty (-2 to 2)"
+              }
+            },
+            "description": "Configuration parameters for the LLM"
           }
         },
         "required": [
@@ -64,23 +120,169 @@
             "type": "object",
             "properties": {
               "description": {
-                "type": "string"
+                "type": "string",
+                "description": "Description of what this task does"
+              },
+              "timeout": {
+                "type": "integer",
+                "minimum": 1,
+                "description": "Timeout in seconds for this task"
               },
               "input": {
                 "type": "object",
                 "properties": {
+                  "type": {
+                    "type": "string",
+                    "enum": ["object"],
+                    "default": "object",
+                    "description": "Type of input (currently only object supported)"
+                  },
                   "properties": {
-                    "type": "object"
+                    "type": "object",
+                    "patternProperties": {
+                      "^[a-zA-Z_][a-zA-Z0-9_]*$": {
+                        "type": "object",
+                        "properties": {
+                          "type": {
+                            "type": "string",
+                            "enum": ["string", "number", "integer", "boolean", "array", "object"],
+                            "description": "JSON Schema type for this property"
+                          },
+                          "description": {
+                            "type": "string",
+                            "description": "Description of this input property"
+                          },
+                          "default": {
+                            "description": "Default value for this property"
+                          },
+                          "enum": {
+                            "type": "array",
+                            "description": "Allowed values for this property"
+                          },
+                          "minimum": {
+                            "type": "number",
+                            "description": "Minimum value for numeric properties"
+                          },
+                          "maximum": {
+                            "type": "number",
+                            "description": "Maximum value for numeric properties"
+                          },
+                          "minLength": {
+                            "type": "integer",
+                            "minimum": 0,
+                            "description": "Minimum length for string properties"
+                          },
+                          "maxLength": {
+                            "type": "integer",
+                            "minimum": 0,
+                            "description": "Maximum length for string properties"
+                          },
+                          "pattern": {
+                            "type": "string",
+                            "description": "Regex pattern for string validation"
+                          },
+                          "items": {
+                            "type": "object",
+                            "description": "Schema for array items"
+                          },
+                          "properties": {
+                            "type": "object",
+                            "description": "Properties for object type"
+                          }
+                        },
+                        "required": ["type"]
+                      }
+                    },
+                    "additionalProperties": false,
+                    "description": "Input properties schema"
+                  },
+                  "required": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    },
+                    "description": "List of required input properties"
                   }
-                }
+                },
+                "description": "Input schema for this task"
               },
               "output": {
                 "type": "object",
                 "properties": {
+                  "type": {
+                    "type": "string",
+                    "enum": ["object"],
+                    "default": "object",
+                    "description": "Type of output (currently only object supported)"
+                  },
                   "properties": {
-                    "type": "object"
+                    "type": "object",
+                    "patternProperties": {
+                      "^[a-zA-Z_][a-zA-Z0-9_]*$": {
+                        "type": "object",
+                        "properties": {
+                          "type": {
+                            "type": "string",
+                            "enum": ["string", "number", "integer", "boolean", "array", "object"],
+                            "description": "JSON Schema type for this property"
+                          },
+                          "description": {
+                            "type": "string",
+                            "description": "Description of this output property"
+                          },
+                          "default": {
+                            "description": "Default value for this property"
+                          },
+                          "enum": {
+                            "type": "array",
+                            "description": "Allowed values for this property"
+                          },
+                          "minimum": {
+                            "type": "number",
+                            "description": "Minimum value for numeric properties"
+                          },
+                          "maximum": {
+                            "type": "number",
+                            "description": "Maximum value for numeric properties"
+                          },
+                          "minLength": {
+                            "type": "integer",
+                            "minimum": 0,
+                            "description": "Minimum length for string properties"
+                          },
+                          "maxLength": {
+                            "type": "integer",
+                            "minimum": 0,
+                            "description": "Maximum length for string properties"
+                          },
+                          "pattern": {
+                            "type": "string",
+                            "description": "Regex pattern for string validation"
+                          },
+                          "items": {
+                            "type": "object",
+                            "description": "Schema for array items"
+                          },
+                          "properties": {
+                            "type": "object",
+                            "description": "Properties for object type"
+                          }
+                        },
+                        "required": ["type"]
+                      }
+                    },
+                    "additionalProperties": false,
+                    "description": "Output properties schema"
+                  },
+                  "required": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    },
+                    "description": "List of required output properties"
                   }
-                }
+                },
+                "description": "Output schema for this task"
               }
             },
             "required": [
@@ -88,7 +290,8 @@
               "output"
             ]
           }
-        }
+        },
+        "description": "Tasks that this agent can perform"
       },
       "prompts": {
         "type": "object",
