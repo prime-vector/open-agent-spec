@@ -1,16 +1,18 @@
-name: Push Tests
+name: PR Tests
 
 on:
-  push:
+  pull_request:
     branches:
       - main
       - develop
+    types: [opened, synchronize, reopened]
 
 jobs:
   test:
     runs-on: ubuntu-latest
+    if: startsWith(github.head_ref, 'feature/')
     concurrency:
-      group: push-test-${{ github.ref }}
+      group: pr-test-${{ github.head_ref }}
       cancel-in-progress: true
     strategy:
       matrix:
