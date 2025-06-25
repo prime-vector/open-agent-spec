@@ -442,7 +442,7 @@ def _generate_task_function(
         ]
     )
 
-    result = response.content[0].text"""
+    result = response.content[0].text if response.content else """
     else:
         client_code = f"""    response = openai.ChatCompletion.create(
         model="{config["model"]}",
