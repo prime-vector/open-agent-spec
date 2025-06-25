@@ -632,24 +632,26 @@ def generate_agent_code(
     # Generate the complete agent code
     engine = spec_data.get("intelligence", {}).get("engine", "openai")
     imports = ["from typing import Dict, Any, List, Optional"]
-    
+
     if engine == "openai":
         imports.append("import openai")
     elif engine == "anthropic":
         imports.append("import anthropic")
     else:
         imports.append("import openai")  # Default fallback
-    
-    imports.extend([
-        "import json",
-        "import logging", 
-        "import os",
-        "from dotenv import load_dotenv",
-        "from behavioural_contracts import behavioural_contract",
-        "from jinja2 import Environment, FileSystemLoader",
-        "from pydantic import BaseModel"
-    ])
-    
+
+    imports.extend(
+        [
+            "import json",
+            "import logging",
+            "import os",
+            "from dotenv import load_dotenv",
+            "from behavioural_contracts import behavioural_contract",
+            "from jinja2 import Environment, FileSystemLoader",
+            "from pydantic import BaseModel",
+        ]
+    )
+
     agent_code = f"""{chr(10).join(imports)}
 
 load_dotenv()
@@ -830,7 +832,7 @@ def generate_requirements(output: Path, spec_data: Dict[str, Any]) -> None:
         log.warning("requirements.txt already exists and will be overwritten")
 
     engine = spec_data.get("intelligence", {}).get("engine", "openai")
-    
+
     requirements = []
     if engine == "openai":
         requirements.append("openai>=1.0.0")
@@ -838,15 +840,17 @@ def generate_requirements(output: Path, spec_data: Dict[str, Any]) -> None:
         requirements.append("anthropic>=0.18.0")
     else:
         requirements.append("openai>=1.0.0")  # Default fallback
-    
-    requirements.extend([
-        "# Note: During development, install with: pip install -r requirements.txt --index-url https://test.pypi.org/simple/ --extra-index-url https://pypi.org/simple/",
-        "behavioural-contracts>=0.1.0",
-        "python-dotenv>=0.19.0",
-        "pydantic>=2.0.0",
-        "jinja2>=3.0.0"
-    ])
-    
+
+    requirements.extend(
+        [
+            "# Note: During development, install with: pip install -r requirements.txt --index-url https://test.pypi.org/simple/ --extra-index-url https://pypi.org/simple/",
+            "behavioural-contracts>=0.1.0",
+            "python-dotenv>=0.19.0",
+            "pydantic>=2.0.0",
+            "jinja2>=3.0.0",
+        ]
+    )
+
     (output / "requirements.txt").write_text("\n".join(requirements) + "\n")
     log.info("requirements.txt created")
 
@@ -857,12 +861,12 @@ def generate_env_example(output: Path, spec_data: Dict[str, Any]) -> None:
         log.warning(".env.example already exists and will be overwritten")
 
     engine = spec_data.get("intelligence", {}).get("engine", "openai")
-    
+
     if engine == "anthropic":
         env_content = "ANTHROPIC_API_KEY=your-api-key-here\n"
     else:
         env_content = "OPENAI_API_KEY=your-api-key-here\n"
-    
+
     (output / ".env.example").write_text(env_content)
     log.info(".env.example created")
 
