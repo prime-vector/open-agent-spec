@@ -52,11 +52,3 @@ behavioural_contract:
   response_contract:
     output_format:
       required_fields: [response]
-
-interface:
-  cli:
-    enabled: true
-    arguments:
-      - name: name
-        type: string
-        required: true
