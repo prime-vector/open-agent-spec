@@ -407,7 +407,7 @@ def _generate_task_function(
     if config.get("model"):  # If model is specified, this is an LLM agent
         llm_parser = _generate_llm_output_parser(task_name, task_def.get("output", {}))
 
-    # Determine OpenAI client usage based on engine
+    # Determine client usage based on engine
     engine = spec_data.get("intelligence", {}).get("engine", "openai")
     if engine == "openai":
         client_code = f"""    client = openai.OpenAI(
@@ -426,6 +426,23 @@ def _generate_task_function(
     )
 
     result = response.choices[0].message.content"""
+    elif engine == "anthropic":
+        client_code = f"""    import anthropic
+    client = anthropic.Anthropic(
+        api_key=os.environ.get("ANTHROPIC_API_KEY")
+    )
+
+    response = client.messages.create(
+        model="{config["model"]}",
+        max_tokens={config["max_tokens"]},
+        temperature={config["temperature"]},
+        system="You are a professional {agent_name}.",
+        messages=[
+            {{"role": "user", "content": prompt}}
+        ]
+    )
+
+    result = response.content[0].text"""
     else:
         client_code = f"""    response = openai.ChatCompletion.create(
         model="{config["model"]}",
@@ -613,15 +630,27 @@ def generate_agent_code(
         print(json.dumps(result, indent=2))"""
 
     # Generate the complete agent code
-    agent_code = f"""from typing import Dict, Any, List, Optional
-import openai
-import json
-import logging
-import os
-from dotenv import load_dotenv
-from behavioural_contracts import behavioural_contract
-from jinja2 import Environment, FileSystemLoader
-from pydantic import BaseModel
+    engine = spec_data.get("intelligence", {}).get("engine", "openai")
+    imports = ["from typing import Dict, Any, List, Optional"]
+    
+    if engine == "openai":
+        imports.append("import openai")
+    elif engine == "anthropic":
+        imports.append("import anthropic")
+    else:
+        imports.append("import openai")  # Default fallback
+    
+    imports.extend([
+        "import json",
+        "import logging", 
+        "import os",
+        "from dotenv import load_dotenv",
+        "from behavioural_contracts import behavioural_contract",
+        "from jinja2 import Environment, FileSystemLoader",
+        "from pydantic import BaseModel"
+    ])
+    
+    agent_code = f"""{chr(10).join(imports)}
 
 load_dotenv()
 
@@ -795,27 +824,45 @@ python agent.py
     log.info("README.md created")
 
 
-def generate_requirements(output: Path) -> None:
+def generate_requirements(output: Path, spec_data: Dict[str, Any]) -> None:
     """Generate the requirements.txt file."""
     if (output / "requirements.txt").exists():
         log.warning("requirements.txt already exists and will be overwritten")
 
-    requirements = """openai>=1.0.0
-# Note: During development, install with: pip install -r requirements.txt --index-url https://test.pypi.org/simple/ --extra-index-url https://pypi.org/simple/
-behavioural-contracts>=0.1.0
-python-dotenv>=0.19.0
-pydantic>=2.0.0
-"""
-    (output / "requirements.txt").write_text(requirements)
+    engine = spec_data.get("intelligence", {}).get("engine", "openai")
+    
+    requirements = []
+    if engine == "openai":
+        requirements.append("openai>=1.0.0")
+    elif engine == "anthropic":
+        requirements.append("anthropic>=0.18.0")
+    else:
+        requirements.append("openai>=1.0.0")  # Default fallback
+    
+    requirements.extend([
+        "# Note: During development, install with: pip install -r requirements.txt --index-url https://test.pypi.org/simple/ --extra-index-url https://pypi.org/simple/",
+        "behavioural-contracts>=0.1.0",
+        "python-dotenv>=0.19.0",
+        "pydantic>=2.0.0",
+        "jinja2>=3.0.0"
+    ])
+    
+    (output / "requirements.txt").write_text("\n".join(requirements) + "\n")
     log.info("requirements.txt created")
 
 
-def generate_env_example(output: Path) -> None:
+def generate_env_example(output: Path, spec_data: Dict[str, Any]) -> None:
     """Generate the .env.example file."""
     if (output / ".env.example").exists():
         log.warning(".env.example already exists and will be overwritten")
 
-    env_content = "OPENAI_API_KEY=your-api-key-here\n"
+    engine = spec_data.get("intelligence", {}).get("engine", "openai")
+    
+    if engine == "anthropic":
+        env_content = "ANTHROPIC_API_KEY=your-api-key-here\n"
+    else:
+        env_content = "OPENAI_API_KEY=your-api-key-here\n"
+    
     (output / ".env.example").write_text(env_content)
     log.info(".env.example created")
 

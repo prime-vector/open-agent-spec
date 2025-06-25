@@ -58,7 +58,8 @@
           "engine": {
             "type": "string",
             "enum": [
-              "openai"
+              "openai",
+              "anthropic"
             ],
             "description": "LLM engine provider"
           },

@@ -130,8 +130,8 @@ def generate_files(
         # Generate each file
         generate_agent_code(output, spec_data, agent_name, class_name)
         generate_readme(output, spec_data)
-        generate_requirements(output)
-        generate_env_example(output)
+        generate_requirements(output, spec_data)
+        generate_env_example(output, spec_data)
         generate_prompt_template(output, spec_data)
 
         console.print("\n[bold green]✅ Agent project initialized![/] ✨")
