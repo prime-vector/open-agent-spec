@@ -539,11 +539,11 @@ intelligence:
   model: "gpt-4"
   endpoint: "https://api.openai.com/v1"
   config:
-    temperature: {config.get('temperature', 0.7)}
-    max_tokens: {config.get('max_tokens', 150)}
-    top_p: {config.get('top_p', 1.0)}
-    frequency_penalty: {config.get('frequency_penalty', 0.0)}
-    presence_penalty: {config.get('presence_penalty', 0.0)}
+    temperature: {config.get("temperature", 0.7)}
+    max_tokens: {config.get("max_tokens", 150)}
+    top_p: {config.get("top_p", 1.0)}
+    frequency_penalty: {config.get("frequency_penalty", 0.0)}
+    presence_penalty: {config.get("presence_penalty", 0.0)}
 tasks:
   greet:
     description: Test description
@@ -625,9 +625,9 @@ intelligence:
   model: "gpt-4"
   endpoint: "https://api.openai.com/v1"
   config:
-    temperature: {config.get('temperature', 0.7)}
-    max_tokens: {config.get('max_tokens', 150)}
-    top_p: {config.get('top_p', 1.0)}
+    temperature: {config.get("temperature", 0.7)}
+    max_tokens: {config.get("max_tokens", 150)}
+    top_p: {config.get("top_p", 1.0)}
 tasks:
   greet:
     description: Test description
@@ -912,11 +912,11 @@ intelligence:
     temperature: 0.7
     max_tokens: 150
 tasks:
-  {task['name']}:
-    description: "{task['description']}"
-    timeout: {task.get('timeout', 30)}
+  {task["name"]}:
+    description: "{task["description"]}"
+    timeout: {task.get("timeout", 30)}
     input:
-      type: "{task['input']['type']}"
+      type: "{task["input"]["type"]}"
       properties:
         text:
           type: string
@@ -924,7 +924,7 @@ tasks:
           minLength: 1
       required: ["text"]
     output:
-      type: "{task['output']['type']}"
+      type: "{task["output"]["type"]}"
       properties:
         result:
           type: string
@@ -1017,15 +1017,15 @@ intelligence:
     temperature: 0.7
     max_tokens: 150
 tasks:
-  {task['name']}:
-    description: "{task['description']}"
+  {task["name"]}:
+    description: "{task["description"]}"
     input:
-      type: "{task['input']['type']}"
+      type: "{task["input"]["type"]}"
       properties:
         123invalid:
           type: string
     output:
-      type: "{task['output']['type']}"
+      type: "{task["output"]["type"]}"
       properties:
         result:
           type: string

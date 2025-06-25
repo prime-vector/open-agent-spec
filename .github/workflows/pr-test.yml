@@ -34,7 +34,7 @@ jobs:
           python -m pytest tests/ -v --cov=oas_cli
       - name: Run code quality checks
         run: |
-          flake8 . --max-line-length=100 --ignore=E501,W503 --exclude=test_output/
+          flake8 . --max-line-length=100 --ignore=E501,W503,E203 --exclude=test_output/
           ruff check . --exclude test_output/
           ruff format . --exclude test_output/
           mypy oas_cli tests

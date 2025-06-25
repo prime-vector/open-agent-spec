@@ -36,7 +36,7 @@ def sample_spec():
             "config": {
                 "temperature": 0.7,
                 "max_tokens": 1000,
-            }
+            },
         },
         "config": {
             "endpoint": "https://api.openai.com/v1",
@@ -233,16 +233,16 @@ def test_generate_requirements_anthropic(temp_dir):
     """Test that requirements.txt is generated correctly for Anthropic engine."""
     anthropic_spec = {
         "intelligence": {
-            "type": "llm", 
+            "type": "llm",
             "engine": "anthropic",
-            "model": "claude-3-5-sonnet-20241022"
+            "model": "claude-3-5-sonnet-20241022",
         }
     }
     generate_requirements(temp_dir, anthropic_spec)
-    
+
     requirements_file = temp_dir / "requirements.txt"
     assert requirements_file.exists()
-    
+
     content = requirements_file.read_text()
     assert "anthropic>=" in content
     assert "behavioural-contracts" in content
@@ -253,14 +253,14 @@ def test_generate_env_example_anthropic(temp_dir):
     anthropic_spec = {
         "intelligence": {
             "type": "llm",
-            "engine": "anthropic", 
-            "model": "claude-3-5-sonnet-20241022"
+            "engine": "anthropic",
+            "model": "claude-3-5-sonnet-20241022",
         }
     }
     generate_env_example(temp_dir, anthropic_spec)
-    
+
     env_file = temp_dir / ".env.example"
     assert env_file.exists()
-    
+
     content = env_file.read_text()
     assert "ANTHROPIC_API_KEY=" in content
