@@ -29,6 +29,15 @@ def sample_spec():
     """Return a sample valid spec for testing."""
     return {
         "info": {"name": "test-agent", "description": "A test agent"},
+        "intelligence": {
+            "type": "llm",
+            "engine": "openai",
+            "model": "gpt-4",
+            "config": {
+                "temperature": 0.7,
+                "max_tokens": 1000,
+            }
+        },
         "config": {
             "endpoint": "https://api.openai.com/v1",
             "model": "gpt-4",
@@ -114,9 +123,9 @@ def test_generate_readme(temp_dir, sample_spec):
     assert "Memory support for maintaining context" in content
 
 
-def test_generate_requirements(temp_dir):
+def test_generate_requirements(temp_dir, sample_spec):
     """Test that requirements.txt is generated correctly."""
-    generate_requirements(temp_dir)
+    generate_requirements(temp_dir, sample_spec)
 
     requirements_file = temp_dir / "requirements.txt"
     assert requirements_file.exists()
@@ -127,9 +136,9 @@ def test_generate_requirements(temp_dir):
     assert "python-dotenv>=" in content
 
 
-def test_generate_env_example(temp_dir):
+def test_generate_env_example(temp_dir, sample_spec):
     """Test that .env.example is generated correctly."""
-    generate_env_example(temp_dir)
+    generate_env_example(temp_dir, sample_spec)
 
     env_file = temp_dir / ".env.example"
     assert env_file.exists()
@@ -218,3 +227,40 @@ def test_generate_prompt_template_without_custom_prompt(temp_dir, sample_spec):
     assert "Process the following task:" in content
     assert "{% if memory_summary %}" in content
     assert "--- MEMORY CONTEXT ---" in content
+
+
+def test_generate_requirements_anthropic(temp_dir):
+    """Test that requirements.txt is generated correctly for Anthropic engine."""
+    anthropic_spec = {
+        "intelligence": {
+            "type": "llm", 
+            "engine": "anthropic",
+            "model": "claude-3-5-sonnet-20241022"
+        }
+    }
+    generate_requirements(temp_dir, anthropic_spec)
+    
+    requirements_file = temp_dir / "requirements.txt"
+    assert requirements_file.exists()
+    
+    content = requirements_file.read_text()
+    assert "anthropic>=" in content
+    assert "behavioural-contracts" in content
+
+
+def test_generate_env_example_anthropic(temp_dir):
+    """Test that .env.example is generated correctly for Anthropic engine."""
+    anthropic_spec = {
+        "intelligence": {
+            "type": "llm",
+            "engine": "anthropic", 
+            "model": "claude-3-5-sonnet-20241022"
+        }
+    }
+    generate_env_example(temp_dir, anthropic_spec)
+    
+    env_file = temp_dir / ".env.example"
+    assert env_file.exists()
+    
+    content = env_file.read_text()
+    assert "ANTHROPIC_API_KEY=" in content
