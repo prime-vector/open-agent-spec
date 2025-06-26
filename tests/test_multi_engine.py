@@ -6,6 +6,8 @@ import json
 from typing import List
 from pydantic import BaseModel, ValidationError
 
+pytestmark = pytest.mark.multi_engine
+
 
 class MockAnalyzeThreatOutput(BaseModel):
     """Mock output model for testing."""

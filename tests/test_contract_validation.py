@@ -3,6 +3,8 @@
 import pytest
 from unittest.mock import patch, MagicMock
 
+pytestmark = pytest.mark.contract
+
 
 def create_test_agent(engine_type="openai"):
     """Create a test agent with mocked dependencies."""
