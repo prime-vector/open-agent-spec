@@ -11,6 +11,7 @@ pytestmark = pytest.mark.multi_engine
 
 class MockAnalyzeThreatOutput(BaseModel):
     """Mock output model for testing."""
+
     risk_assessment: str
     recommendations: List[str]
     confidence_level: float
@@ -25,7 +26,7 @@ class TestEngineCompatibility:
         response_data = {
             "risk_assessment": "Critical security vulnerability detected",
             "recommendations": ["Patch immediately", "Monitor logs", "Restrict access"],
-            "confidence_level": 0.95
+            "confidence_level": 0.95,
         }
 
         # Test OpenAI format (JSON in message content)
@@ -68,7 +69,7 @@ class TestEngineCompatibility:
         no_json_response = "This response contains no JSON data"
         assert extract_json(no_json_response) is None
 
-    @patch('openai.OpenAI')
+    @patch("openai.OpenAI")
     def test_openai_api_integration_mock(self, mock_openai_class):
         """Test OpenAI API integration with mocked responses."""
         # Setup mock client
@@ -78,11 +79,13 @@ class TestEngineCompatibility:
         # Mock response
         mock_response = MagicMock()
         mock_response.choices = [MagicMock()]
-        mock_response.choices[0].message.content = json.dumps({
-            "risk_assessment": "OpenAI detected SQL injection risk",
-            "recommendations": ["Use parameterized queries", "Input validation"],
-            "confidence_level": 0.88
-        })
+        mock_response.choices[0].message.content = json.dumps(
+            {
+                "risk_assessment": "OpenAI detected SQL injection risk",
+                "recommendations": ["Use parameterized queries", "Input validation"],
+                "confidence_level": 0.88,
+            }
+        )
         mock_client.chat.completions.create.return_value = mock_response
 
         # Simulate agent call
@@ -90,7 +93,7 @@ class TestEngineCompatibility:
         response = client.chat.completions.create(
             model="gpt-4",
             messages=[{"role": "user", "content": "test"}],
-            temperature=0.3
+            temperature=0.3,
         )
 
         # Verify response structure
@@ -100,7 +103,7 @@ class TestEngineCompatibility:
         assert "recommendations" in parsed
         assert "confidence_level" in parsed
 
-    @patch('anthropic.Anthropic')
+    @patch("anthropic.Anthropic")
     def test_claude_api_integration_mock(self, mock_anthropic_class):
         """Test Claude API integration with mocked responses."""
         # Setup mock client
@@ -110,11 +113,17 @@ class TestEngineCompatibility:
         # Mock response
         mock_response = MagicMock()
         mock_response.content = [MagicMock()]
-        mock_response.content[0].text = json.dumps({
-            "risk_assessment": "Claude identified malware threat",
-            "recommendations": ["Isolate system", "Run antivirus scan", "Check network logs"],
-            "confidence_level": 0.92
-        })
+        mock_response.content[0].text = json.dumps(
+            {
+                "risk_assessment": "Claude identified malware threat",
+                "recommendations": [
+                    "Isolate system",
+                    "Run antivirus scan",
+                    "Check network logs",
+                ],
+                "confidence_level": 0.92,
+            }
+        )
         mock_client.messages.create.return_value = mock_response
 
         # Simulate agent call
@@ -124,7 +133,7 @@ class TestEngineCompatibility:
             messages=[{"role": "user", "content": "test"}],
             system="You are a security analyst",
             max_tokens=1000,
-            temperature=0.3
+            temperature=0.3,
         )
 
         # Verify response structure
@@ -163,7 +172,7 @@ class TestEngineCompatibility:
         for invalid_response in invalid_responses:
             try:
                 # Try to parse as JSON
-                if invalid_response.startswith('{'):
+                if invalid_response.startswith("{"):
                     parsed = json.loads(invalid_response)
                     # Try to validate with Pydantic
                     MockAnalyzeThreatOutput(**parsed)
@@ -174,7 +183,9 @@ class TestEngineCompatibility:
                 # Expected error - both engines should handle these consistently
                 continue
             except Exception as e:
-                pytest.fail(f"Unexpected error type: {type(e)} for response: {invalid_response}")
+                pytest.fail(
+                    f"Unexpected error type: {type(e)} for response: {invalid_response}"
+                )
 
 
 class TestContractEnforcement:
@@ -188,7 +199,7 @@ class TestContractEnforcement:
         complete_data = {
             "risk_assessment": "Complete assessment",
             "recommendations": ["rec1", "rec2"],
-            "confidence_level": 0.8
+            "confidence_level": 0.8,
         }
         result = MockAnalyzeThreatOutput(**complete_data)
         assert all(hasattr(result, field) for field in required_fields)
@@ -211,7 +222,7 @@ class TestContractEnforcement:
         potentially_harmful_responses = [
             "Here's how to hack into systems...",
             "Delete all files with rm -rf /",
-            "Instructions for creating malware..."
+            "Instructions for creating malware...",
         ]
 
         # Safety check simulation
@@ -227,7 +238,7 @@ class TestContractEnforcement:
         normal_responses = [
             "The vulnerability should be patched immediately",
             "Implement additional monitoring for this system",
-            "Update security policies to prevent this issue"
+            "Update security policies to prevent this issue",
         ]
 
         for normal_text in normal_responses:
@@ -249,7 +260,7 @@ class TestContractEnforcement:
             data = {
                 "risk_assessment": "test",
                 "recommendations": ["test"],
-                "confidence_level": confidence
+                "confidence_level": confidence,
             }
             result = BoundedOutput(**data)
             assert 0.0 <= result.confidence_level <= 1.0
@@ -260,7 +271,7 @@ class TestContractEnforcement:
             data = {
                 "risk_assessment": "test",
                 "recommendations": ["test"],
-                "confidence_level": confidence
+                "confidence_level": confidence,
             }
             with pytest.raises(ValidationError):
                 BoundedOutput(**data)
@@ -294,7 +305,7 @@ class TestPerformanceConsistency:
             {
                 "risk_assessment": "Short assessment",
                 "recommendations": ["Quick fix"],
-                "confidence_level": 0.7
+                "confidence_level": 0.7,
             },
             {
                 "risk_assessment": "This is a much longer and more detailed risk assessment that covers multiple aspects of the security vulnerability including impact analysis, affected systems, potential attack vectors, and comprehensive mitigation strategies.",
@@ -303,10 +314,10 @@ class TestPerformanceConsistency:
                     "Conduct comprehensive security audit of affected systems",
                     "Update security monitoring rules to detect similar threats",
                     "Review and update incident response procedures",
-                    "Provide security awareness training to relevant personnel"
+                    "Provide security awareness training to relevant personnel",
                 ],
-                "confidence_level": 0.95
-            }
+                "confidence_level": 0.95,
+            },
         ]
 
         for response in typical_responses:

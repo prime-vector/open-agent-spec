@@ -12,7 +12,7 @@ def create_test_agent(engine_type="openai"):
     # For testing, we'll create a minimal agent class
 
     if engine_type == "openai":
-        agent_code = '''
+        agent_code = """
 from typing import List
 from pydantic import BaseModel
 from behavioural_contracts import behavioural_contract
@@ -46,9 +46,9 @@ def analyze_threat(threat_description: str, severity: str, system_affected: str)
 class SecurityAgent:
     def analyze_threat(self, threat_description, severity, system_affected):
         return analyze_threat(threat_description, severity, system_affected)
-'''
+"""
     else:  # anthropic/claude
-        agent_code = '''
+        agent_code = """
 from typing import List
 from pydantic import BaseModel
 from behavioural_contracts import behavioural_contract
@@ -82,7 +82,7 @@ def analyze_threat(threat_description: str, severity: str, system_affected: str)
 class SecurityAgent:
     def analyze_threat(self, threat_description, severity, system_affected):
         return analyze_threat(threat_description, severity, system_affected)
-'''
+"""
 
     return agent_code
 
@@ -90,8 +90,10 @@ class SecurityAgent:
 class TestContractValidation:
     """Test behavioral contract validation with mock responses."""
 
-    @patch('openai.OpenAI')
-    def test_openai_valid_response(self, mock_openai, mock_openai_response, sample_threat_data):
+    @patch("openai.OpenAI")
+    def test_openai_valid_response(
+        self, mock_openai, mock_openai_response, sample_threat_data
+    ):
         """Test OpenAI agent with valid response passes contract validation."""
         # Setup mock
         mock_client = MagicMock()
@@ -101,8 +103,10 @@ class TestContractValidation:
         # Test would require actual agent generation, simplified for demo
         assert True  # Placeholder - would test actual contract validation
 
-    @patch('anthropic.Anthropic')
-    def test_claude_valid_response(self, mock_anthropic, mock_claude_response, sample_threat_data):
+    @patch("anthropic.Anthropic")
+    def test_claude_valid_response(
+        self, mock_anthropic, mock_claude_response, sample_threat_data
+    ):
         """Test Claude agent with valid response passes contract validation."""
         # Setup mock
         mock_client = MagicMock()
@@ -119,7 +123,9 @@ class TestContractValidation:
         required_fields = ["risk_assessment", "recommendations", "confidence_level"]
         response_data = {"risk_assessment": "Some assessment"}
 
-        missing_fields = [field for field in required_fields if field not in response_data]
+        missing_fields = [
+            field for field in required_fields if field not in response_data
+        ]
         assert len(missing_fields) == 2
         assert "recommendations" in missing_fields
         assert "confidence_level" in missing_fields
@@ -138,7 +144,7 @@ class TestContractValidation:
         invalid_data = {
             "risk_assessment": "Some assessment",
             "recommendations": "should be array not string",
-            "confidence_level": "high"
+            "confidence_level": "high",
         }
 
         with pytest.raises(ValidationError):
@@ -158,7 +164,7 @@ class TestContractValidation:
         valid_data = {
             "risk_assessment": "Test",
             "recommendations": ["rec1"],
-            "confidence_level": 0.5
+            "confidence_level": 0.5,
         }
         result = TestOutput(**valid_data)
         assert 0.0 <= result.confidence_level <= 1.0
@@ -168,7 +174,7 @@ class TestContractValidation:
             invalid_data = {
                 "risk_assessment": "Test",
                 "recommendations": ["rec1"],
-                "confidence_level": invalid_confidence
+                "confidence_level": invalid_confidence,
             }
             with pytest.raises(ValidationError):
                 TestOutput(**invalid_data)
@@ -201,7 +207,7 @@ class TestContractValidation:
             json.loads(invalid_json)
 
         # JSON with extra whitespace/formatting
-        formatted_json = '''
+        formatted_json = """
         {
             "risk_assessment": "test assessment",
             "recommendations": [
@@ -210,7 +216,7 @@ class TestContractValidation:
             ],
             "confidence_level": 0.85
         }
-        '''
+        """
         parsed = json.loads(formatted_json)
         assert len(parsed["recommendations"]) == 2
 
@@ -233,7 +239,7 @@ class TestMultiEngineCompatibility:
         openai_data = {
             "risk_assessment": "OpenAI assessment",
             "recommendations": ["openai rec1", "openai rec2"],
-            "confidence_level": 0.8
+            "confidence_level": 0.8,
         }
         openai_result = UnifiedOutput(**openai_data)
 
@@ -241,13 +247,13 @@ class TestMultiEngineCompatibility:
         claude_data = {
             "risk_assessment": "Claude assessment",
             "recommendations": ["claude rec1", "claude rec2"],
-            "confidence_level": 0.9
+            "confidence_level": 0.9,
         }
         claude_result = UnifiedOutput(**claude_data)
 
         # Both should have same structure
-        assert hasattr(openai_result, 'risk_assessment')
-        assert hasattr(claude_result, 'risk_assessment')
+        assert hasattr(openai_result, "risk_assessment")
+        assert hasattr(claude_result, "risk_assessment")
         assert isinstance(openai_result.recommendations, list)
         assert isinstance(claude_result.recommendations, list)
 
@@ -258,16 +264,23 @@ class TestMultiEngineCompatibility:
         contract_config = {
             "version": "0.1.2",
             "description": "Test contract",
-            "behavioural_flags": {
-                "temperature_control": {"range": [0.1, 0.5]}
-            },
+            "behavioural_flags": {"temperature_control": {"range": [0.1, 0.5]}},
             "response_contract": {
                 "output_format": {
-                    "required_fields": ["risk_assessment", "recommendations", "confidence_level"]
+                    "required_fields": [
+                        "risk_assessment",
+                        "recommendations",
+                        "confidence_level",
+                    ]
                 }
-            }
+            },
         }
 
         # Verify contract configuration is engine-agnostic
-        assert "required_fields" in contract_config["response_contract"]["output_format"]
-        assert len(contract_config["behavioural_flags"]["temperature_control"]["range"]) == 2
+        assert (
+            "required_fields" in contract_config["response_contract"]["output_format"]
+        )
+        assert (
+            len(contract_config["behavioural_flags"]["temperature_control"]["range"])
+            == 2
+        )
