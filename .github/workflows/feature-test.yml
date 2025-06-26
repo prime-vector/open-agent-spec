@@ -11,7 +11,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        python-version: ["3.9", "3.10", "3.11"]
+        python-version: ["3.10", "3.11", "3.12"]
         engine: ["openai", "anthropic"]
       fail-fast: false  # Continue testing other combinations if one fails
     
@@ -165,7 +165,7 @@ jobs:
         if [[ "${{ needs.contract-tests.result }}" == "success" && "${{ needs.code-quality.result }}" == "success" ]]; then
           echo "✅ All tests and quality checks passed!"
           echo "🎉 Open Agent Stack behavioral contract validation successful"
-          echo "📊 Tested across Python 3.9, 3.10, 3.11"
+          echo "📊 Tested across Python 3.10, 3.11, 3.12"
           echo "🔄 Validated both OpenAI and Claude engine support"
           echo "🛡️ Behavioral contracts working correctly"
           echo "✨ Code quality standards met"
@@ -180,7 +180,7 @@ jobs:
         echo "## Open Agent Stack Test Summary" >> $GITHUB_STEP_SUMMARY
         echo "" >> $GITHUB_STEP_SUMMARY
         echo "### 📊 Test Matrix" >> $GITHUB_STEP_SUMMARY
-        echo "- **Python Versions:** 3.9, 3.10, 3.11" >> $GITHUB_STEP_SUMMARY
+        echo "- **Python Versions:** 3.10, 3.11, 3.12" >> $GITHUB_STEP_SUMMARY
         echo "- **Engine Support:** OpenAI, Claude/Anthropic" >> $GITHUB_STEP_SUMMARY
         echo "- **Total Test Combinations:** 6 (3 Python × 2 Engines)" >> $GITHUB_STEP_SUMMARY
         echo "" >> $GITHUB_STEP_SUMMARY
