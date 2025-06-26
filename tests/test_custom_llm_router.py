@@ -1,9 +1,9 @@
 import json
 import pytest
 import tempfile
-import os
 import yaml
 from pathlib import Path
+from typing import Dict, Any
 from oas_cli.generators import generate_agent_code
 
 
@@ -17,105 +17,108 @@ class MockCustomLLMRouter:
 
     def run(self, prompt: str, **kwargs) -> str:
         """Mock run method that returns a JSON string"""
-        # Extract the name from kwargs or use a default
         name = kwargs.get("name", "World")
-
-        # Return a properly formatted JSON string
         return json.dumps({"response": f"Hello {name}!"})
 
 
-def test_custom_llm_router_integration():
-    """Test that a custom LLM router works correctly with the generated agent"""
+class InvalidRouter:
+    """A router without a run method for testing error handling"""
 
-    # Create a minimal spec with custom LLM router
-    spec_content = """
-spec_version: "1.0.4"
-agent:
-  name: "TestAgent"
-  description: "A test agent with custom LLM router"
-  role: "assistant"
+    def __init__(self, endpoint: str, model: str, config: dict):
+        self.endpoint = endpoint
+        self.model = model
+        self.config = config
 
-intelligence:
-  engine: "custom"
-  endpoint: "http://localhost:1234/invoke"
-  model: "test-model"
-  config: {}
-  module: "MockCustomLLMRouter.MockCustomLLMRouter"
+    # No run method!
 
-tasks:
-  greet:
-    description: "Greet someone by name"
-    input:
-      type: "object"
-      properties:
-        name:
-          type: "string"
-          description: "The name to greet"
-          minLength: 1
-          maxLength: 100
-      required: ["name"]
-    output:
-      type: "object"
-      properties:
-        response:
-          type: "string"
-          description: "The greeting response"
-      required: ["response"]
-    timeout: 30
-    metadata:
-      category: "communication"
-      priority: "normal"
-"""
 
-    # Create temporary directory for the test
+@pytest.fixture
+def base_spec() -> Dict[str, Any]:
+    """Base spec template for custom LLM router tests"""
+    return {
+        "spec_version": "1.0.4",
+        "agent": {
+            "name": "TestAgent",
+            "description": "A test agent with custom LLM router",
+            "role": "assistant",
+        },
+        "intelligence": {
+            "engine": "custom",
+            "endpoint": "http://localhost:1234/invoke",
+            "model": "test-model",
+            "config": {},
+            "module": "MockCustomLLMRouter.MockCustomLLMRouter",
+        },
+        "tasks": {
+            "greet": {
+                "description": "Greet someone by name",
+                "input": {
+                    "type": "object",
+                    "properties": {
+                        "name": {
+                            "type": "string",
+                            "description": "The name to greet",
+                            "minLength": 1,
+                            "maxLength": 100,
+                        }
+                    },
+                    "required": ["name"],
+                },
+                "output": {
+                    "type": "object",
+                    "properties": {
+                        "response": {
+                            "type": "string",
+                            "description": "The greeting response",
+                        }
+                    },
+                    "required": ["response"],
+                },
+                "timeout": 30,
+                "metadata": {"category": "communication", "priority": "normal"},
+            }
+        },
+    }
+
+
+@pytest.fixture
+def temp_project():
+    """Create a temporary project directory with all necessary files"""
     with tempfile.TemporaryDirectory() as temp_dir:
-        # Write the spec file
-        spec_file = os.path.join(temp_dir, "test_agent.yaml")
-        with open(spec_file, "w") as f:
-            f.write(spec_content)
+        temp_path = Path(temp_dir)
 
-        # Generate the agent code
-        with open(spec_file) as f:
-            spec_data = yaml.safe_load(f)
-        agent_name = spec_data["agent"]["name"]
-        class_name = agent_name  # or use a function to convert to PascalCase if needed
+        # Create prompts directory
+        prompts_dir = temp_path / "prompts"
+        prompts_dir.mkdir(exist_ok=True)
 
-        generate_agent_code(Path(temp_dir), spec_data, agent_name, class_name)
+        # Create basic prompt templates
+        (prompts_dir / "greet.jinja2").write_text("Hello {{ input.name }}!")
+        (prompts_dir / "agent_prompt.jinja2").write_text("{{ input }}")
 
-        # Create templates AFTER generating agent code, in the same directory as agent.py
-        prompts_dir = os.path.join(temp_dir, "prompts")
-        os.makedirs(prompts_dir, exist_ok=True)
-        greet_template_file = os.path.join(prompts_dir, "greet.jinja2")
-        with open(greet_template_file, "w") as f:
-            f.write("Hello {{ input.name }}!")
+        yield temp_path
 
-        # Also create a fallback agent_prompt.jinja2 template
-        agent_prompt_file = os.path.join(prompts_dir, "agent_prompt.jinja2")
-        with open(agent_prompt_file, "w") as f:
-            f.write("{{ input }}")
 
-        # Check that the agent.py file was created
-        agent_file = os.path.join(temp_dir, "agent.py")
-        assert os.path.exists(agent_file), "Agent file should be created"
+def create_spec_file(spec_data: Dict[str, Any], temp_dir: Path) -> Path:
+    """Create a spec file in the temp directory"""
+    spec_file = temp_dir / "test_agent.yaml"
+    with open(spec_file, "w") as f:
+        yaml.dump(spec_data, f)
+    return spec_file
 
-        # Read the generated agent code
-        with open(agent_file, "r") as f:
-            agent_code = f.read()
 
-        # Verify the custom router import is included
-        assert (
-            "import importlib" in agent_code
-        ), "Should import importlib for dynamic loading"
-        assert (
-            "load_custom_llm_router" in agent_code
-        ), "Should have custom router loading function"
-        assert "CustomLLMRouter" in agent_code, "Should reference CustomLLMRouter"
+def generate_test_agent(spec_data: Dict[str, Any], temp_dir: Path) -> Path:
+    """Generate agent code from spec data"""
+    agent_name = spec_data["agent"]["name"]
+    class_name = agent_name
 
-        # Test the agent execution by importing and running it
-        # We need to make the MockCustomLLMRouter available in the same directory
-        mock_router_file = os.path.join(temp_dir, "MockCustomLLMRouter.py")
-        with open(mock_router_file, "w") as f:
-            f.write("""
+    generate_agent_code(temp_dir, spec_data, agent_name, class_name)
+    return temp_dir / "agent.py"
+
+
+def create_mock_router_file(temp_dir: Path) -> Path:
+    """Create the MockCustomLLMRouter.py file"""
+    router_file = temp_dir / "MockCustomLLMRouter.py"
+    router_file.write_text("""
 import json
 
 class MockCustomLLMRouter:
@@ -130,171 +133,13 @@ class MockCustomLLMRouter:
             "response": f"Hello {name}!"
         })
 """)
-
-        # Now we can test the agent by importing it
-        import sys
-
-        sys.path.insert(0, temp_dir)
-
-        try:
-            # Import the generated agent
-            from agent import TestAgent
-
-            # Create an instance
-            agent = TestAgent()
-
-            # Test the greet function
-            result = agent.greet(name="Alice")
-
-            # Verify the result - handle both Pydantic models and dictionaries
-            if hasattr(result, "response"):
-                # Pydantic model
-                assert (
-                    result.response == "Hello Alice!"
-                ), f"Expected 'Hello Alice!', got '{result.response}'"
-            else:
-                # Dictionary
-                assert isinstance(result, dict), "Result should be a dictionary"
-                assert (
-                    result.get("response") == "Hello Alice!"
-                ), f"Expected 'Hello Alice!', got '{result.get('response')}'"
-
-        finally:
-            # Clean up
-            sys.path.pop(0)
+    return router_file
 
 
-def test_custom_llm_router_error_handling():
-    """Test error handling when custom LLM router is not available"""
-
-    spec_content = """
-spec_version: "1.0.4"
-agent:
-  name: "TestAgent"
-  description: "A test agent with custom LLM router"
-  role: "assistant"
-
-intelligence:
-  engine: "custom"
-  endpoint: "http://localhost:1234/invoke"
-  model: "test-model"
-  config: {}
-  module: "NonExistentModule.NonExistentClass"
-
-tasks:
-  greet:
-    description: "Greet someone by name"
-    input:
-      type: "object"
-      properties:
-        name:
-          type: "string"
-          description: "The name to greet"
-          minLength: 1
-          maxLength: 100
-      required: ["name"]
-    output:
-      type: "object"
-      properties:
-        response:
-          type: "string"
-          description: "The greeting response"
-      required: ["response"]
-    timeout: 30
-"""
-
-    with tempfile.TemporaryDirectory() as temp_dir:
-        spec_file = os.path.join(temp_dir, "test_agent.yaml")
-        with open(spec_file, "w") as f:
-            f.write(spec_content)
-
-        # Generate the agent code
-        with open(spec_file) as f:
-            spec_data = yaml.safe_load(f)
-        agent_name = spec_data["agent"]["name"]
-        class_name = agent_name  # or use a function to convert to PascalCase if needed
-
-        generate_agent_code(Path(temp_dir), spec_data, agent_name, class_name)
-
-        # Test that the generated code contains the expected error handling
-        agent_file = os.path.join(temp_dir, "agent.py")
-        with open(agent_file, "r") as f:
-            agent_code = f.read()
-
-        # Verify the custom router import logic is included
-        assert (
-            "import importlib" in agent_code
-        ), "Should import importlib for dynamic loading"
-        assert (
-            "load_custom_llm_router" in agent_code
-        ), "Should have custom router loading function"
-        assert (
-            "NonExistentModule.NonExistentClass" in agent_code
-        ), "Should reference the specified module"
-
-        # Test that importing the module fails as expected
-        import sys
-
-        sys.path.insert(0, temp_dir)
-
-        try:
-            # This should raise an ImportError when the agent tries to import the non-existent module
-            with pytest.raises(ImportError):
-                import importlib
-
-                importlib.import_module("NonExistentModule")
-        finally:
-            sys.path.pop(0)
-
-
-def test_custom_llm_router_missing_run_method():
-    """Test error handling when custom LLM router doesn't have a run method"""
-
-    spec_content = """
-spec_version: "1.0.4"
-agent:
-  name: "TestAgent"
-  description: "A test agent with custom LLM router"
-  role: "assistant"
-
-intelligence:
-  engine: "custom"
-  endpoint: "http://localhost:1234/invoke"
-  model: "test-model"
-  config: {}
-  module: "InvalidRouter.InvalidRouter"
-
-tasks:
-  greet:
-    description: "Greet someone by name"
-    input:
-      type: "object"
-      properties:
-        name:
-          type: "string"
-          description: "The name to greet"
-          minLength: 1
-          maxLength: 100
-      required: ["name"]
-    output:
-      type: "object"
-      properties:
-        response:
-          type: "string"
-          description: "The greeting response"
-      required: ["response"]
-    timeout: 30
-"""
-
-    with tempfile.TemporaryDirectory() as temp_dir:
-        spec_file = os.path.join(temp_dir, "test_agent.yaml")
-        with open(spec_file, "w") as f:
-            f.write(spec_content)
-
-        # Create an invalid router without run method
-        invalid_router_file = os.path.join(temp_dir, "InvalidRouter.py")
-        with open(invalid_router_file, "w") as f:
-            f.write("""
+def create_invalid_router_file(temp_dir: Path) -> Path:
+    """Create the InvalidRouter.py file"""
+    router_file = temp_dir / "InvalidRouter.py"
+    router_file.write_text("""
 class InvalidRouter:
     def __init__(self, endpoint: str, model: str, config: dict):
         self.endpoint = endpoint
@@ -302,38 +147,129 @@ class InvalidRouter:
         self.config = config
     # No run method!
 """)
+    return router_file
 
-        # Generate the agent code
-        with open(spec_file) as f:
-            spec_data = yaml.safe_load(f)
-        agent_name = spec_data["agent"]["name"]
-        class_name = agent_name  # or use a function to convert to PascalCase if needed
 
-        generate_agent_code(Path(temp_dir), spec_data, agent_name, class_name)
+def verify_agent_code(agent_file: Path) -> str:
+    """Verify the generated agent code contains expected elements"""
+    agent_code = agent_file.read_text()
 
-        # Test that the generated code contains the expected error handling
-        agent_file = os.path.join(temp_dir, "agent.py")
-        with open(agent_file, "r") as f:
-            agent_code = f.read()
+    assert (
+        "import importlib" in agent_code
+    ), "Should import importlib for dynamic loading"
+    assert (
+        "load_custom_llm_router" in agent_code
+    ), "Should have custom router loading function"
+    assert "CustomLLMRouter" in agent_code, "Should reference CustomLLMRouter"
 
-        # Verify the custom router validation logic is included
-        assert "hasattr(router, 'run')" in agent_code, "Should check for run method"
-        assert (
-            "AttributeError" in agent_code
-        ), "Should raise AttributeError for missing run method"
+    return agent_code
 
-        # Test that the InvalidRouter class doesn't have a run method
-        import sys
 
-        sys.path.insert(0, temp_dir)
+def test_custom_llm_router_integration(base_spec, temp_project):
+    """Test that a custom LLM router works correctly with the generated agent"""
+    # Create spec file
+    create_spec_file(base_spec, temp_project)
 
-        try:
-            from InvalidRouter import InvalidRouter
+    # Generate agent code
+    agent_file = generate_test_agent(base_spec, temp_project)
+    assert agent_file.exists(), "Agent file should be created"
 
-            router = InvalidRouter("http://test", "test-model", {})
+    # Verify generated code
+    verify_agent_code(agent_file)
 
-            # This should raise an AttributeError
-            with pytest.raises(AttributeError):
-                router.run("test prompt")
-        finally:
-            sys.path.pop(0)
+    # Create mock router
+    create_mock_router_file(temp_project)
+
+    # Test agent execution
+    import sys
+
+    sys.path.insert(0, str(temp_project))
+
+    try:
+        from agent import TestAgent
+
+        agent = TestAgent()
+        result = agent.greet(name="Alice")
+
+        # Verify the result - handle both Pydantic models and dictionaries
+        if hasattr(result, "response"):
+            # Pydantic model
+            assert (
+                result.response == "Hello Alice!"
+            ), f"Expected 'Hello Alice!', got '{result.response}'"
+        else:
+            # Dictionary
+            assert isinstance(result, dict), "Result should be a dictionary"
+            assert (
+                result.get("response") == "Hello Alice!"
+            ), f"Expected 'Hello Alice!', got '{result.get('response')}'"
+
+    finally:
+        sys.path.pop(0)
+
+
+def test_custom_llm_router_error_handling(base_spec, temp_project):
+    """Test error handling when custom LLM router is not available"""
+    # Modify spec to use non-existent module
+    spec_data = base_spec.copy()
+    spec_data["intelligence"]["module"] = "NonExistentModule.NonExistentClass"
+
+    # Create spec file and generate agent
+    create_spec_file(spec_data, temp_project)
+    agent_file = generate_test_agent(spec_data, temp_project)
+
+    # Verify generated code contains the module reference
+    agent_code = agent_file.read_text()
+    assert (
+        "NonExistentModule.NonExistentClass" in agent_code
+    ), "Should reference the specified module"
+
+    # Test that importing the module fails as expected
+    import sys
+
+    sys.path.insert(0, str(temp_project))
+
+    try:
+        with pytest.raises(ImportError):
+            import importlib
+
+            importlib.import_module("NonExistentModule")
+    finally:
+        sys.path.pop(0)
+
+
+def test_custom_llm_router_missing_run_method(base_spec, temp_project):
+    """Test error handling when custom LLM router doesn't have a run method"""
+    # Modify spec to use invalid router
+    spec_data = base_spec.copy()
+    spec_data["intelligence"]["module"] = "InvalidRouter.InvalidRouter"
+
+    # Create invalid router file
+    create_invalid_router_file(temp_project)
+
+    # Generate agent code
+    create_spec_file(spec_data, temp_project)
+    agent_file = generate_test_agent(spec_data, temp_project)
+
+    # Verify generated code contains validation logic
+    agent_code = agent_file.read_text()
+    assert "hasattr(router, 'run')" in agent_code, "Should check for run method"
+    assert (
+        "AttributeError" in agent_code
+    ), "Should raise AttributeError for missing run method"
+
+    # Test that the InvalidRouter class doesn't have a run method
+    import sys
+
+    sys.path.insert(0, str(temp_project))
+
+    try:
+        from InvalidRouter import InvalidRouter
+
+        router = InvalidRouter("http://test", "test-model", {})
+
+        # This should raise an AttributeError
+        with pytest.raises(AttributeError):
+            router.run("test prompt")
+    finally:
+        sys.path.pop(0)
