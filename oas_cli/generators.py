@@ -665,10 +665,11 @@ def generate_agent_code(
 
     # Generate API key logic based on engine
     if engine == "openai":
-        api_key_logic = "        if api_key:\n            openai.api_key = api_key"
+        api_key_logic = "        if api_key:\n" "            openai.api_key = api_key"
     elif engine == "anthropic":
         api_key_logic = (
-            "        if api_key:\n            os.environ['ANTHROPIC_API_KEY'] = api_key"
+            "        if api_key:\n"
+            "            os.environ['ANTHROPIC_API_KEY'] = api_key"
         )
     else:
         api_key_logic = "        # No API key logic for local/custom engines"
