@@ -2,7 +2,7 @@
 
 import logging
 from pathlib import Path
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 
 
 log = logging.getLogger("oas")
@@ -666,7 +666,7 @@ ROLE = "{agent_name.title()}"
 {chr(10).join(task_functions)}
 
 class {class_name}:
-    def __init__(self, api_key: str | None = None):
+    def __init__(self, api_key: Optional[str] = None):
         self.model = "{config["model"]}"
         if api_key:
             openai.api_key = api_key

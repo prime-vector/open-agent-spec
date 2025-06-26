@@ -1,5 +1,6 @@
 import logging
 from pathlib import Path
+from typing import Optional
 
 import typer
 import yaml
@@ -95,7 +96,7 @@ def load_and_validate_spec(
 
 
 def resolve_spec_path(
-    spec: Path | None, template: str | None, log: logging.Logger
+    spec: Optional[Path], template: Optional[str], log: logging.Logger
 ) -> Path:
     if spec is not None:
         return spec
