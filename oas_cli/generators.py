@@ -409,14 +409,18 @@ def _generate_task_function(
 
     # Determine client usage based on engine
     engine = spec_data.get("intelligence", {}).get("engine", "openai")
+    module_path = spec_data.get("intelligence", {}).get("module")
+    endpoint = config.get("endpoint")
+    model = config.get("model")
+    llm_config = config.get("config", {})
     if engine == "openai":
         client_code = f"""    client = openai.OpenAI(
-        base_url="{config["endpoint"]}",
+        base_url=\"{config["endpoint"]}\",
         api_key=openai.api_key
     )
 
     response = client.chat.completions.create(
-        model="{config["model"]}",
+        model=\"{config["model"]}\",
         messages=[
             {{"role": "system", "content": "You are a professional {agent_name}."}},
             {{"role": "user", "content": prompt}}
@@ -429,11 +433,11 @@ def _generate_task_function(
     elif engine == "anthropic":
         client_code = f"""    import anthropic
     client = anthropic.Anthropic(
-        api_key=os.environ.get("ANTHROPIC_API_KEY")
+        api_key=os.environ.get(\"ANTHROPIC_API_KEY\")
     )
 
     response = client.messages.create(
-        model="{config["model"]}",
+        model=\"{config["model"]}\",
         max_tokens={config["max_tokens"]},
         temperature={config["temperature"]},
         system="You are a professional {agent_name}.",
@@ -443,18 +447,25 @@ def _generate_task_function(
     )
 
     result = response.content[0].text if response.content else """
-    else:
-        client_code = f"""    response = openai.ChatCompletion.create(
-        model="{config["model"]}",
-        messages=[
-            {{"role": "system", "content": "You are a professional {agent_name}."}},
-            {{"role": "user", "content": prompt}}
-        ],
-        temperature={config["temperature"]},
-        max_tokens={config["max_tokens"]}
-    )
+    elif engine == "local":
+        client_code = """    # Local engine logic not implemented yet\n    raise NotImplementedError('Local engine support is not yet implemented.')"""
+    elif engine == "custom":
+        client_code = f"""    import importlib
+    def load_custom_llm_router(module_path):
+        module_name, class_name = module_path.rsplit('.', 1)
+        module = importlib.import_module(module_name)
+        return getattr(module, class_name)
 
-    result = response.choices[0].message.content"""
+    if not {repr(module_path)}:
+        raise ValueError('No module specified for custom engine.')
+    CustomLLMRouter = load_custom_llm_router({repr(module_path)})
+    router = CustomLLMRouter(endpoint={repr(endpoint)}, model={repr(model)}, config={repr(llm_config)})
+    if not hasattr(router, 'run'):
+        raise AttributeError('Custom LLM router must have a .run(prompt, **kwargs) method.')
+    result = router.run(prompt, **input_dict)
+"""
+    else:
+        raise ValueError(f"Unknown engine: {engine}")
 
     # Generate prompt rendering with actual parameter values
     prompt_render_params = []
@@ -638,7 +649,7 @@ def generate_agent_code(
     elif engine == "anthropic":
         imports.append("import anthropic")
     else:
-        imports.append("import openai")  # Default fallback
+        imports.append("# Add your local or custom engine dependencies here")
 
     imports.extend(
         [
@@ -651,6 +662,16 @@ def generate_agent_code(
             "from pydantic import BaseModel",
         ]
     )
+
+    # Generate API key logic based on engine
+    if engine == "openai":
+        api_key_logic = "        if api_key:\n            openai.api_key = api_key"
+    elif engine == "anthropic":
+        api_key_logic = (
+            "        if api_key:\n            os.environ['ANTHROPIC_API_KEY'] = api_key"
+        )
+    else:
+        api_key_logic = "        # No API key logic for local/custom engines"
 
     agent_code = f"""{chr(10).join(imports)}
 
@@ -668,8 +689,7 @@ ROLE = "{agent_name.title()}"
 class {class_name}:
     def __init__(self, api_key: str | None = None):
         self.model = "{config["model"]}"
-        if api_key:
-            openai.api_key = api_key
+{api_key_logic}
 
 {chr(10).join(class_methods)}
 {chr(10).join(memory_methods)}
@@ -838,6 +858,10 @@ def generate_requirements(output: Path, spec_data: Dict[str, Any]) -> None:
         requirements.append("openai>=1.0.0")
     elif engine == "anthropic":
         requirements.append("anthropic>=0.18.0")
+    elif engine == "local":
+        requirements.append("# Add your local engine dependencies here")
+    elif engine == "custom":
+        requirements.append("# Add your custom engine dependencies here")
     else:
         requirements.append("openai>=1.0.0")  # Default fallback
 
@@ -864,6 +888,12 @@ def generate_env_example(output: Path, spec_data: Dict[str, Any]) -> None:
 
     if engine == "anthropic":
         env_content = "ANTHROPIC_API_KEY=your-api-key-here\n"
+    elif engine == "openai":
+        env_content = "OPENAI_API_KEY=your-api-key-here\n"
+    elif engine == "local":
+        env_content = "# Add your local engine environment variables here\n"
+    elif engine == "custom":
+        env_content = "# Add your custom engine environment variables here\n"
     else:
         env_content = "OPENAI_API_KEY=your-api-key-here\n"
 
