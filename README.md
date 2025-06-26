@@ -132,8 +132,24 @@ pip install -e ".[dev]"
 
 ### Running Tests
 ```bash
+# Run all tests
 pytest
+
+# Run specific test suites
+pytest tests/test_generators.py -v          # Generator functionality tests
+pytest tests/test_contract_validation.py -v # Behavioral contract validation  
+pytest tests/test_multi_engine.py -v        # Multi-engine compatibility (OpenAI/Claude)
+
+# Run with coverage
+pytest --cov=oas_cli tests/
 ```
+
+#### Test Categories
+
+- **Generator Tests**: Validate code generation, file creation, and template rendering
+- **Contract Tests**: Ensure behavioral contracts work correctly across engines
+- **Multi-Engine Tests**: Verify OpenAI and Claude/Anthropic compatibility
+- **Integration Tests**: End-to-end validation of agent generation
 
 ### Building
 ```bash
