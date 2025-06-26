@@ -21,12 +21,47 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install pytest pytest-cov pydantic
+          pip install pytest pytest-cov pytest-html pydantic
           if [ -f requirements.txt ]; then pip install -r requirements.txt --index-url https://test.pypi.org/simple/ --extra-index-url https://pypi.org/simple/; fi
           pip install ".[dev]"  # Install dev dependencies including linting tools
-      - name: Run tests
+      - name: Run tests with comprehensive reporting
         run: |
-          python -m pytest tests/ -v --cov=oas_cli
+          python -m pytest tests/ \
+            -v \
+            --tb=short \
+            --junitxml=test-results.xml \
+            --html=test-report.html \
+            --self-contained-html \
+            --cov=oas_cli \
+            --cov-report=html \
+            --cov-report=xml \
+            --cov-report=term-missing
+      
+      - name: Upload test artifacts
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: test-results-feature-branch
+          path: |
+            test-results.xml
+            test-report.html
+            htmlcov/
+          retention-days: 7
+      
+      - name: Generate test summary
+        if: always()
+        run: |
+          echo "## 🧪 Test Results Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Test Categories" >> $GITHUB_STEP_SUMMARY
+          echo "- **Contract Tests**: Behavioral contract validation across engines" >> $GITHUB_STEP_SUMMARY
+          echo "- **Multi-Engine Tests**: OpenAI/Claude/Custom/Local compatibility" >> $GITHUB_STEP_SUMMARY  
+          echo "- **Generator Tests**: Code generation and file creation" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Reports Generated" >> $GITHUB_STEP_SUMMARY
+          echo "- HTML Test Report: \`test-report.html\`" >> $GITHUB_STEP_SUMMARY
+          echo "- Coverage Report: \`htmlcov/index.html\`" >> $GITHUB_STEP_SUMMARY
+          echo "- JUnit XML: \`test-results.xml\`" >> $GITHUB_STEP_SUMMARY
       - name: Run code quality checks
         run: |
           flake8 . --max-line-length=100 --ignore=E501,W503,E203 --exclude=test_output/
