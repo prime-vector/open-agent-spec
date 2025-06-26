@@ -49,6 +49,25 @@ include = ["oas_cli/templates/*.yaml", "oas_cli/schemas/*.json"]
 [tool.hatch.metadata]
 allow-direct-references = true
 
+[tool.mypy]
+python_version = "3.8"
+warn_return_any = false
+warn_unused_configs = true
+check_untyped_defs = false
+no_implicit_optional = false
+warn_redundant_casts = false
+warn_unused_ignores = false
+warn_no_return = false
+warn_unreachable = false
+strict_equality = false
+ignore_missing_imports = true
+disable_error_code = ["has-type"]
+
+# Ignore missing imports for test files that dynamically create modules
+[[tool.mypy.overrides]]
+module = "tests.*"
+ignore_missing_imports = true
+
 [tool.ruff]
 line-length = 88
 target-version = "py38"
