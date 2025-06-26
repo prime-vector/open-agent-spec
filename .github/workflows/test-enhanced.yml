@@ -68,14 +68,13 @@ jobs:
         fail_ci_if_error: false
     
     - name: Comment test results on PR
-      uses: EnricoMi/publish-test-results@v2
+      uses: EnricoMi/publish-unit-test-result-action@v2
       if: always() && github.event_name == 'pull_request'
       with:
         files: test-results.xml
         comment_title: "🧪 Test Results - Python ${{ matrix.python-version }}"
         check_name: "Test Results (Python ${{ matrix.python-version }})"
         report_individual_runs: true
-        dedupe_classes_by_file_name: false
 
   test-summary:
     runs-on: ubuntu-latest
