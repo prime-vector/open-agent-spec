@@ -43,14 +43,6 @@ def mock_claude_response():
     return mock_response
 
 
-@pytest.fixture
-def invalid_json_response():
-    """Mock response with invalid JSON to test error handling."""
-    mock_response = MagicMock()
-    mock_response.choices = [MagicMock()]
-    mock_response.choices[0].message.content = "This is not valid JSON"
-    return mock_response
-
 
 @pytest.fixture
 def missing_fields_response():

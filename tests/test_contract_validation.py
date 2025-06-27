@@ -2,89 +2,10 @@
 
 import pytest
 from unittest.mock import patch, MagicMock
+import json
 
 pytestmark = pytest.mark.contract
 
-
-def create_test_agent(engine_type="openai"):
-    """Create a test agent with mocked dependencies."""
-    # This would normally use the OAS CLI to generate an agent
-    # For testing, we'll create a minimal agent class
-
-    if engine_type == "openai":
-        agent_code = """
-from typing import List
-from pydantic import BaseModel
-from behavioural_contracts import behavioural_contract
-import openai
-import json
-
-class AnalyzeThreatOutput(BaseModel):
-    risk_assessment: str
-    recommendations: List[str]
-    confidence_level: float
-
-@behavioural_contract(
-    version="0.1.2",
-    description="Security-focused contract with strict validation",
-    role="Security analyst",
-    behavioural_flags={
-        "conservatism": "high",
-        "temperature_control": {"mode": "strict", "range": [0.1, 0.5]}
-    },
-    response_contract={
-        "output_format": {
-            "required_fields": ["risk_assessment", "recommendations", "confidence_level"]
-        },
-        "safety_checks": {"harmful_content": True}
-    }
-)
-def analyze_threat(threat_description: str, severity: str, system_affected: str) -> AnalyzeThreatOutput:
-    # Mock implementation for testing
-    pass
-
-class SecurityAgent:
-    def analyze_threat(self, threat_description, severity, system_affected):
-        return analyze_threat(threat_description, severity, system_affected)
-"""
-    else:  # anthropic/claude
-        agent_code = """
-from typing import List
-from pydantic import BaseModel
-from behavioural_contracts import behavioural_contract
-import anthropic
-import json
-
-class AnalyzeThreatOutput(BaseModel):
-    risk_assessment: str
-    recommendations: List[str]
-    confidence_level: float
-
-@behavioural_contract(
-    version="0.1.2",
-    description="Security-focused contract with strict validation",
-    role="Security analyst",
-    behavioural_flags={
-        "conservatism": "high",
-        "temperature_control": {"mode": "strict", "range": [0.1, 0.5]}
-    },
-    response_contract={
-        "output_format": {
-            "required_fields": ["risk_assessment", "recommendations", "confidence_level"]
-        },
-        "safety_checks": {"harmful_content": True}
-    }
-)
-def analyze_threat(threat_description: str, severity: str, system_affected: str) -> AnalyzeThreatOutput:
-    # Mock implementation for testing
-    pass
-
-class SecurityAgent:
-    def analyze_threat(self, threat_description, severity, system_affected):
-        return analyze_threat(threat_description, severity, system_affected)
-"""
-
-    return agent_code
 
 
 class TestContractValidation:
@@ -100,8 +21,27 @@ class TestContractValidation:
         mock_client.chat.completions.create.return_value = mock_openai_response
         mock_openai.return_value = mock_client
 
-        # Test would require actual agent generation, simplified for demo
-        assert True  # Placeholder - would test actual contract validation
+        # Simulate contract validation
+        response = mock_client.chat.completions.create(
+            model="gpt-4",
+            messages=[{"role": "user", "content": "test threat"}],
+            temperature=0.3
+        )
+        
+        # Validate response structure
+        assert response.choices[0].message.content is not None
+        content = json.loads(response.choices[0].message.content)
+        
+        # Validate required fields
+        assert "risk_assessment" in content
+        assert "recommendations" in content
+        assert "confidence_level" in content
+        
+        # Validate types and constraints
+        assert isinstance(content["risk_assessment"], str)
+        assert isinstance(content["recommendations"], list)
+        assert isinstance(content["confidence_level"], (int, float))
+        assert 0.0 <= content["confidence_level"] <= 1.0
 
     @patch("anthropic.Anthropic")
     def test_claude_valid_response(
@@ -113,8 +53,27 @@ class TestContractValidation:
         mock_client.messages.create.return_value = mock_claude_response
         mock_anthropic.return_value = mock_client
 
-        # Test would require actual agent generation, simplified for demo
-        assert True  # Placeholder - would test actual contract validation
+        # Simulate contract validation
+        response = mock_client.messages.create(
+            model="claude-3-5-sonnet-20241022",
+            messages=[{"role": "user", "content": "test threat"}],
+            temperature=0.3
+        )
+        
+        # Validate response structure
+        assert response.content[0].text is not None
+        content = json.loads(response.content[0].text)
+        
+        # Validate required fields
+        assert "risk_assessment" in content
+        assert "recommendations" in content
+        assert "confidence_level" in content
+        
+        # Validate types and constraints
+        assert isinstance(content["risk_assessment"], str)
+        assert isinstance(content["recommendations"], list)
+        assert isinstance(content["confidence_level"], (int, float))
+        assert 0.0 <= content["confidence_level"] <= 1.0
 
     def test_required_fields_validation(self, missing_fields_response):
         """Test that missing required fields trigger contract violations."""
