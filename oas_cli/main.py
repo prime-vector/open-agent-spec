@@ -1,14 +1,14 @@
 import logging
+import tempfile
 from pathlib import Path
+from typing import Dict, Any, Tuple, Optional
 
 import typer
 import yaml
-from pkg_resources import get_distribution
+import pkg_resources
 from rich.console import Console
 from rich.logging import RichHandler
 from rich.panel import Panel
-import importlib.resources as pkg_resources
-import tempfile
 
 from .banner import ASCII_TITLE
 from .generators import (
@@ -36,7 +36,7 @@ def setup_logging(verbose: bool = False) -> logging.Logger:
 def get_version_from_pyproject():
     """Get the version from package metadata."""
     try:
-        return get_distribution("open-agent-spec").version
+        return pkg_resources.get_distribution("open-agent-spec").version
     except Exception:
         return "unknown"
 
@@ -70,7 +70,7 @@ def main(
 
 def load_and_validate_spec(
     spec_path: Path, log: logging.Logger
-) -> tuple[dict, str, str]:
+) -> Tuple[Dict[str, Any], str, str]:
     """Load and validate a spec file, returning the data and derived names."""
     log.info(f"Reading spec from: {spec_path}")
     try:
@@ -95,18 +95,17 @@ def load_and_validate_spec(
 
 
 def resolve_spec_path(
-    spec: Path | None, template: str | None, log: logging.Logger
+    spec: Optional[Path], template: Optional[str], log: logging.Logger
 ) -> Path:
     if spec is not None:
         return spec
     elif template == "minimal":
         # Load the template from the package resources
         try:
-            with (
-                pkg_resources.files("oas_cli.templates")
-                .joinpath("minimal-agent.yaml")
-                .open("rb")
-            ) as f:
+            template_path = pkg_resources.resource_filename(
+                "oas_cli.templates", "minimal-agent.yaml"
+            )  # type: ignore
+            with open(template_path, "rb") as f:
                 temp = tempfile.NamedTemporaryFile(delete=False, suffix=".yaml")
                 temp.write(f.read())
                 temp.close()
@@ -120,7 +119,11 @@ def resolve_spec_path(
 
 
 def generate_files(
-    output: Path, spec_data: dict, agent_name: str, class_name: str, log: logging.Logger
+    output: Path,
+    spec_data: Dict[str, Any],
+    agent_name: str,
+    class_name: str,
+    log: logging.Logger,
 ) -> None:
     """Generate all agent files."""
     try:
@@ -156,9 +159,11 @@ def version():
 
 @app.command()
 def init(
-    spec: Path = typer.Option(None, help="Path to Open Agent Spec YAML file"),
+    spec: Optional[Path] = typer.Option(None, help="Path to Open Agent Spec YAML file"),
     output: Path = typer.Option(..., help="Directory to scaffold the agent into"),
-    template: str = typer.Option(None, help="Template name to use (e.g., 'minimal')"),
+    template: Optional[str] = typer.Option(
+        None, help="Template name to use (e.g., 'minimal')"
+    ),
     verbose: bool = typer.Option(
         False, "--verbose", "-v", help="Enable verbose logging"
     ),
