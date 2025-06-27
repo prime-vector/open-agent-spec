@@ -5,7 +5,7 @@ from typing import Dict, Any, Tuple, Optional
 
 import typer
 import yaml
-from pkg_resources import get_distribution
+import pkg_resources
 from rich.console import Console
 from rich.logging import RichHandler
 from rich.panel import Panel
@@ -36,7 +36,7 @@ def setup_logging(verbose: bool = False) -> logging.Logger:
 def get_version_from_pyproject():
     """Get the version from package metadata."""
     try:
-        return get_distribution("open-agent-spec").version
+        return pkg_resources.get_distribution("open-agent-spec").version
     except Exception:
         return "unknown"
 

@@ -456,7 +456,7 @@ def _generate_task_function(
         module = importlib.import_module(module_name)
         return getattr(module, class_name)
 
-    if not module_path:
+    if not {repr(module_path)}:
         raise ValueError('No module specified for custom engine.')
     CustomLLMRouter = load_custom_llm_router({repr(module_path)})
     router = CustomLLMRouter(endpoint={repr(endpoint)}, model={repr(model)}, config={repr(llm_config)})
