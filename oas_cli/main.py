@@ -102,8 +102,6 @@ def resolve_spec_path(
     elif template == "minimal":
         # Load the template from the package resources
         try:
-            import pkg_resources
-
             template_path = pkg_resources.resource_filename(
                 "oas_cli.templates", "minimal-agent.yaml"
             )  # type: ignore
