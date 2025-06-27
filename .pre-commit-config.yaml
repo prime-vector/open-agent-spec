@@ -23,10 +23,3 @@ repos:
     -   id: mypy
         additional_dependencies: [pydantic, types-PyYAML, types-setuptools, setuptools]
         types_or: [python, pyi]
-
--   repo: https://github.com/pycqa/flake8
-    rev: 6.1.0
-    hooks:
-    -   id: flake8
-        args: ["--max-line-length=100", "--ignore=E501,W503,E203"]
-        types_or: [python, pyi]
