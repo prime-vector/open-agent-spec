@@ -2,7 +2,15 @@
 
 import os
 
-import toml  # type: ignore
+import sys
+
+if sys.version_info >= (3, 11):
+    import tomllib
+else:
+    try:
+        import tomli as tomllib  # type: ignore
+    except ImportError:
+        import toml as tomllib  # type: ignore
 from typer.testing import CliRunner
 
 from oas_cli.main import app
@@ -14,8 +22,8 @@ def get_version_from_pyproject():
     pyproject_path = os.path.join(
         os.path.dirname(os.path.dirname(__file__)), "pyproject.toml"
     )
-    with open(pyproject_path) as f:
-        pyproject_data = toml.load(f)
+    with open(pyproject_path, "rb") as f:
+        pyproject_data = tomllib.load(f)
     return pyproject_data["project"]["version"]
 
 

@@ -132,8 +132,38 @@ pip install -e ".[dev]"
 
 ### Running Tests
 ```bash
+# Run all tests with basic reporting
 pytest
+
+# Run with comprehensive reporting
+pytest tests/ -v --cov=oas_cli --cov-report=html --cov-report=term
+
+# Run specific test categories
+pytest -m contract tests/                   # Behavioral contract validation
+pytest -m multi_engine tests/               # Multi-engine compatibility  
+pytest -m generator tests/                  # Generator functionality tests
+
+# Generate detailed HTML report
+pytest tests/ --html=test-report.html --self-contained-html
+
+# Generate Allure report (requires allure-pytest)
+pytest tests/ --alluredir=allure-results
+allure serve allure-results
 ```
+
+#### Test Reporting Features
+- **Coverage Reports**: HTML and terminal coverage reports
+- **Test Categories**: Organized by markers (contract, multi_engine, generator)
+- **Allure Reports**: Beautiful interactive test reports
+- **CI Integration**: Automatic reporting in GitHub Actions
+- **Artifact Upload**: Test results and coverage reports saved
+
+#### Test Categories
+
+- **Generator Tests**: Validate code generation, file creation, and template rendering
+- **Contract Tests**: Ensure behavioral contracts work correctly across engines
+- **Multi-Engine Tests**: Verify OpenAI and Claude/Anthropic compatibility
+- **Integration Tests**: End-to-end validation of agent generation
 
 ### Building
 ```bash
