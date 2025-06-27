@@ -264,3 +264,37 @@ def test_generate_env_example_anthropic(temp_dir):
 
     content = env_file.read_text()
     assert "ANTHROPIC_API_KEY=" in content
+
+
+@pytest.mark.parametrize("engine", ["openai", "anthropic", "local", "custom"])
+def test_generate_requirements_all_engines(temp_dir, engine):
+    """Test requirements.txt generation for all supported engines."""
+    spec = {"intelligence": {"type": "llm", "engine": engine, "model": "gpt-4"}}
+    generate_requirements(temp_dir, spec)
+    requirements_file = temp_dir / "requirements.txt"
+    content = requirements_file.read_text()
+    if engine == "openai":
+        assert "openai>=" in content
+    elif engine == "anthropic":
+        assert "anthropic>=" in content
+    elif engine == "local":
+        assert "local engine dependencies" in content
+    elif engine == "custom":
+        assert "custom engine dependencies" in content
+
+
+@pytest.mark.parametrize("engine", ["openai", "anthropic", "local", "custom"])
+def test_generate_env_example_all_engines(temp_dir, engine):
+    """Test .env.example generation for all supported engines."""
+    spec = {"intelligence": {"type": "llm", "engine": engine, "model": "gpt-4"}}
+    generate_env_example(temp_dir, spec)
+    env_file = temp_dir / ".env.example"
+    content = env_file.read_text()
+    if engine == "openai":
+        assert "OPENAI_API_KEY=" in content
+    elif engine == "anthropic":
+        assert "ANTHROPIC_API_KEY=" in content
+    elif engine == "local":
+        assert "local engine environment variables" in content
+    elif engine == "custom":
+        assert "custom engine environment variables" in content

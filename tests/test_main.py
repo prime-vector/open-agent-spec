@@ -32,7 +32,7 @@ def test_version_command():
     version = get_version_from_pyproject()
     result = runner.invoke(app, ["version"])
     assert result.exit_code == 0
-    assert version in result.stdout
+    assert version in result.output
 
 
 def test_version_flag():
@@ -40,8 +40,8 @@ def test_version_flag():
     version = get_version_from_pyproject()
     result = runner.invoke(app, ["--version"])
     assert result.exit_code == 0
-    assert "Open Agent Spec CLI version" in result.stdout
-    assert version in result.stdout
+    assert "Open Agent Spec CLI version" in result.output
+    assert version in result.output
 
 
 def test_init_with_minimal_template(tmp_path):
@@ -52,7 +52,7 @@ def test_init_with_minimal_template(tmp_path):
     )
 
     assert result.exit_code == 0
-    assert "Agent project initialized!" in result.stdout
+    assert "Agent project initialized!" in result.output
 
     # Verify that the key files were created
     agent_py = output_dir / "agent.py"
