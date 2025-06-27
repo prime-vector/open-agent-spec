@@ -43,7 +43,6 @@ def mock_claude_response():
     return mock_response
 
 
-
 @pytest.fixture
 def missing_fields_response():
     """Mock response missing required fields to test validation."""

@@ -7,7 +7,6 @@ import json
 pytestmark = pytest.mark.contract
 
 
-
 class TestContractValidation:
     """Test behavioral contract validation with mock responses."""
 
@@ -27,16 +26,16 @@ class TestContractValidation:
             messages=[{"role": "user", "content": "test threat"}],
             temperature=0.3
         )
-        
+
         # Validate response structure
         assert response.choices[0].message.content is not None
         content = json.loads(response.choices[0].message.content)
-        
+
         # Validate required fields
         assert "risk_assessment" in content
         assert "recommendations" in content
         assert "confidence_level" in content
-        
+
         # Validate types and constraints
         assert isinstance(content["risk_assessment"], str)
         assert isinstance(content["recommendations"], list)
@@ -59,16 +58,16 @@ class TestContractValidation:
             messages=[{"role": "user", "content": "test threat"}],
             temperature=0.3
         )
-        
+
         # Validate response structure
         assert response.content[0].text is not None
         content = json.loads(response.content[0].text)
-        
+
         # Validate required fields
         assert "risk_assessment" in content
         assert "recommendations" in content
         assert "confidence_level" in content
-        
+
         # Validate types and constraints
         assert isinstance(content["risk_assessment"], str)
         assert isinstance(content["recommendations"], list)
