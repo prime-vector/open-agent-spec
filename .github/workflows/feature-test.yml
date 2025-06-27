@@ -118,11 +118,6 @@ jobs:
         python -m pip install --upgrade pip
         pip install ".[dev]"
     
-    - name: Run flake8
-      run: |
-        echo "🔍 Running flake8 code quality checks..."
-        flake8 . --max-line-length=100 --ignore=E501,W503,E203 --exclude=test_output/
-        echo "✅ Flake8 checks passed"
     
     - name: Run ruff
       run: |

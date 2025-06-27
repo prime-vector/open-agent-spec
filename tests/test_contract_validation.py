@@ -24,7 +24,7 @@ class TestContractValidation:
         response = mock_client.chat.completions.create(
             model="gpt-4",
             messages=[{"role": "user", "content": "test threat"}],
-            temperature=0.3
+            temperature=0.3,
         )
 
         # Validate response structure
@@ -56,7 +56,7 @@ class TestContractValidation:
         response = mock_client.messages.create(
             model="claude-3-5-sonnet-20241022",
             messages=[{"role": "user", "content": "test threat"}],
-            temperature=0.3
+            temperature=0.3,
         )
 
         # Validate response structure

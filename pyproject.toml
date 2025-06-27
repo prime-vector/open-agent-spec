@@ -34,7 +34,6 @@ dev = [
     "mypy>=1.0.0",
     "ruff>=0.1.0",
     "pre-commit>=3.0.0",
-    "flake8>=6.1.0",
     "build>=1.0.0",
     "twine>=4.0.0",
     "types-PyYAML>=6.0.0",
@@ -58,8 +57,6 @@ allow-direct-references = true
 line-length = 88
 target-version = "py310"
 
-[tool.flake8]
-ignore = ["E203"]
 
 [tool.ruff.lint]
 select = [
