@@ -182,7 +182,7 @@ To create a new release:
 # Update version in pyproject.toml, then:
 git add pyproject.toml
 git commit -m "Bump version to v1.0.8"
-git push origin master
+git push origin main
 
 # Create and push the tag
 git tag v1.0.8
