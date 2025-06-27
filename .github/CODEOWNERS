@@ -1,14 +1,14 @@
 # These owners will be the default owners for everything in the repo
-* @aswhitehouse
+* @aswhitehouse @sgriffiths
 
 # Python source code
-/oas_cli/ @aswhitehouse
+/oas_cli/ @aswhitehouse @sgriffiths
 
 # Documentation
-/docs/ @aswhitehouse
-*.md @aswhitehouse
+/docs/ @aswhitehouse @sgriffiths
+*.md @aswhitehouse @sgriffiths
 
 # Configuration files
-/.github/ @aswhitehouse
-pyproject.toml @aswhitehouse
-.gitignore @aswhitehouse
+/.github/ @aswhitehouse @sgriffiths
+pyproject.toml @aswhitehouse @sgriffiths
+.gitignore @aswhitehouse @sgriffiths
