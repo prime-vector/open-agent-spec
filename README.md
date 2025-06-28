@@ -321,7 +321,7 @@ pytest tests/ -v --cov=oas_cli --cov-report=html --cov-report=term
 
 # Run specific test categories
 pytest -m contract tests/                   # Behavioral contract validation
-pytest -m multi_engine tests/               # Multi-engine compatibility  
+pytest -m multi_engine tests/               # Multi-engine compatibility
 pytest -m generator tests/                  # Generator functionality tests
 
 # Generate detailed HTML report
@@ -351,7 +351,35 @@ allure serve allure-results
 python -m build
 ```
 
+### Creating a Release
+
+To create a new release:
+
+1. **Update the version number** in `pyproject.toml`
+2. **Commit and push your changes**
+3. **Create and push a new tag**
+
+```bash
+# Update version in pyproject.toml, then:
+git add pyproject.toml
+git commit -m "Bump version to v1.0.8"
+git push origin main
+
+# Create and push the tag
+git tag v1.0.8
+git push origin v1.0.8
+```
+
+The GitHub Actions workflow will automatically:
+- Run all tests
+- Build the package
+- Publish to PyPI
+
+Your package will be available on PyPI within a few minutes.
+
+
 ## Package Installation
+
 [![PyPI version](https://img.shields.io/pypi/v/open-agent-spec)](https://pypi.org/project/open-agent-spec/)
 
 ## License

@@ -1,4 +1,4 @@
-name: Publish to TestPyPI
+name: Publish to PyPI
 
 on:
   push:
@@ -19,23 +19,22 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install pytest pytest-cov pydantic
-          if [ -f requirements.txt ]; then pip install -r requirements.txt --index-url https://test.pypi.org/simple/ --extra-index-url https://pypi.org/simple/; fi
+          if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
           pip install ".[dev]"  # Install dev dependencies including linting tools
       - name: Run tests
         run: |
           python -m pytest tests/ -v --cov=oas_cli
       - name: Run code quality checks
         run: |
-          flake8 . --max-line-length=100 --ignore=E501,W503,E203 --exclude=test_output/
           ruff check . --exclude test_output/
-          ruff format . --exclude test_output/
+          ruff format . --exclude test_output/ --check
           mypy oas_cli tests
 
   publish:
     runs-on: ubuntu-latest
     environment:
-      name: testpypi
-      url: https://test.pypi.org/project/open-agent-spec/
+      name: pypi
+      url: https://pypi.org/project/open-agent-spec/
     steps:
       - uses: actions/checkout@v4
 
@@ -48,7 +47,7 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install build twine tomli
-          pip install -e ".[dev]" --index-url https://test.pypi.org/simple/ --extra-index-url https://pypi.org/simple/
+          pip install -e ".[dev]"
 
       - name: Verify version matches tag
         run: |
@@ -62,9 +61,9 @@ jobs:
       - name: Build package
         run: python -m build
 
-      - name: Publish to TestPyPI
+      - name: Publish to PyPI
         env:
           TWINE_USERNAME: __token__
-          TWINE_PASSWORD: ${{ secrets.TEST_PYPI_API_TOKEN }}
+          TWINE_PASSWORD: ${{ secrets.PYPI_API_TOKEN }}
         run: |
-          python -m twine upload --repository testpypi dist/*
+          python -m twine upload dist/*

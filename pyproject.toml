@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "open-agent-spec"
-version = "1.0.7"
+version = "1.0.8"
 description = "Open Agent Spec CLI for bootstrapping AI agent projects"
 authors = [{ name = "Andrew Whitehouse", email = "andrewswhitehouse@gmail.com" }]
 license = { text = "AGPL-3.0-only" }
@@ -84,8 +84,6 @@ select = [
     "W",   # pycodestyle warnings
     "F",   # pyflakes
     "I",   # isort
-    "C",   # flake8-comprehensions
-    "B",   # flake8-bugbear
     "UP",  # pyupgrade
     "N",   # pep8-naming
     "RUF", # ruff-specific rules
