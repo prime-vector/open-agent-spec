@@ -3,6 +3,9 @@
 import pytest
 from unittest.mock import MagicMock
 import json
+import tempfile
+import shutil
+from pathlib import Path
 
 
 @pytest.fixture
@@ -80,3 +83,29 @@ def sample_threat_data():
         "severity": "high",
         "system_affected": "Customer portal database",
     }
+
+
+@pytest.fixture(scope="session")
+def test_output_dir():
+    """Create a temporary directory for test outputs."""
+    temp_dir = Path(tempfile.mkdtemp(prefix="oas_test_"))
+    yield temp_dir
+    # Cleanup
+    shutil.rmtree(temp_dir, ignore_errors=True)
+
+
+@pytest.fixture(scope="session")
+def templates_dir():
+    """Get the path to the templates directory."""
+    return Path("oas_cli/templates")
+
+
+@pytest.fixture
+def clean_test_dir(test_output_dir):
+    """Clean test directory before each test."""
+    for item in test_output_dir.iterdir():
+        if item.is_dir():
+            shutil.rmtree(item)
+        else:
+            item.unlink()
+    return test_output_dir
