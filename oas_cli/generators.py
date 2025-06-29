@@ -68,7 +68,7 @@ def _generate_input_params(task_def: Dict[str, Any]) -> List[str]:
                             inferred_params.add(var_name)
                         # Skip steps.* references as they are previous step results, not input parameters
                     else:
-                        # Simple variable reference
+                        # Simple variable name without dots
                         inferred_params.add(var_name)
 
         # Add inferred parameters
@@ -420,11 +420,8 @@ def _generate_multi_step_task_function(
                         else:
                             # Invalid reference to future step
                             step_inputs.append(f'{param}=""')
-                    else:
-                        # Other nested reference, extract just the last part
-                        var_name = parts[-1]
-                        step_inputs.append(f"{param}={var_name}")
                 else:
+                    # Simple variable name without dots
                     step_inputs.append(f"{param}={var_name}")
             else:
                 # Literal value
@@ -503,7 +500,7 @@ def _generate_tool_task_function(
     agent_name: str,
     memory_config: Dict[str, Any],
 ) -> str:
-    """Generate a tool-based task function."""
+    """Generate a task function that uses a DACP tool."""
     func_name = task_name.replace("-", "_")
     input_params = _generate_input_params(task_def)
     output_type = f"{task_name.replace('-', '_').title()}Output"
@@ -514,24 +511,36 @@ def _generate_tool_task_function(
 
     # Get tool information
     tool_id = task_def["tool"]
-    tools = spec_data.get("tools", [])
-    tool_config = next((tool for tool in tools if tool["id"] == tool_id), None)
+    tool_params = task_def.get("tool_params", {})
 
-    if not tool_config:
-        raise ValueError(f"Tool '{tool_id}' not found in tools configuration")
+    # Map tool parameters to DACP parameter names
+    tool_param_mapping = {}
+    tool_args_lines = []
 
-    # Generate tool function call
-    tool_params = []
-    for param in input_params:
-        if param != "memory_summary: str = ''":
-            param_name = param.split(":")[0]
-            tool_params.append(f"{param_name}={param_name}")
+    for param_name, param_info in tool_params.items():
+        if isinstance(param_info, dict):
+            # Parameter mapping specified
+            dacp_param = param_info.get("dacp_param", param_name)
+            tool_param_mapping[param_name] = dacp_param
+            tool_args_lines.append(f'        "{dacp_param}": {param_name}')
+        else:
+            # Direct mapping
+            tool_param_mapping[param_name] = param_name
+            tool_args_lines.append(f'        "{param_name}": {param_name}')
 
-    # Add allowed_paths if specified in tool config
-    if "allowed_paths" in tool_config:
-        allowed_paths_str = f", allowed_paths={tool_config['allowed_paths']}"
-    else:
-        allowed_paths_str = ""
+    # Create tool description
+    tool_description = f"Tool: {tool_id}"
+    if tool_params:
+        param_descriptions = []
+        for param_name, param_info in tool_params.items():
+            if isinstance(param_info, dict):
+                desc = param_info.get("description", param_name)
+                param_descriptions.append(f"- {param_name}: {desc}")
+            else:
+                param_descriptions.append(f"- {param_name}")
+        tool_description += "\nParameters:\n" + "\n".join(param_descriptions)
+
+    tool_description_with_params = tool_description
 
     # Format the contract data for the decorator
     def format_value(v):
@@ -551,21 +560,102 @@ def _generate_tool_task_function(
     )
 
     return f"""
-from oas_cli.tools import get_tool_implementation
+from dacp import call_llm, run_tool
+from dacp.protocol import parse_agent_response, is_tool_request, get_tool_request, wrap_tool_result, get_final_response, is_final_response
 
 @behavioural_contract(
     {contract_str}
 )
 def {func_name}({", ".join(input_params)}) -> {output_type}:
     {docstring}
-    # Get the tool implementation
-    tool_func = get_tool_implementation("{tool_id}")
+    # Prepare tool arguments
+    tool_args = {{
+{", ".join(tool_args_lines)}
+    }}
 
-    # Call the tool with the provided parameters
-    result = tool_func({", ".join(tool_params)}{allowed_paths_str})
+    # Create prompt with tool description
+    json_example1 = '{{"tool_request": {{"name": "{tool_id}", "args": {{"path": "file_path_here", "content": "content_here"}}}}}}'
+    json_example2 = '{{"final_response": {{"result": "your final result here"}}}}'
+
+    tool_prompt = f'''You have access to the following tool:
+
+{tool_description_with_params}
+
+Your task is to use this tool appropriately. You can use the tool by responding with a tool request, or provide a final response.
+
+Available parameters: {list(tool_param_mapping.keys())}
+Current input values: {{tool_args}}
+
+Respond with JSON in one of these formats:
+
+1. For tool requests:
+{{json_example1}}
+
+2. For final responses:
+{{json_example2}}
+
+Remember: Only use the tool if it's necessary for your task.'''
+
+    # Call the LLM with tool context
+    response = call_llm(tool_prompt, model="gpt-4")
+
+    # Parse the response
+    parsed_response = parse_agent_response(response)
+
+    # Check if LLM wants to use a tool
+    if is_tool_request(parsed_response):
+        tool_name, tool_params = get_tool_request(parsed_response)
+
+        # Execute the tool
+        tool_result = run_tool(tool_name, tool_params)
+
+        # Wrap the tool result for the LLM
+        wrapped_result = wrap_tool_result(tool_name, tool_result)
+
+        # Continue conversation with tool result
+        follow_up_prompt = f'''The tool execution result: {{wrapped_result}}
+
+Based on this result, provide your final response in JSON format:
+
+{{{{"final_response": {{{{"result": "your final result here"}}}}}}}}
+
+Remember to respond with valid JSON.'''
+
+        final_response = call_llm(follow_up_prompt, model="gpt-4")
+        final_parsed = parse_agent_response(final_response)
+
+        if is_final_response(final_parsed):
+            result = get_final_response(final_parsed)
+        else:
+            result = {{"error": "LLM did not provide final response after tool execution"}}
+    else:
+        # LLM provided final response directly
+        if is_final_response(parsed_response):
+            result = get_final_response(parsed_response)
+        else:
+            result = {{"error": "LLM response format not recognized"}}
+
+    # Map result to expected output format
+    if "{tool_id}" == "file_writer":
+        # Handle file_writer specific mapping
+        if "result" in result and "Written to " in result["result"]:
+            file_path = result["result"].replace("Written to ", "")
+            mapped_result = {{
+                "success": True,
+                "file_path": file_path,
+                "bytes_written": len(tool_args.get("content", ""))
+            }}
+        else:
+            mapped_result = {{
+                "success": False,
+                "file_path": tool_args.get("path", ""),
+                "bytes_written": 0
+            }}
+    else:
+        mapped_result = result
 
     # Return the result in the expected output format
-    return {output_type}(**result)
+    return {output_type}(**mapped_result)
 """
 
 
@@ -614,65 +704,13 @@ def _generate_task_function(
         parser_function_name = f"parse_{task_name.replace('-', '_')}_output"
 
     # Determine client usage based on engine
-    engine = spec_data.get("intelligence", {}).get("engine", "openai")
-    module_path = spec_data.get("intelligence", {}).get("module")
-    endpoint = config.get("endpoint")
-    model = config.get("model")
-    llm_config = config.get("config", {})
-    if engine == "openai":
-        client_code = f"""    import openai
-    client = openai.OpenAI(
-        base_url="https://api.openai.com/v1",
-        api_key=os.getenv("OPENAI_API_KEY")
-    )
+    model = config.get("model", "gpt-4")
 
-    response = client.chat.completions.create(
-        model="{config["model"]}",
-        messages=[
-            {{"role": "system", "content": "You are a professional {agent_name}."}},
-            {{"role": "user", "content": prompt}}
-        ],
-        temperature={config["temperature"]},
-        max_tokens={config["max_tokens"]}
-    )
+    # Use DACP for LLM communication
+    client_code = f"""    from dacp import call_llm
 
-    result = response.choices[0].message.content"""
-    elif engine == "anthropic":
-        client_code = f"""    import anthropic
-    client = anthropic.Anthropic(
-        api_key=os.environ.get(\"ANTHROPIC_API_KEY\")
-    )
-
-    response = client.messages.create(
-        model="{config["model"]}",
-        max_tokens={config["max_tokens"]},
-        temperature={config["temperature"]},
-        system="You are a professional {agent_name}.",
-        messages=[
-            {{"role": "user", "content": prompt}}
-        ]
-    )
-
-    result = response.content[0].text if response.content else """
-    elif engine == "local":
-        client_code = """    # Local engine logic not implemented yet\n    raise NotImplementedError('Local engine support is not yet implemented.')"""
-    elif engine == "custom":
-        client_code = f"""    import importlib
-    def load_custom_llm_router(module_path):
-        module_name, class_name = module_path.rsplit('.', 1)
-        module = importlib.import_module(module_name)
-        return getattr(module, class_name)
-
-    if not {repr(module_path)}:
-        raise ValueError('No module specified for custom engine.')
-    CustomLLMRouter = load_custom_llm_router({repr(module_path)})
-    router = CustomLLMRouter(endpoint={repr(endpoint)}, model={repr(model)}, config={repr(llm_config)})
-    if not hasattr(router, 'run'):
-        raise AttributeError('Custom LLM router must have a .run(prompt, **kwargs) method.')
-    result = router.run(prompt, **input_dict)
-"""
-    else:
-        raise ValueError(f"Unknown engine: {engine}")
+    # Call the LLM using DACP
+    result = call_llm(prompt, model="{model}")"""
 
     # Generate prompt rendering with actual parameter values
     prompt_render_params = []
@@ -1154,6 +1192,7 @@ def generate_requirements(output: Path, spec_data: Dict[str, Any]) -> None:
             "python-dotenv>=0.19.0",
             "pydantic>=2.0.0",
             "jinja2>=3.0.0",
+            "dacp>=0.1.0",
         ]
     )
 
