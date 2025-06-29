@@ -77,6 +77,14 @@ def _validate_tasks(spec_data: dict) -> None:
             if not task_def.get("steps"):
                 raise ValueError(f"multi-step task {task_name}.steps cannot be empty")
 
+            # Validate output schema for multi-step tasks
+            if not isinstance(task_def.get("output"), dict):
+                raise ValueError(
+                    f"multi-step task {task_name}.output must be a dictionary"
+                )
+            if not task_def.get("output"):
+                raise ValueError(f"multi-step task {task_name}.output cannot be empty")
+
             # Validate each step
             for i, step in enumerate(task_def["steps"]):
                 if not isinstance(step, dict):

@@ -1081,18 +1081,9 @@ def generate_prompt_template(output: Path, spec_data: Dict[str, Any]) -> None:
                         example_json_lines.append(
                             f'  "{k}": "Your response here"{comma}'
                         )
-                elif k == "compliment":
-                    input_props = task_def.get("input", {}).get("properties", {})
-                    if "name" in input_props:
-                        example_json_lines.append(
-                            f'  "{k}": "You are wonderful, {{{{ input.name }}}}!"{comma}'
-                        )
-                    else:
-                        example_json_lines.append(
-                            f'  "{k}": "You are wonderful!"{comma}'
-                        )
                 else:
-                    example_json_lines.append(f'  "{k}": "{{{{ input.{k} }}}}"{comma}')
+                    # Use a generic placeholder for any field
+                    example_json_lines.append(f'  "{k}": "Your {k} here"{comma}')
             example_json_lines.append("}")
         else:
             example_json_lines.append("{}")
