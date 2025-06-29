@@ -1,0 +1,93 @@
+open_agent_spec: 1.0.4
+
+agent:
+  name: hello-world-agent
+  description: A simple agent that responds with a greeting
+  role: chat
+
+intelligence:
+  type: llm
+  engine: openai
+  model: gpt-4
+  endpoint: https://api.openai.com/v1
+  config:
+    temperature: 0.7
+    max_tokens: 150
+
+tasks:
+  greet:
+    description: Say hello to a person by name
+    timeout: 30
+    input:
+      type: object
+      properties:
+        name:
+          type: string
+          description: The name of the person to greet
+          minLength: 1
+          maxLength: 100
+      required: [name]
+    output:
+      type: object
+      properties:
+        response:
+          type: string
+          description: The greeting response
+          minLength: 1
+      required: [response]
+
+  compliment:
+    description: Give a compliment after greeting
+    timeout: 20
+    input:
+      type: object
+      properties:
+        name:
+          type: string
+      required: [name]
+    output:
+      type: object
+      properties:
+        compliment:
+          type: string
+          description: "A compliment for the person"
+          minLength: 1
+      required: [compliment]
+
+  greet_and_compliment:
+    description: "Say hello and then compliment the person."
+    multi_step: true
+    steps:
+      - task: greet
+        input_map:
+          name: "{{name}}"
+      - task: compliment
+        input_map:
+          name: "{{name}}"
+    output:
+      type: object
+      properties:
+        response:
+          type: string
+          description: The greeting response
+        compliment:
+          type: string
+          description: The compliment
+      required: [response, compliment]
+
+prompts:
+  system: >
+    You are a friendly agent that greets people by name.
+    Greet {{ input.name }} warmly.
+  user: ""
+
+behavioural_contract:
+  version: "0.1.2"
+  description: "Simple contract requiring a greeting and a compliment"
+  role: "Friendly agent"
+  behavioural_flags:
+    conservatism: "moderate"
+    verbosity: "compact"
+  response_contract:
+    output_format:
+      required_fields: [response, compliment]

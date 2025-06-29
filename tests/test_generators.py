@@ -298,3 +298,92 @@ def test_generate_env_example_all_engines(temp_dir, engine):
         assert "local engine environment variables" in content
     elif engine == "custom":
         assert "custom engine environment variables" in content
+
+
+def test_generate_multi_step_task(temp_dir):
+    """Test generation of multi-step tasks."""
+    spec_data = {
+        "agent": {
+            "name": "TestAgent",
+            "description": "Test agent",
+            "role": "assistant",
+        },
+        "intelligence": {
+            "engine": "openai",
+            "endpoint": "https://api.openai.com/v1",
+            "model": "gpt-4",
+            "config": {"temperature": 0.7, "max_tokens": 150},
+        },
+        "tasks": {
+            "greet": {
+                "description": "Greet someone",
+                "input": {
+                    "type": "object",
+                    "properties": {"name": {"type": "string"}},
+                    "required": ["name"],
+                },
+                "output": {
+                    "type": "object",
+                    "properties": {"response": {"type": "string"}},
+                    "required": ["response"],
+                },
+            },
+            "compliment": {
+                "description": "Compliment someone",
+                "input": {
+                    "type": "object",
+                    "properties": {"name": {"type": "string"}},
+                    "required": ["name"],
+                },
+                "output": {
+                    "type": "object",
+                    "properties": {"compliment": {"type": "string"}},
+                    "required": ["compliment"],
+                },
+            },
+            "greet_and_compliment": {
+                "description": "Greet and compliment someone",
+                "multi_step": True,
+                "input": {
+                    "type": "object",
+                    "properties": {"name": {"type": "string"}},
+                    "required": ["name"],
+                },
+                "output": {
+                    "type": "object",
+                    "properties": {
+                        "response": {"type": "string"},
+                        "compliment": {"type": "string"},
+                    },
+                    "required": ["response", "compliment"],
+                },
+                "steps": [
+                    {"task": "greet", "input_map": {"name": "{{name}}"}},
+                    {"task": "compliment", "input_map": {"name": "{{name}}"}},
+                ],
+            },
+        },
+    }
+
+    generate_agent_code(temp_dir, spec_data, "TestAgent", "TestAgent")
+
+    agent_file = temp_dir / "agent.py"
+    assert agent_file.exists()
+
+    agent_code = agent_file.read_text()
+
+    # Check that individual tasks are generated
+    assert "def greet(" in agent_code
+    assert "def compliment(" in agent_code
+
+    # Check that multi-step task is generated
+    assert "def greet_and_compliment(" in agent_code
+
+    # Check that multi-step task calls other tasks
+    assert "step_0_result = greet(name=name)" in agent_code
+    assert "step_1_result = compliment(name=name)" in agent_code
+
+    # Check that output is constructed from step results
+    assert "return Greet_And_ComplimentOutput(" in agent_code
+    assert "response=step_0_result.response" in agent_code
+    assert "compliment=step_1_result.compliment" in agent_code

@@ -61,10 +61,50 @@ def _validate_tasks(spec_data: dict) -> None:
     if not isinstance(tasks, dict):
         raise ValueError("tasks must be a dictionary")
     for task_name, task_def in tasks.items():
-        if not isinstance(task_def.get("input"), dict):
-            raise ValueError(f"task {task_name}.input must be a dictionary")
-        if not isinstance(task_def.get("output"), dict):
-            raise ValueError(f"task {task_name}.output must be a dictionary")
+        # Check if this is a multi-step task
+        is_multi_step = task_def.get("multi_step", False)
+
+        # For multi-step tasks, input and output are optional since they orchestrate other tasks
+        if not is_multi_step:
+            if not isinstance(task_def.get("input"), dict):
+                raise ValueError(f"task {task_name}.input must be a dictionary")
+            if not isinstance(task_def.get("output"), dict):
+                raise ValueError(f"task {task_name}.output must be a dictionary")
+        else:
+            # For multi-step tasks, validate that steps are defined
+            if not isinstance(task_def.get("steps"), list):
+                raise ValueError(f"multi-step task {task_name}.steps must be a list")
+            if not task_def.get("steps"):
+                raise ValueError(f"multi-step task {task_name}.steps cannot be empty")
+
+            # Validate each step
+            for i, step in enumerate(task_def["steps"]):
+                if not isinstance(step, dict):
+                    raise ValueError(
+                        f"step {i} in task {task_name} must be a dictionary"
+                    )
+                if "task" not in step:
+                    raise ValueError(
+                        f"step {i} in task {task_name} must have a 'task' field"
+                    )
+                if not isinstance(step["task"], str):
+                    raise ValueError(
+                        f"step {i} in task {task_name}.task must be a string"
+                    )
+
+                # Check that the referenced task exists
+                referenced_task = step["task"]
+                if referenced_task not in tasks:
+                    raise ValueError(
+                        f"step {i} in task {task_name} references non-existent task '{referenced_task}'"
+                    )
+
+                # Validate input_map if present
+                if "input_map" in step:
+                    if not isinstance(step["input_map"], dict):
+                        raise ValueError(
+                            f"step {i} in task {task_name}.input_map must be a dictionary"
+                        )
 
 
 def _validate_integration(spec_data: dict) -> None:

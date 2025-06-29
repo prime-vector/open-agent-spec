@@ -43,11 +43,35 @@ def to_pascal_case(name: str) -> str:
 def _generate_input_params(task_def: Dict[str, Any]) -> List[str]:
     """Generate input parameters for a task function."""
     input_params = []
-    for param_name, param_def in (
-        task_def.get("input", {}).get("properties", {}).items()
-    ):
-        param_type = map_type_to_python(param_def.get("type", "string"))
-        input_params.append(f"{param_name}: {param_type}")
+
+    # Check if this is a multi-step task
+    is_multi_step = task_def.get("multi_step", False)
+
+    if is_multi_step:
+        # For multi-step tasks, infer input parameters from step input mappings
+        steps = task_def.get("steps", [])
+        inferred_params = set()
+
+        for step in steps:
+            input_map = step.get("input_map", {})
+            for param, value in input_map.items():
+                # Handle Jinja2-style templating {{variable}}
+                if isinstance(value, str) and "{{" in value and "}}" in value:
+                    # Extract variable name from {{variable}}
+                    var_name = value.replace("{{", "").replace("}}", "").strip()
+                    inferred_params.add(var_name)
+
+        # Add inferred parameters
+        for param_name in sorted(inferred_params):
+            input_params.append(f"{param_name}: str")
+    else:
+        # For regular tasks, use the input schema
+        for param_name, param_def in (
+            task_def.get("input", {}).get("properties", {}).items()
+        ):
+            param_type = map_type_to_python(param_def.get("type", "string"))
+            input_params.append(f"{param_name}: {param_type}")
+
     input_params.append("memory_summary: str = ''")
     return input_params
 
@@ -76,11 +100,11 @@ def _generate_contract_data(
     """Generate behavioural contract data from spec."""
     behavioural_section = spec_data.get("behavioural_contract", {})
 
-    # Start with minimal defaults
+    # Use the task's description for the contract
     contract_data = {
         "version": behavioural_section.get("version", "0.1.2"),
-        "description": behavioural_section.get(
-            "description", task_def.get("description", "")
+        "description": task_def.get(
+            "description", behavioural_section.get("description", "")
         ),
         "role": behavioural_section.get("role", agent_name),
     }
@@ -89,56 +113,13 @@ def _generate_contract_data(
     if behavioural_section.get("behavioural_flags"):
         contract_data["behavioural_flags"] = behavioural_section["behavioural_flags"]
 
-    # Handle response_contract - be flexible about structure
-    response_contract = behavioural_section.get("response_contract", {})
-    if response_contract:
-        # If response_contract is provided, use it as-is
-        contract_data["response_contract"] = response_contract
-    else:
-        # Only generate default response_contract if output schema exists
-        output_schema = task_def.get("output", {})
-        if output_schema and output_schema.get("properties"):
-            contract_data["response_contract"] = {
-                "output_format": {
-                    "type": "object",
-                    "required_fields": list(output_schema.get("properties", {}).keys()),
-                    "on_failure": {
-                        "action": "return_empty",
-                        "fallback": {
-                            k: (
-                                []
-                                if isinstance(v, dict) and v.get("type") == "array"
-                                else ""
-                            )
-                            for k, v in output_schema.get("properties", {}).items()
-                        },
-                        "default_value": {
-                            k: (
-                                []
-                                if isinstance(v, dict) and v.get("type") == "array"
-                                else ""
-                            )
-                            for k, v in output_schema.get("properties", {}).items()
-                        },
-                    },
-                },
-                "schema": {
-                    "type": "object",
-                    "properties": output_schema.get("properties", {}),
-                },
-            }
-
-    # Only add memory_config if memory is enabled
-    if memory_config.get("enabled", False):
-        contract_data["memory_config"] = memory_config
-
-    # Only add policy if specified
-    if behavioural_section.get("policy"):
-        contract_data["policy"] = behavioural_section["policy"]
-
-    # Only add teardown_policy if specified
-    if behavioural_section.get("teardown_policy"):
-        contract_data["teardown_policy"] = behavioural_section["teardown_policy"]
+    # Add function-specific response_contract based on the task's output schema
+    output_schema = task_def.get("output", {})
+    required_fields = output_schema.get("required", [])
+    if required_fields:
+        contract_data["response_contract"] = {
+            "output_format": {"required_fields": required_fields}
+        }
 
     return contract_data
 
@@ -271,36 +252,35 @@ def generate_models(output: Path, spec_data: Dict[str, Any]) -> None:
 def _generate_llm_output_parser(task_name: str, output_schema: Dict[str, Any]) -> str:
     """Generate a function for parsing LLM output into the task's model."""
     model_name = f"{task_name.replace('-', '_').title()}Output"
+    parser_name = f"parse_{task_name.replace('-', '_')}_output"
 
-    return f'''def parse_llm_output(response: str) -> {model_name}:
-    """Parse LLM response into {model_name}.
-
-    Args:
-        response: Raw response from the LLM
-
-    Returns:
-        Parsed and validated {model_name} instance
-
-    Raises:
-        ValueError: If the response cannot be parsed as JSON or doesn't match the schema
-    """
-    try:
-        # Try to find JSON in the response
-        json_start = response.find("{{")
-        json_end = response.rfind("}}") + 2
-        if json_start >= 0 and json_end > json_start:
-            json_str = response[json_start:json_end]
-            parsed = json.loads(json_str)
-
-            # Convert to Pydantic model
-            return {model_name}(**parsed)
-
-        raise ValueError("No valid JSON found in response")
-    except json.JSONDecodeError as e:
-        raise ValueError(f"Invalid JSON in response: {{e}}")
-    except Exception as e:
-        raise ValueError(f"Error parsing response: {{e}}")
-'''
+    # Use a raw string to avoid accidental formatting issues
+    return (
+        f"def {parser_name}(response) -> {model_name}:\n"
+        f'    """Parse LLM response into {model_name}.\n\n'
+        f"    Args:\n"
+        f"        response: Raw response from the LLM (str or dict)\n\n"
+        f"    Returns:\n"
+        f"        Parsed and validated {model_name} instance\n\n"
+        f"    Raises:\n"
+        f"        ValueError: If the response cannot be parsed as JSON or doesn't match the schema\n"
+        f'    """\n'
+        f"    if isinstance(response, {model_name}):\n"
+        f"        return response\n"
+        f"    if isinstance(response, dict):\n"
+        f"        return {model_name}(**response)\n"
+        f"    try:\n"
+        f"        # Try to find JSON in the response\n"
+        f"        json_start = response.find('{{')\n"
+        f"        json_end = response.rfind('}}') + 1\n"
+        f"        if json_start >= 0 and json_end > json_start:\n"
+        f"            json_str = response[json_start:json_end]\n"
+        f"            parsed = json.loads(json_str)\n"
+        f"            return {model_name}(**parsed)\n"
+        f"        raise ValueError('No valid JSON found in response')\n"
+        f"    except Exception as e:\n"
+        f"        raise ValueError(f'Error parsing response: {{e}}')\n"
+    )
 
 
 def _generate_human_readable_output(schema: Dict[str, Any], indent: int = 0) -> str:
@@ -378,6 +358,104 @@ def _get_human_readable_type(schema: Dict[str, Any]) -> str:
         return "any"
 
 
+def _generate_multi_step_task_function(
+    task_name: str,
+    task_def: Dict[str, Any],
+    spec_data: Dict[str, Any],
+    agent_name: str,
+    memory_config: Dict[str, Any],
+) -> str:
+    """Generate a multi-step task function that orchestrates other tasks."""
+    func_name = task_name.replace("-", "_")
+    input_params = _generate_input_params(task_def)
+    output_type = f"{task_name.replace('-', '_').title()}Output"
+    docstring = _generate_function_docstring(task_name, task_def, output_type)
+    contract_data = _generate_contract_data(
+        spec_data, task_def, agent_name, memory_config
+    )
+
+    # Get the steps from the task definition
+    steps = task_def.get("steps", [])
+
+    # Generate step execution code
+    step_code = []
+    step_results = []
+
+    for i, step in enumerate(steps):
+        step_task = step["task"]
+        input_map = step.get("input_map", {})
+
+        # Convert input mapping to Python code
+        step_inputs = []
+        for param, value in input_map.items():
+            # Handle Jinja2-style templating {{variable}}
+            if isinstance(value, str) and "{{" in value and "}}" in value:
+                # Extract variable name from {{variable}}
+                var_name = value.replace("{{", "").replace("}}", "").strip()
+                step_inputs.append(f"{param}={var_name}")
+            else:
+                # Literal value
+                step_inputs.append(f'{param}="{value}"')
+
+        step_input_str = ", ".join(step_inputs)
+        step_var = f"step_{i}_result"
+        step_results.append(step_var)
+
+        step_code.append(f"""    # Execute step {i+1}: {step_task}
+    {step_var} = {step_task.replace('-', '_')}({step_input_str})""")
+
+    # Generate output construction with better mapping
+    output_schema = task_def.get("output", {})
+    output_properties = output_schema.get("properties", {})
+
+    output_construction = []
+
+    # Create a mapping from step results to output properties
+    # This is a simple heuristic - in practice, you might want to add explicit output mapping
+    for i, prop_name in enumerate(output_properties):
+        if i < len(step_results):
+            # Map step result to output property
+            step_result = step_results[i]
+            # Handle both Pydantic models and dictionaries from behavioural contracts
+            output_construction.append(
+                f"        {prop_name}={step_result}.{prop_name} if hasattr({step_result}, '{prop_name}') else {step_result}.get('{prop_name}', '')"
+            )
+
+    output_construction_str = ",\n".join(output_construction)
+
+    # Format the contract data for the decorator
+    def format_value(v):
+        if isinstance(v, bool):
+            return str(v)
+        elif isinstance(v, (list, tuple)):
+            return f"[{', '.join(format_value(x) for x in v)}]"
+        elif isinstance(v, dict):
+            items = [f'"{k}": {format_value(v)}' for k, v in v.items()]
+            return f"{{{', '.join(items)}}}"
+        elif isinstance(v, str):
+            return f'"{v}"'
+        return str(v)
+
+    contract_str = ",\n    ".join(
+        f"{k}={format_value(v)}" for k, v in contract_data.items()
+    )
+
+    return f"""
+@behavioural_contract(
+    {contract_str}
+)
+def {func_name}({", ".join(input_params)}) -> {output_type}:
+    {docstring}
+    # Execute multi-step task: {task_name}
+{chr(10).join(step_code)}
+
+    # Construct output from step results
+    return {output_type}(
+{output_construction_str}
+    )
+"""
+
+
 def _generate_task_function(
     task_name: str,
     task_def: Dict[str, Any],
@@ -387,6 +465,13 @@ def _generate_task_function(
     config: Dict[str, Any],
 ) -> str:
     """Generate a single task function."""
+    # Check if this is a multi-step task
+    if task_def.get("multi_step", False):
+        return _generate_multi_step_task_function(
+            task_name, task_def, spec_data, agent_name, memory_config
+        )
+
+    # Regular single-step task generation (existing logic)
     func_name = task_name.replace("-", "_")
     input_params = _generate_input_params(task_def)
     output_type = f"{task_name.replace('-', '_').title()}Output"
@@ -404,8 +489,10 @@ def _generate_task_function(
 
     # Add LLM output parser if this is an LLM-based agent
     llm_parser = ""
+    parser_function_name = ""
     if config.get("model"):  # If model is specified, this is an LLM agent
         llm_parser = _generate_llm_output_parser(task_name, task_def.get("output", {}))
+        parser_function_name = f"parse_{task_name.replace('-', '_')}_output"
 
     # Determine client usage based on engine
     engine = spec_data.get("intelligence", {}).get("engine", "openai")
@@ -414,13 +501,14 @@ def _generate_task_function(
     model = config.get("model")
     llm_config = config.get("config", {})
     if engine == "openai":
-        client_code = f"""    client = openai.OpenAI(
-        base_url=\"{config["endpoint"]}\",
-        api_key=openai.api_key
+        client_code = f"""    import openai
+    client = openai.OpenAI(
+        base_url="https://api.openai.com/v1",
+        api_key=os.getenv("OPENAI_API_KEY")
     )
 
     response = client.chat.completions.create(
-        model=\"{config["model"]}\",
+        model="{config["model"]}",
         messages=[
             {{"role": "system", "content": "You are a professional {agent_name}."}},
             {{"role": "user", "content": prompt}}
@@ -437,7 +525,7 @@ def _generate_task_function(
     )
 
     response = client.messages.create(
-        model=\"{config["model"]}\",
+        model="{config["model"]}",
         max_tokens={config["max_tokens"]},
         temperature={config["temperature"]},
         system="You are a professional {agent_name}.",
@@ -542,7 +630,7 @@ def {func_name}({", ".join(input_params)}) -> {output_type}:
     )
 
 {client_code}
-    return parse_llm_output(result)
+    return {parser_function_name}(result)
 """
 
 
@@ -597,12 +685,25 @@ def generate_agent_code(
             for param in _generate_input_params(task_def)
             if param != "memory_summary: str = ''"
         ]
+
+        # Handle the case where there are no input parameters
+        if input_params_without_memory:
+            method_signature = f"def {task_name.replace('-', '_')}(self, {', '.join(input_params_without_memory)}) -> {model_name}:"
+            method_call = f"return {task_name.replace('-', '_')}({', '.join(input_params_without_memory)}, memory_summary=memory_summary)"
+        else:
+            method_signature = (
+                f"def {task_name.replace('-', '_')}(self) -> {model_name}:"
+            )
+            method_call = (
+                f"return {task_name.replace('-', '_')}(memory_summary=memory_summary)"
+            )
+
         class_methods.append(
             f'''
-    def {task_name.replace("-", "_")}(self, {", ".join(input_params_without_memory)}) -> {model_name}:
+    {method_signature}
         """Process {task_name} task."""
         memory_summary = self.get_memory() if hasattr(self, 'get_memory') else ""
-        return {task_name.replace("-", "_")}({", ".join(input_params_without_memory)}, memory_summary=memory_summary)
+        {method_call}
 '''
         )
 
@@ -627,11 +728,56 @@ def generate_agent_code(
     # Generate example task execution code
     example_task_code = ""
     if tasks:
-        first_task_name = next(iter(tasks))
-        first_task_def = tasks[first_task_name]
-        input_props = first_task_def.get("input", {}).get("properties", {})
-        example_params = ", ".join(f'{k}="example_{k}"' for k in input_props)
-        example_task_code = f"""
+        # Prioritize multi-step tasks for examples
+        multi_step_tasks = [
+            name
+            for name, task_def in tasks.items()
+            if task_def.get("multi_step", False)
+        ]
+
+        if multi_step_tasks:
+            # Use the first multi-step task for the example
+            example_task_name = multi_step_tasks[0]
+            example_task_def = tasks[example_task_name]
+
+            # For multi-step tasks, infer input parameters from step input mappings
+            inferred_params = set()
+            steps = example_task_def.get("steps", [])
+            for step in steps:
+                input_map = step.get("input_map", {})
+                for param, value in input_map.items():
+                    if isinstance(value, str) and "{{" in value and "}}" in value:
+                        var_name = value.replace("{{", "").replace("}}", "").strip()
+                        inferred_params.add(var_name)
+
+            if inferred_params:
+                example_params = ", ".join(
+                    f'{k}="example_{k}"' for k in sorted(inferred_params)
+                )
+                example_task_code = f"""
+    # Example usage with multi-step task: {example_task_name}
+    result = agent.{example_task_name.replace("-", "_")}({example_params})
+    # Handle both Pydantic models and dictionaries
+    if hasattr(result, 'model_dump'):
+        print(json.dumps(result.model_dump(), indent=2))
+    else:
+        print(json.dumps(result, indent=2))"""
+            else:
+                example_task_code = f"""
+    # Example usage with multi-step task: {example_task_name}
+    result = agent.{example_task_name.replace("-", "_")}()
+    # Handle both Pydantic models and dictionaries
+    if hasattr(result, 'model_dump'):
+        print(json.dumps(result.model_dump(), indent=2))
+    else:
+        print(json.dumps(result, indent=2))"""
+        else:
+            # Fall back to the first regular task
+            first_task_name = next(iter(tasks))
+            first_task_def = tasks[first_task_name]
+            input_props = first_task_def.get("input", {}).get("properties", {})
+            example_params = ", ".join(f'{k}="example_{k}"' for k in input_props)
+            example_task_code = f"""
     # Example usage with {first_task_name} task
     result = agent.{first_task_name.replace("-", "_")}({example_params})
     # Handle both Pydantic models and dictionaries
@@ -915,7 +1061,6 @@ def generate_prompt_template(output: Path, spec_data: Dict[str, Any]) -> None:
 
         # Get the output schema
         output_schema = task_def.get("output", {})
-        human_readable_output = _generate_human_readable_output(output_schema)
 
         # Prepare example JSON for the output
         # Use the output schema's properties to generate an example
@@ -935,6 +1080,16 @@ def generate_prompt_template(output: Path, spec_data: Dict[str, Any]) -> None:
                     else:
                         example_json_lines.append(
                             f'  "{k}": "Your response here"{comma}'
+                        )
+                elif k == "compliment":
+                    input_props = task_def.get("input", {}).get("properties", {})
+                    if "name" in input_props:
+                        example_json_lines.append(
+                            f'  "{k}": "You are wonderful, {{{{ input.name }}}}!"{comma}'
+                        )
+                    else:
+                        example_json_lines.append(
+                            f'  "{k}": "You are wonderful!"{comma}'
                         )
                 else:
                     example_json_lines.append(f'  "{k}": "{{{{ input.{k} }}}}"{comma}')
@@ -973,39 +1128,48 @@ def generate_prompt_template(output: Path, spec_data: Dict[str, Any]) -> None:
                     "{% endif %}\n\n"
                 ) + prompt_content
         else:
-            # Default format - use system and user prompts
-            prompts = spec_data.get("prompts", {})
-            prompt_content = (
-                prompts.get(
-                    "system",
-                    "You are a professional AI agent designed to process tasks according to the Open Agent Spec.\n\n",
-                )
-                + "{% if memory_summary %}\n"
-                + "--- MEMORY CONTEXT ---\n"
-                + "{{ memory_summary }}\n"
-                + "------------------------\n"
-                + "{% endif %}\n\n"
-                + "TASK:\n"
-                + "Process the following task:\n\n"
-                + "{% for key, value in input.items() %}\n"
-                + "{{ key }}: {{ value }}\n"
-                + "{% endfor %}\n\n"
-                + "INSTRUCTIONS:\n"
-                + "1. Review the input data carefully\n"
-                + "2. Consider all relevant factors\n"
-                + "{% if memory_summary %}\n"
-                + "3. Take into account the provided memory context\n"
-                + "{% endif %}\n"
-                + "4. Provide a clear, actionable response\n"
-                + "5. Explain your reasoning in detail\n\n"
-                + "OUTPUT FORMAT:\n"
-                + "Your response should include the following fields:\n"
-                + f"{human_readable_output}\n\n"
-            )
+            # Default format - use the full default template content
+            default_content = """You are a professional AI agent designed to process tasks according to the Open Agent Spec.
+
+{% if memory_summary %}
+--- MEMORY CONTEXT ---
+{{ memory_summary }}
+------------------------
+{% endif %}
+
+TASK:
+Process the following task:
+
+{% for key, value in input.items() %}
+{{ key }}: {{ value }}
+{% endfor %}
+
+INSTRUCTIONS:
+1. Review the input data carefully
+2. Consider all relevant factors
+{% if memory_summary %}
+3. Take into account the provided memory context
+{% endif %}
+4. Provide a clear, actionable response
+5. Explain your reasoning in detail
+
+OUTPUT FORMAT:
+Your response should include the following fields:
+{{ output_format }}
+
+CONSTRAINTS:
+- Be clear and specific
+- Focus on actionable insights
+- Maintain professional objectivity
+{% if memory_summary and memory_config.required %}
+- Must reference and incorporate memory context
+{% endif %}"""
+
+            prompt_content = default_content
 
         # Always append the JSON schema instruction and example
         prompt_content += (
-            "\nRespond ONLY with a JSON object like this (replace the value appropriately):\n"
+            "\nRespond ONLY with a JSON object in this exact format:\n"
             f"{example_json}\n"
         )
 
