@@ -35,8 +35,6 @@ def _validate_behavioural_contract(spec_data: dict) -> None:
         raise ValueError("behavioural_contract.version must be a string")
     if not isinstance(contract.get("description"), str):
         raise ValueError("behavioural_contract.description must be a string")
-    if not isinstance(contract.get("role"), str):
-        raise ValueError("behavioural_contract.role must be a string")
 
     # Optional fields - only validate if present
     if "behavioural_flags" in contract and not isinstance(

@@ -106,7 +106,6 @@ def _generate_contract_data(
         "description": task_def.get(
             "description", behavioural_section.get("description", "")
         ),
-        "role": behavioural_section.get("role", agent_name),
     }
 
     # Only add behavioural_flags if specified
