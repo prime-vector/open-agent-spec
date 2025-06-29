@@ -53,12 +53,53 @@ def _validate_behavioural_contract(spec_data: dict) -> None:
         raise ValueError("behavioural_contract.teardown_policy must be a dictionary")
 
 
+def _validate_tools(spec_data: dict) -> None:
+    """Validate the tools section."""
+    tools = spec_data.get("tools", [])
+    if not isinstance(tools, list):
+        raise ValueError("tools must be a list")
+
+    for i, tool in enumerate(tools):
+        if not isinstance(tool, dict):
+            raise ValueError(f"tool {i} must be a dictionary")
+
+        if not isinstance(tool.get("id"), str):
+            raise ValueError(f"tool {i}.id must be a string")
+
+        if not isinstance(tool.get("description"), str):
+            raise ValueError(f"tool {i}.description must be a string")
+
+        if not isinstance(tool.get("type"), str):
+            raise ValueError(f"tool {i}.type must be a string")
+
+        # Validate allowed_paths if present (for file operations)
+        if "allowed_paths" in tool:
+            if not isinstance(tool["allowed_paths"], list):
+                raise ValueError(f"tool {i}.allowed_paths must be a list")
+            for j, path in enumerate(tool["allowed_paths"]):
+                if not isinstance(path, str):
+                    raise ValueError(f"tool {i}.allowed_paths[{j}] must be a string")
+
+
 def _validate_tasks(spec_data: dict) -> None:
     """Validate the tasks section."""
     tasks = spec_data.get("tasks", {})
+    tools = spec_data.get("tools", [])
+    tool_ids = [tool["id"] for tool in tools]
+
     if not isinstance(tasks, dict):
         raise ValueError("tasks must be a dictionary")
     for task_name, task_def in tasks.items():
+        # Check if this task uses a tool
+        if "tool" in task_def:
+            tool_id = task_def["tool"]
+            if not isinstance(tool_id, str):
+                raise ValueError(f"task {task_name}.tool must be a string")
+            if tool_id not in tool_ids:
+                raise ValueError(
+                    f"task {task_name} references non-existent tool '{tool_id}'"
+                )
+
         # Check if this is a multi-step task
         is_multi_step = task_def.get("multi_step", False)
 
@@ -183,6 +224,7 @@ def validate_spec(spec_data: dict) -> Tuple[str, str]:
         _validate_version(spec_data)
         _validate_agent(spec_data)
         _validate_behavioural_contract(spec_data)
+        _validate_tools(spec_data)
         _validate_tasks(spec_data)
         _validate_integration(spec_data)
         _validate_prompts(spec_data)

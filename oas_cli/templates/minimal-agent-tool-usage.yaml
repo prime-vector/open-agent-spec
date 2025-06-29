@@ -1,0 +1,116 @@
+open_agent_spec: 1.0.8
+
+agent:
+  name: hello-world-agent
+  description: A simple agent that responds with a greeting
+  role: chat
+
+intelligence:
+  type: llm
+  engine: openai
+  model: gpt-4
+  endpoint: https://api.openai.com/v1
+  config:
+    temperature: 0.7
+    max_tokens: 150
+
+tools:
+  - id: file_writer
+    description: "Write text content to a file in the allowed directory."
+    type: function
+    allowed_paths: ["./output/", "/tmp/"]
+
+tasks:
+  greet:
+    description: "Generate a greeting using the LLM"
+    input:
+      type: object
+      properties:
+        name:
+          type: string
+          description: "Name to greet"
+      required: [name]
+    output:
+      type: object
+      properties:
+        greeting:
+          type: string
+          description: "The greeting message"
+      required: [greeting]
+
+  write_file:
+    description: "Write content to a file using the file_writer tool"
+    tool: file_writer
+    input:
+      type: object
+      properties:
+        file_path:
+          type: string
+          description: "Path to the file to write"
+        content:
+          type: string
+          description: "Content to write to the file"
+      required: [file_path, content]
+    output:
+      type: object
+      properties:
+        success:
+          type: boolean
+          description: "Whether the write operation was successful"
+        file_path:
+          type: string
+          description: "The path of the file that was written"
+        bytes_written:
+          type: integer
+          description: "Number of bytes written to the file"
+      required: [success, file_path]
+
+  save_greeting:
+    description: "Generate a greeting and save it to a file"
+    multi_step: true
+    input:
+      type: object
+      properties:
+        name:
+          type: string
+        file_path:
+          type: string
+      required: [name, file_path]
+    output:
+      type: object
+      properties:
+        success:
+          type: boolean
+        file_path:
+          type: string
+        greeting:
+          type: string
+      required: [success, file_path, greeting]
+    steps:
+      - task: greet
+        input_map:
+          name: "{{ input.name }}"
+      - task: write_file
+        input_map:
+          file_path: "{{ input.file_path }}"
+          content: "{{ steps.0.greeting }}"
+
+prompts:
+  system: "You are a helpful agent."
+  user: "{{ input.name }}"
+  greet:
+    system: >
+      You are a friendly agent that greets people by name.
+      Respond with: "Hello {{ input.name }}!"
+    user: "{{ input.name }}"
+
+behavioural_contract:
+  version: "0.1.2"
+  description: "Simple contract requiring a greeting response"
+  role: "Friendly agent"
+  behavioural_flags:
+    conservatism: "moderate"
+    verbosity: "compact"
+  response_contract:
+    output_format:
+      required_fields: [greeting]
