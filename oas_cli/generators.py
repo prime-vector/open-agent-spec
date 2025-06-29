@@ -517,16 +517,38 @@ def _generate_tool_task_function(
     tool_param_mapping = {}
     tool_args_lines = []
 
-    for param_name, param_info in tool_params.items():
-        if isinstance(param_info, dict):
-            # Parameter mapping specified
-            dacp_param = param_info.get("dacp_param", param_name)
-            tool_param_mapping[param_name] = dacp_param
-            tool_args_lines.append(f'        "{dacp_param}": {param_name}')
-        else:
-            # Direct mapping
-            tool_param_mapping[param_name] = param_name
-            tool_args_lines.append(f'        "{param_name}": {param_name}')
+    if tool_params:
+        # Use explicit tool_params mapping if provided
+        for param_name, param_info in tool_params.items():
+            if isinstance(param_info, dict):
+                # Parameter mapping specified
+                dacp_param = param_info.get("dacp_param", param_name)
+                tool_param_mapping[param_name] = dacp_param
+                tool_args_lines.append(f'        "{dacp_param}": {param_name}')
+            else:
+                # Direct mapping
+                tool_param_mapping[param_name] = param_name
+                tool_args_lines.append(f'        "{param_name}": {param_name}')
+    else:
+        # Auto-map input parameters to tool parameters based on common patterns
+        input_props = task_def.get("input", {}).get("properties", {})
+        for param_name in input_props.keys():
+            if tool_id == "file_writer":
+                # Map file_writer specific parameters
+                if param_name == "file_path":
+                    tool_param_mapping[param_name] = "path"
+                    tool_args_lines.append(f'        "path": {param_name}')
+                elif param_name == "content":
+                    tool_param_mapping[param_name] = "content"
+                    tool_args_lines.append(f'        "content": {param_name}')
+                else:
+                    # Default mapping
+                    tool_param_mapping[param_name] = param_name
+                    tool_args_lines.append(f'        "{param_name}": {param_name}')
+            else:
+                # Default mapping for other tools
+                tool_param_mapping[param_name] = param_name
+                tool_args_lines.append(f'        "{param_name}": {param_name}')
 
     # Create tool description
     tool_description = f"Tool: {tool_id}"
@@ -583,7 +605,7 @@ def {func_name}({", ".join(input_params)}) -> {output_type}:
 
 Your task is to use this tool appropriately. You can use the tool by responding with a tool request, or provide a final response.
 
-Available parameters: {list(tool_param_mapping.keys())}
+Available parameters: {list(tool_param_mapping.values())}
 Current input values: {{tool_args}}
 
 Respond with JSON in one of these formats:
@@ -637,9 +659,24 @@ Remember to respond with valid JSON.'''
 
     # Map result to expected output format
     if "{tool_id}" == "file_writer":
-        # Handle file_writer specific mapping
-        if "result" in result and "Written to " in result["result"]:
-            file_path = result["result"].replace("Written to ", "")
+        # Handle file_writer specific mapping for new DACP response format
+        if isinstance(result, dict) and result.get("success") is True:
+            # New DACP format: {{'success': True, 'path': '...', 'message': '...'}}
+            mapped_result = {{
+                "success": True,
+                "file_path": result.get("path", tool_args.get("path", "")),
+                "bytes_written": len(tool_args.get("content", ""))
+            }}
+        elif isinstance(result, dict) and "result" in result and ("Written to " in result["result"] or "Successfully wrote" in result["result"]):
+            # Legacy format: {{'result': 'Written to path'}} or {{'result': 'Successfully wrote X characters to path'}}
+            result_text = result["result"]
+            if "Written to " in result_text:
+                file_path = result_text.replace("Written to ", "")
+            elif "Successfully wrote" in result_text:
+                # Extract path from "Successfully wrote X characters to path"
+                file_path = result_text.split(" to ")[-1]
+            else:
+                file_path = tool_args.get("path", "")
             mapped_result = {{
                 "success": True,
                 "file_path": file_path,
@@ -704,10 +741,17 @@ def _generate_task_function(
         parser_function_name = f"parse_{task_name.replace('-', '_')}_output"
 
     # Determine client usage based on engine
+    engine = spec_data.get("intelligence", {}).get("engine", "openai")
     model = config.get("model", "gpt-4")
+    custom_module = spec_data.get("intelligence", {}).get("module", None)
 
-    # Use DACP for LLM communication
-    client_code = f"""    from dacp import call_llm
+    # Use DACP for LLM communication or custom router
+    if engine == "custom" and custom_module:
+        client_code = f"""# Create and use custom LLM router
+    router = load_custom_llm_router("{config['endpoint']}", "{config['model']}", {{}})
+    result = router.run(prompt, **input_dict)"""
+    else:
+        client_code = f"""from dacp import call_llm
 
     # Call the LLM using DACP
     result = call_llm(prompt, model="{model}")"""
@@ -756,7 +800,7 @@ def _generate_task_function(
 @behavioural_contract(
     {contract_str}
 )
-def {func_name}({", ".join(input_params)}) -> {output_type}:
+def {func_name}({', '.join(input_params)}) -> {output_type}:
     {docstring}
     # Define memory configuration
     memory_config = {memory_config_str}
@@ -775,7 +819,7 @@ def {func_name}({", ".join(input_params)}) -> {output_type}:
 
     # Create input dictionary for template
     input_dict = {{
-        {", ".join(f'"{param.split(":")[0]}": {param.split(":")[0]}' for param in input_params if param != "memory_summary: str = ''")}
+        {', '.join(f'"{param.split(":")[0]}": {param.split(":")[0]}' for param in input_params if param != "memory_summary: str = ''")}
     }}
 
     # Render the prompt with all necessary context
@@ -786,7 +830,7 @@ def {func_name}({", ".join(input_params)}) -> {output_type}:
         memory_config=memory_config
     )
 
-{client_code}
+    {client_code}
     return {parser_function_name}(result)
 """
 
@@ -957,12 +1001,15 @@ def generate_agent_code(
 
     # Generate the complete agent code
     engine = spec_data.get("intelligence", {}).get("engine", "openai")
+    custom_module = spec_data.get("intelligence", {}).get("module", None)
     imports = ["from typing import Dict, Any, List, Optional"]
 
     if engine == "openai":
         imports.append("import openai")
     elif engine == "anthropic":
         imports.append("import anthropic")
+    elif engine == "custom" and custom_module:
+        imports.append("import importlib")
     else:
         imports.append("# Add your local or custom engine dependencies here")
 
@@ -993,6 +1040,23 @@ def generate_agent_code(
     else:
         api_key_logic = "        # No API key logic for local/custom engines"
 
+    # Add custom router loader if needed
+    custom_router_loader = ""
+    custom_router_init = ""
+    if engine == "custom" and custom_module:
+        custom_router_loader = f'''
+def load_custom_llm_router(endpoint, model, config):
+    """Dynamically load a custom LLM router from the specified module and class."""
+    module_path, class_name = "{custom_module}".rsplit('.', 1)
+    module = importlib.import_module(module_path)
+    CustomLLMRouter = getattr(module, class_name)
+    router = CustomLLMRouter(endpoint, model, config)
+    if not hasattr(router, 'run'):
+        raise AttributeError("Custom LLM router must have a 'run' method")
+    return router
+'''
+        custom_router_init = f"        self.router = load_custom_llm_router(\"{config['endpoint']}\", \"{config['model']}\", {{}})  # {custom_module}"
+
     agent_code = f"""{chr(10).join(imports)}
 
 load_dotenv()
@@ -1005,12 +1069,12 @@ ROLE = "{agent_name.title()}"
 {chr(10).join(model_definitions)}
 
 {chr(10).join(task_functions)}
-
+{custom_router_loader}
 class {class_name}:
     def __init__(self, api_key: str | None = None):
         self.model = "{config["model"]}"
 {api_key_logic}
-
+{custom_router_init}
 {chr(10).join(class_methods)}
 {chr(10).join(memory_methods)}
 
