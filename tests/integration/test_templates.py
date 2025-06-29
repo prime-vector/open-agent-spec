@@ -10,6 +10,7 @@ import subprocess
 import shutil
 import tempfile
 from pathlib import Path
+import pytest
 
 
 def run_command(cmd, cwd=None, check=True):
@@ -32,6 +33,8 @@ def run_command(cmd, cwd=None, check=True):
     return result
 
 
+# Mark these as integration tests that should not be run by pytest
+@pytest.mark.skip(reason="Integration tests designed to run as standalone script")
 def test_template(template_name, test_dir):
     """Test a single template."""
     print(f"\n{'='*60}")
@@ -95,6 +98,7 @@ def test_template(template_name, test_dir):
         return False
 
 
+@pytest.mark.skip(reason="Integration tests designed to run as standalone script")
 def test_tool_agent_specific(test_dir):
     """Test tool agent with specific functionality."""
     print(f"\n{'='*60}")
