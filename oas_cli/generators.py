@@ -1331,21 +1331,40 @@ def generate_prompt_template(output: Path, spec_data: Dict[str, Any]) -> None:
         if "prompt" in spec_data and "template" in spec_data["prompt"]:
             # Old format - use the template directly
             prompt_content = spec_data["prompt"]["template"]
-        elif "prompts" in spec_data and (
-            spec_data["prompts"].get("system") or spec_data["prompts"].get("user")
-        ):
-            # New format - use system and user prompts
+        elif "prompts" in spec_data:
             prompts = spec_data.get("prompts", {})
-            system_prompt = prompts.get(
-                "system",
-                "You are a professional AI agent designed to process tasks according to the Open Agent Spec.\n\n",
-            )
-            user_prompt = prompts.get("user", "")
 
-            # Combine system and user prompts
-            prompt_content = system_prompt
-            if user_prompt:
-                prompt_content += user_prompt
+            # Check for task-specific prompts first
+            task_system_prompt = prompts.get(task_name, {}).get("system")
+            task_user_prompt = prompts.get(task_name, {}).get("user")
+
+            if task_system_prompt or task_user_prompt:
+                # Use task-specific prompts
+                prompt_content = task_system_prompt or ""
+                if task_user_prompt:
+                    if prompt_content:
+                        prompt_content += "\n\n"
+                    prompt_content += task_user_prompt
+            elif prompts.get("system") or prompts.get("user"):
+                # Fall back to global prompts
+                system_prompt = prompts.get(
+                    "system",
+                    "You are a professional AI agent designed to process tasks according to the Open Agent Spec.\n\n",
+                )
+                user_prompt = prompts.get("user", "")
+
+                # Combine system and user prompts with proper spacing
+                prompt_content = system_prompt
+                if user_prompt:
+                    # Ensure proper spacing between system and user prompts
+                    if not prompt_content.endswith(
+                        "\n"
+                    ) and not prompt_content.endswith(" "):
+                        prompt_content += " "
+                    prompt_content += user_prompt
+            else:
+                # No prompts defined, use default
+                prompt_content = ""
 
             # Add memory context if not already present
             if "{% if memory_summary %}" not in prompt_content:
