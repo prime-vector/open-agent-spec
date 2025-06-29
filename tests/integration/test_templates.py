@@ -119,6 +119,7 @@ try:
     print("✅ Agent class exists")
 except Exception as e:
     print(f"⚠️  Agent class check failed: {e}")
+    sys.exit(1)  # Exit with non-zero status code to signal failure
 
 print("✅ All required methods and functions exist")
 """
