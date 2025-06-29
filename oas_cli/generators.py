@@ -431,8 +431,8 @@ def _generate_multi_step_task_function(
         step_var = f"step_{i}_result"
         step_results.append(step_var)
 
-        step_code.append(f"""    # Execute step {i+1}: {step_task}
-    {step_var} = {step_task.replace('-', '_')}({step_input_str})""")
+        step_code.append(f"""    # Execute step {i + 1}: {step_task}
+    {step_var} = {step_task.replace("-", "_")}({step_input_str})""")
 
     # Generate output construction with better mapping
     output_schema = task_def.get("output", {})
@@ -748,7 +748,7 @@ def _generate_task_function(
     # Use DACP for LLM communication or custom router
     if engine == "custom" and custom_module:
         client_code = f"""# Create and use custom LLM router
-    router = load_custom_llm_router("{config['endpoint']}", "{config['model']}", {{}})
+    router = load_custom_llm_router("{config["endpoint"]}", "{config["model"]}", {{}})
     result = router.run(prompt, **input_dict)"""
     else:
         client_code = f"""from dacp import call_llm
@@ -800,7 +800,7 @@ def _generate_task_function(
 @behavioural_contract(
     {contract_str}
 )
-def {func_name}({', '.join(input_params)}) -> {output_type}:
+def {func_name}({", ".join(input_params)}) -> {output_type}:
     {docstring}
     # Define memory configuration
     memory_config = {memory_config_str}
@@ -819,7 +819,7 @@ def {func_name}({', '.join(input_params)}) -> {output_type}:
 
     # Create input dictionary for template
     input_dict = {{
-        {', '.join(f'"{param.split(":")[0]}": {param.split(":")[0]}' for param in input_params if param != "memory_summary: str = ''")}
+        {", ".join(f'"{param.split(":")[0]}": {param.split(":")[0]}' for param in input_params if param != "memory_summary: str = ''")}
     }}
 
     # Render the prompt with all necessary context
@@ -1031,11 +1031,10 @@ def generate_agent_code(
 
     # Generate API key logic based on engine
     if engine == "openai":
-        api_key_logic = "        if api_key:\n" "            openai.api_key = api_key"
+        api_key_logic = "        if api_key:\n            openai.api_key = api_key"
     elif engine == "anthropic":
         api_key_logic = (
-            "        if api_key:\n"
-            "            os.environ['ANTHROPIC_API_KEY'] = api_key"
+            "        if api_key:\n            os.environ['ANTHROPIC_API_KEY'] = api_key"
         )
     else:
         api_key_logic = "        # No API key logic for local/custom engines"
@@ -1055,7 +1054,7 @@ def load_custom_llm_router(endpoint, model, config):
         raise AttributeError("Custom LLM router must have a 'run' method")
     return router
 '''
-        custom_router_init = f"        self.router = load_custom_llm_router(\"{config['endpoint']}\", \"{config['model']}\", {{}})  # {custom_module}"
+        custom_router_init = f'        self.router = load_custom_llm_router("{config["endpoint"]}", "{config["model"]}", {{}})  # {custom_module}'
 
     agent_code = f"""{chr(10).join(imports)}
 
@@ -1417,8 +1416,7 @@ CONSTRAINTS:
 
         # Always append the JSON schema instruction and example
         prompt_content += (
-            "\nRespond ONLY with a JSON object in this exact format:\n"
-            f"{example_json}\n"
+            f"\nRespond ONLY with a JSON object in this exact format:\n{example_json}\n"
         )
 
         (prompts_dir / template_name).write_text(prompt_content)

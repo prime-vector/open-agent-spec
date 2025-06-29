@@ -37,9 +37,9 @@ def run_command(cmd, cwd=None, check=True):
 @pytest.mark.skip(reason="Integration tests designed to run as standalone script")
 def test_template(template_name, test_dir):
     """Test a single template."""
-    print(f"\n{'='*60}")
+    print(f"\n{'=' * 60}")
     print(f"Testing template: {template_name}")
-    print(f"{'='*60}")
+    print(f"{'=' * 60}")
 
     template_path = f"oas_cli/templates/{template_name}"
     agent_dir = test_dir / f"{template_name}-agent"
@@ -101,9 +101,9 @@ def test_template(template_name, test_dir):
 @pytest.mark.skip(reason="Integration tests designed to run as standalone script")
 def test_tool_agent_specific(test_dir):
     """Test tool agent with specific functionality."""
-    print(f"\n{'='*60}")
+    print(f"\n{'=' * 60}")
     print("Testing tool agent specific functionality")
-    print(f"{'='*60}")
+    print(f"{'=' * 60}")
 
     template_name = "minimal-agent-tool-usage.yaml"
     agent_dir = test_dir / f"{template_name}-agent"
@@ -191,9 +191,9 @@ def main():
         results["tool-agent-specific"] = test_tool_agent_specific(test_dir)
 
     # Summary
-    print(f"\n{'='*60}")
+    print(f"\n{'=' * 60}")
     print("TEST SUMMARY")
-    print(f"{'='*60}")
+    print(f"{'=' * 60}")
 
     all_passed = True
     for template, passed in results.items():
