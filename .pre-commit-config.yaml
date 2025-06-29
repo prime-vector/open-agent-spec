@@ -15,6 +15,7 @@ repos:
         types_or: [python, pyi]
         additional_dependencies: [pydantic]
     -   id: ruff-format
+        args: [--exclude, test_output/]
         types_or: [python, pyi]
 
 -   repo: https://github.com/pre-commit/mirrors-mypy
