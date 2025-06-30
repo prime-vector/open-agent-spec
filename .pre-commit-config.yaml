@@ -8,13 +8,14 @@ repos:
     -   id: check-added-large-files
 
 -   repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.3.0
+    rev: v0.11.13
     hooks:
     -   id: ruff
         args: [--fix]
         types_or: [python, pyi]
         additional_dependencies: [pydantic]
     -   id: ruff-format
+        args: [--exclude, test_output/]
         types_or: [python, pyi]
 
 -   repo: https://github.com/pre-commit/mirrors-mypy
