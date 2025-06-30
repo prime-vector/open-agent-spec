@@ -77,7 +77,7 @@ def test_template(template_name, test_dir):
         # Test agent instantiation
         print("Testing agent instantiation...")
         run_command(
-            "python3 -c 'from agent import *; agent = HelloWorldAgent(); print(\"✅ Agent instantiated successfully\")'",
+            'python3 -c \'from agent import *; from dacp.orchestrator import Orchestrator; orchestrator = Orchestrator(); agent = HelloWorldAgent("test-agent-id", orchestrator); print("✅ Agent instantiated successfully")\'',
             cwd=agent_dir,
         )
 
@@ -141,8 +141,10 @@ print("✅ All required methods and functions exist")
             + """
 import inspect
 from agent import HelloWorldAgent
+from dacp.orchestrator import Orchestrator
 
-agent = HelloWorldAgent()
+orchestrator = Orchestrator()
+agent = HelloWorldAgent("test-agent-id", orchestrator)
 sig = inspect.signature(agent.save_greeting)
 params = list(sig.parameters.keys())
 expected_params = ['file_path', 'name']

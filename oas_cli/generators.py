@@ -1003,45 +1003,66 @@ def generate_agent_code(
     else:
         print(json.dumps(result, indent=2))"""
 
+    # Generate handle_message method
+    handle_message_method = '''
+    def handle_message(self, message: dict) -> dict:
+        """
+        Handles incoming messages from the orchestrator.
+        Processes messages based on the task specified and routes to appropriate agent methods.
+        """
+        task = message.get("task")
+        if not task:
+            return {"error": "Missing required field: task"}
+
+        # Map task names to method names (replace hyphens with underscores)
+        method_name = task.replace("-", "_")
+
+        # Check if the method exists on this agent
+        if not hasattr(self, method_name):
+            return {"error": f"Unknown task: {task}"}
+
+        try:
+            # Get the method and extract its parameters (excluding 'self')
+            method = getattr(self, method_name)
+
+            # Call the method with the message parameters (excluding 'task')
+            method_params = {k: v for k, v in message.items() if k != "task"}
+            result = method(**method_params)
+
+            # Handle both Pydantic models and dictionaries
+            if hasattr(result, 'model_dump'):
+                return result.model_dump()
+            else:
+                return result
+
+        except TypeError as e:
+            return {"error": f"Invalid parameters for task {task}: {str(e)}"}
+        except Exception as e:
+            return {"error": f"Error executing task {task}: {str(e)}"}
+'''
+
     # Generate the complete agent code
     engine = spec_data.get("intelligence", {}).get("engine", "openai")
     custom_module = spec_data.get("intelligence", {}).get("module", None)
-    imports = ["from typing import Dict, Any, List, Optional"]
+    imports = [
+        "from typing import Dict, Any, List, Optional",
+        "import json",
+        "import logging",
+        "import os",
+        "from dotenv import load_dotenv",
+        "from behavioural_contracts import behavioural_contract",
+        "from jinja2 import Environment, FileSystemLoader",
+        "from pydantic import BaseModel",
+        "from dacp.orchestrator import Orchestrator",
+    ]
 
-    if engine == "openai":
-        imports.append("import openai")
-    elif engine == "anthropic":
-        imports.append("import anthropic")
-    elif engine == "custom" and custom_module:
+    # Add importlib for custom modules if needed
+    if engine == "custom" and custom_module:
         imports.append("import importlib")
-    else:
-        imports.append("# Add your local or custom engine dependencies here")
-
-    imports.extend(
-        [
-            "import json",
-            "import logging",
-            "import os",
-            "from dotenv import load_dotenv",
-            "from behavioural_contracts import behavioural_contract",
-            "from jinja2 import Environment, FileSystemLoader",
-            "from pydantic import BaseModel",
-        ]
-    )
 
     # Add tools import if tools are defined
     if spec_data.get("tools"):
         imports.append("from oas_cli.tools import get_tool_implementation")
-
-    # Generate API key logic based on engine
-    if engine == "openai":
-        api_key_logic = "        if api_key:\n            openai.api_key = api_key"
-    elif engine == "anthropic":
-        api_key_logic = (
-            "        if api_key:\n            os.environ['ANTHROPIC_API_KEY'] = api_key"
-        )
-    else:
-        api_key_logic = "        # No API key logic for local/custom engines"
 
     # Add custom router loader if needed
     custom_router_loader = ""
@@ -1074,15 +1095,21 @@ ROLE = "{agent_name.title()}"
 {chr(10).join(task_functions)}
 {custom_router_loader}
 class {class_name}:
-    def __init__(self, api_key: str | None = None):
+    def __init__(self, agent_id: str, orchestrator: Orchestrator):
+        self.agent_id = agent_id
+        orchestrator.register_agent(agent_id, self)
         self.model = "{config["model"]}"
-{api_key_logic}
 {custom_router_init}
+{handle_message_method}
 {chr(10).join(class_methods)}
 {chr(10).join(memory_methods)}
 
 def main():
-    agent = {class_name}()
+    # Example usage - in production, you would get these from your orchestrator setup
+    from dacp.orchestrator import Orchestrator
+
+    orchestrator = Orchestrator()
+    agent = {class_name}("example-agent-id", orchestrator)
 {example_task_code}
 
 if __name__ == "__main__":

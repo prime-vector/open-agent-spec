@@ -187,8 +187,10 @@ def test_custom_llm_router_integration(base_spec, temp_project):
 
     try:
         from agent import TestAgent
+        from dacp.orchestrator import Orchestrator
 
-        agent = TestAgent()
+        orchestrator = Orchestrator()
+        agent = TestAgent("test-agent-id", orchestrator)
         result = agent.greet(name="Alice")
 
         # Verify the result - handle both Pydantic models and dictionaries
