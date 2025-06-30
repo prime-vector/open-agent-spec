@@ -187,9 +187,13 @@ def test_custom_llm_router_integration(base_spec, temp_project):
 
     try:
         from agent import TestAgent
-        from dacp.orchestrator import Orchestrator
 
-        orchestrator = Orchestrator()
+        # Mock orchestrator for testing since dacp might not be available in CI
+        class MockOrchestrator:
+            def register_agent(self, agent_id, agent):
+                pass
+
+        orchestrator = MockOrchestrator()
         agent = TestAgent("test-agent-id", orchestrator)
         result = agent.greet(name="Alice")
 
