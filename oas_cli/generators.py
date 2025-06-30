@@ -499,6 +499,7 @@ def _generate_tool_task_function(
     spec_data: Dict[str, Any],
     agent_name: str,
     memory_config: Dict[str, Any],
+    config: Dict[str, Any],
 ) -> str:
     """Generate a task function that uses a DACP tool."""
     func_name = task_name.replace("-", "_")
@@ -512,6 +513,9 @@ def _generate_tool_task_function(
     # Get tool information
     tool_id = task_def["tool"]
     tool_params = task_def.get("tool_params", {})
+
+    # Get the configured model
+    model = config.get("model", "gpt-4")
 
     # Map tool parameters to DACP parameter names
     tool_param_mapping = {}
@@ -619,7 +623,7 @@ Respond with JSON in one of these formats:
 Remember: Only use the tool if it's necessary for your task.'''
 
     # Call the LLM with tool context
-    response = call_llm(tool_prompt, model="gpt-4")
+    response = call_llm(tool_prompt, model="{model}")
 
     # Parse the response
     parsed_response = parse_agent_response(response)
@@ -643,7 +647,7 @@ Based on this result, provide your final response in JSON format:
 
 Remember to respond with valid JSON.'''
 
-        final_response = call_llm(follow_up_prompt, model="gpt-4")
+        final_response = call_llm(follow_up_prompt, model="{model}")
         final_parsed = parse_agent_response(final_response)
 
         if is_final_response(final_parsed):
@@ -708,7 +712,7 @@ def _generate_task_function(
     # Check if this task uses a tool
     if "tool" in task_def:
         return _generate_tool_task_function(
-            task_name, task_def, spec_data, agent_name, memory_config
+            task_name, task_def, spec_data, agent_name, memory_config, config
         )
 
     # Check if this is a multi-step task
