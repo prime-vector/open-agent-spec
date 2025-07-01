@@ -1,6 +1,6 @@
 openai>=1.0.0
 # Note: During development, install with: pip install -r requirements.txt --index-url https://test.pypi.org/simple/ --extra-index-url https://pypi.org/simple/
 behavioural-contracts>=0.1.2
-dacp>=0.1.0
+dacp>=0.3.0
 python-dotenv>=0.19.0
 toml
