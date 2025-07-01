@@ -493,6 +493,37 @@ def {func_name}({", ".join(input_params)}) -> {output_type}:
 """
 
 
+def _generate_intelligence_config(
+    spec_data: Dict[str, Any], config: Dict[str, Any]
+) -> str:
+    """Generate intelligence configuration for DACP invoke_intelligence."""
+    intelligence = spec_data.get("intelligence", {})
+
+    intelligence_config = {
+        "engine": intelligence.get("engine", "openai"),
+        "model": intelligence.get("model", config.get("model", "gpt-4")),
+        "endpoint": intelligence.get(
+            "endpoint", config.get("endpoint", "https://api.openai.com/v1")
+        ),
+    }
+
+    # Add additional config if present
+    intelligence_cfg = intelligence.get("config", {})
+    if intelligence_cfg:
+        for key, value in intelligence_cfg.items():
+            intelligence_config[key] = value
+
+    # Format as Python dictionary string
+    config_items = []
+    for key, value in intelligence_config.items():
+        if isinstance(value, str):
+            config_items.append(f'    "{key}": "{value}"')
+        else:
+            config_items.append(f'    "{key}": {value}')
+
+    return "{\n" + ",\n".join(config_items) + "\n    }"
+
+
 def _generate_tool_task_function(
     task_name: str,
     task_def: Dict[str, Any],
@@ -513,9 +544,6 @@ def _generate_tool_task_function(
     # Get tool information
     tool_id = task_def["tool"]
     tool_params = task_def.get("tool_params", {})
-
-    # Get the configured model
-    model = config.get("model", "gpt-4")
 
     # Map tool parameters to DACP parameter names
     tool_param_mapping = {}
@@ -586,7 +614,7 @@ def _generate_tool_task_function(
     )
 
     return f"""
-from dacp import call_llm, run_tool
+from dacp import invoke_intelligence, run_tool
 from dacp.protocol import parse_agent_response, is_tool_request, get_tool_request, wrap_tool_result, get_final_response, is_final_response
 
 @behavioural_contract(
@@ -622,8 +650,11 @@ Respond with JSON in one of these formats:
 
 Remember: Only use the tool if it's necessary for your task.'''
 
+    # Configure intelligence for DACP
+    intelligence_config = {_generate_intelligence_config(spec_data, config)}
+
     # Call the LLM with tool context
-    response = call_llm(tool_prompt, model="{model}")
+    response = invoke_intelligence(tool_prompt, intelligence_config)
 
     # Parse the response
     parsed_response = parse_agent_response(response)
@@ -647,7 +678,7 @@ Based on this result, provide your final response in JSON format:
 
 Remember to respond with valid JSON.'''
 
-        final_response = call_llm(follow_up_prompt, model="{model}")
+        final_response = invoke_intelligence(follow_up_prompt, intelligence_config)
         final_parsed = parse_agent_response(final_response)
 
         if is_final_response(final_parsed):
@@ -746,7 +777,6 @@ def _generate_task_function(
 
     # Determine client usage based on engine
     engine = spec_data.get("intelligence", {}).get("engine", "openai")
-    model = config.get("model", "gpt-4")
     custom_module = spec_data.get("intelligence", {}).get("module", None)
 
     # Use DACP for LLM communication or custom router
@@ -755,10 +785,14 @@ def _generate_task_function(
     router = load_custom_llm_router("{config["endpoint"]}", "{config["model"]}", {{}})
     result = router.run(prompt, **input_dict)"""
     else:
-        client_code = f"""from dacp import call_llm
+        intelligence_config_str = _generate_intelligence_config(spec_data, config)
+        client_code = f"""from dacp import invoke_intelligence
+
+    # Configure intelligence for DACP
+    intelligence_config = {intelligence_config_str}
 
     # Call the LLM using DACP
-    result = call_llm(prompt, model="{model}")"""
+    result = invoke_intelligence(prompt, intelligence_config)"""
 
     # Generate prompt rendering with actual parameter values
     prompt_render_params = []
