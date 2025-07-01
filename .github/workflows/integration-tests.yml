@@ -23,6 +23,7 @@ jobs:
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
+        if [ -f requirements.txt ]; then pip install -r requirements.txt --index-url https://test.pypi.org/simple/ --extra-index-url https://pypi.org/simple/; fi
         pip install -e .
         pip install pytest
 

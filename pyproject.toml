@@ -17,6 +17,7 @@ dependencies = [
     "openai>=1.0.0",
     "anthropic>=0.3.0",
     "behavioural-contracts==0.1.2",
+    "dacp>=0.1.0",
     "jinja2>=3.0.0",
     "setuptools>=69.0.0",
     "jsonschema>=4.0.0",
