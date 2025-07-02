@@ -35,8 +35,23 @@ def get_memory_config(spec_data: Dict[str, Any]) -> Dict[str, Any]:
     }
 
 
+def get_logging_config(spec_data: Dict[str, Any]) -> Dict[str, Any]:
+    """Get logging configuration from spec."""
+    logging_config = spec_data.get("logging", {})
+    return {
+        "enabled": logging_config.get("enabled", True),
+        "level": logging_config.get("level", "INFO"),
+        "format_style": logging_config.get("format_style", "emoji"),
+        "include_timestamp": logging_config.get("include_timestamp", True),
+        "log_file": logging_config.get("log_file"),
+        "env_overrides": logging_config.get("env_overrides", {}),
+    }
+
+
 def to_pascal_case(name: str) -> str:
-    """Convert snake_case to PascalCase."""
+    """Convert snake_case or kebab-case to PascalCase."""
+    # Handle both underscores and hyphens
+    name = name.replace("-", "_")
     return "".join(word.capitalize() for word in name.split("_"))
 
 
@@ -522,6 +537,91 @@ def _generate_intelligence_config(
             config_items.append(f'    "{key}": {value}')
 
     return "{\n" + ",\n".join(config_items) + "\n    }"
+
+
+def _generate_embedded_config(spec_data: Dict[str, Any]) -> str:
+    """Generate embedded YAML configuration as Python dict."""
+    logging_config = get_logging_config(spec_data)
+    intelligence_config = spec_data.get("intelligence", {})
+
+    def format_value(v):
+        if v is None:
+            return "None"
+        elif isinstance(v, str):
+            return f'"{v}"'
+        elif isinstance(v, bool):
+            return str(v)
+        else:
+            return str(v)
+
+    embedded_config = f"""self.config = {{
+        "logging": {{
+            "enabled": {format_value(logging_config["enabled"])},
+            "level": {format_value(logging_config["level"])},
+            "format_style": {format_value(logging_config["format_style"])},
+            "include_timestamp": {format_value(logging_config["include_timestamp"])},
+            "log_file": {format_value(logging_config["log_file"])},
+            "env_overrides": {{"""
+
+    for key, value in logging_config["env_overrides"].items():
+        embedded_config += f"""
+                "{key}": {format_value(value)},"""
+
+    embedded_config += f"""
+            }}
+        }},
+        "intelligence": {{
+            "engine": {format_value(intelligence_config.get("engine", "openai"))},
+            "model": {format_value(intelligence_config.get("model", "gpt-4"))},
+            "endpoint": {format_value(intelligence_config.get("endpoint", "https://api.openai.com/v1"))},
+            "config": {{
+                "temperature": {intelligence_config.get("config", {}).get("temperature", 0.7)},
+                "max_tokens": {intelligence_config.get("config", {}).get("max_tokens", 1000)}
+            }}
+        }}
+    }}"""
+
+    return embedded_config
+
+
+def _generate_setup_logging_method() -> str:
+    """Generate setup_logging method for DACP logging integration."""
+    return '''
+    def setup_logging(self):
+        """Configure DACP logging from YAML configuration."""
+        logging_config = self.config.get('logging', {})
+
+        if not logging_config.get('enabled', True):
+            return
+
+        # Process environment variable overrides
+        env_overrides = logging_config.get('env_overrides', {})
+
+        level = logging_config.get('level', 'INFO')
+        if 'level' in env_overrides:
+            level = os.getenv(env_overrides['level'], level)
+
+        format_style = logging_config.get('format_style', 'emoji')
+        if 'format_style' in env_overrides:
+            format_style = os.getenv(env_overrides['format_style'], format_style)
+
+        log_file = logging_config.get('log_file')
+        if 'log_file' in env_overrides:
+            log_file = os.getenv(env_overrides['log_file'], log_file)
+
+        # Create log directory if needed
+        if log_file:
+            from pathlib import Path
+            Path(log_file).parent.mkdir(parents=True, exist_ok=True)
+
+        # Configure DACP logging
+        dacp.setup_dacp_logging(
+            level=level,
+            format_style=format_style,
+            include_timestamp=logging_config.get('include_timestamp', True),
+            log_file=log_file
+        )
+'''
 
 
 def _generate_tool_task_function(
@@ -1088,6 +1188,7 @@ def generate_agent_code(
         "from jinja2 import Environment, FileSystemLoader",
         "from pydantic import BaseModel",
         "from dacp.orchestrator import Orchestrator",
+        "import dacp",
     ]
 
     # Add importlib for custom modules if needed
@@ -1128,13 +1229,21 @@ ROLE = "{agent_name.title()}"
 
 {chr(10).join(task_functions)}
 {custom_router_loader}
-class {class_name}:
+class {class_name}(dacp.Agent):
     def __init__(self, agent_id: str, orchestrator: Orchestrator):
+        super().__init__()
         self.agent_id = agent_id
         orchestrator.register_agent(agent_id, self)
         self.model = "{config["model"]}"
+
+        # Embed YAML config as dict during generation
+        {_generate_embedded_config(spec_data)}
+
+        # Setup DACP logging FIRST
+        self.setup_logging()
 {custom_router_init}
 {handle_message_method}
+{_generate_setup_logging_method()}
 {chr(10).join(class_methods)}
 {chr(10).join(memory_methods)}
 

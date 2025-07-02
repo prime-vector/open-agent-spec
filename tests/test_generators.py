@@ -94,16 +94,21 @@ def test_generate_agent_code(temp_dir, sample_spec):
 
     content = agent_file.read_text()
     assert "from behavioural_contracts import behavioural_contract" in content
-    assert "class TestAgent:" in content  # Should not be TestAgentAgent
+    assert "import dacp" in content  # Check for DACP import
+    assert "class TestAgent(dacp.Agent):" in content  # Check for DACP inheritance
     assert "def analyze(" in content
     assert "memory_summary: str = ''" in content  # Check for memory parameter
+    assert "def setup_logging(self):" in content  # Check for logging setup method
+    assert "self.config = {" in content  # Check for embedded config
 
     # Test with a different name to ensure it works consistently
     temp_dir2 = Path(tempfile.mkdtemp())
     try:
         generate_agent_code(temp_dir2, sample_spec, "custom_agent", "CustomAgent")
         content2 = (temp_dir2 / "agent.py").read_text()
-        assert "class CustomAgent:" in content2  # Should not be CustomAgentAgent
+        assert (
+            "class CustomAgent(dacp.Agent):" in content2
+        )  # Check for DACP inheritance
     finally:
         shutil.rmtree(temp_dir2)
 
