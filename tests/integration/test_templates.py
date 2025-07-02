@@ -76,10 +76,26 @@ def test_template(template_name, test_dir):
 
         # Test agent instantiation
         print("Testing agent instantiation...")
-        run_command(
-            "python3 -c 'from agent import *; agent = HelloWorldAgent(); print(\"✅ Agent instantiated successfully\")'",
-            cwd=agent_dir,
+        # Create a temporary test file to avoid one-liner class definition issues
+        test_instantiation = agent_dir / "test_instantiation.py"
+        test_instantiation.write_text(
+            """
+from agent import *
+
+class MockOrchestrator:
+    def register_agent(self, agent_id, agent):
+        pass
+
+orchestrator = MockOrchestrator()
+agent = HelloWorldAgent("test-agent-id", orchestrator)
+print("✅ Agent instantiated successfully")
+"""
         )
+
+        run_command("python3 test_instantiation.py", cwd=agent_dir)
+
+        # Clean up
+        test_instantiation.unlink()
 
         # Test agent execution (without API key - should fail gracefully)
         print("Testing agent execution (without API key)...")
@@ -136,13 +152,22 @@ print("✅ All required methods and functions exist")
 
         # Test that the save_greeting method has correct signature
         print("Testing method signatures...")
-        sig_test = (
-            sys_path_patch
-            + """
+        sig_test_file = agent_dir / "test_signature.py"
+        sig_test_file.write_text(
+            """
+import sys, os
+sys.path.insert(0, os.getcwd())
+
 import inspect
 from agent import HelloWorldAgent
 
-agent = HelloWorldAgent()
+# Mock orchestrator for testing
+class MockOrchestrator:
+    def register_agent(self, agent_id, agent):
+        pass
+
+orchestrator = MockOrchestrator()
+agent = HelloWorldAgent("test-agent-id", orchestrator)
 sig = inspect.signature(agent.save_greeting)
 params = list(sig.parameters.keys())
 expected_params = ['file_path', 'name']
@@ -150,11 +175,11 @@ assert params == expected_params, "Method signature mismatch"
 print("✅ Method signature is correct")
 """
         )
-        with tempfile.NamedTemporaryFile("w", suffix=".py", delete=False) as f:
-            f.write(sig_test)
-            sig_test_path = f.name
-        run_command(f"python3 {sig_test_path}", cwd=agent_dir)
-        os.unlink(sig_test_path)
+
+        run_command("python3 test_signature.py", cwd=agent_dir)
+
+        # Clean up
+        sig_test_file.unlink()
 
         print("✅ Tool agent specific tests passed!")
         return True

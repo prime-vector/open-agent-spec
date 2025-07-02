@@ -14,6 +14,18 @@ intelligence:
     temperature: 0.7
     max_tokens: 150
 
+logging:
+  enabled: true
+  level: "DEBUG"
+  format_style: "emoji"
+  include_timestamp: true
+  log_file: "./logs/agent.log"
+
+  env_overrides:
+    level: "DACP_LOG_LEVEL"
+    format_style: "DACP_LOG_STYLE"
+    log_file: "DACP_LOG_FILE"
+
 tasks:
   greet:
     description: Say hello to a person by name

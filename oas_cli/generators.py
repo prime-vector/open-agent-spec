@@ -35,8 +35,23 @@ def get_memory_config(spec_data: Dict[str, Any]) -> Dict[str, Any]:
     }
 
 
+def get_logging_config(spec_data: Dict[str, Any]) -> Dict[str, Any]:
+    """Get logging configuration from spec."""
+    logging_config = spec_data.get("logging", {})
+    return {
+        "enabled": logging_config.get("enabled", True),
+        "level": logging_config.get("level", "INFO"),
+        "format_style": logging_config.get("format_style", "emoji"),
+        "include_timestamp": logging_config.get("include_timestamp", True),
+        "log_file": logging_config.get("log_file"),
+        "env_overrides": logging_config.get("env_overrides", {}),
+    }
+
+
 def to_pascal_case(name: str) -> str:
-    """Convert snake_case to PascalCase."""
+    """Convert snake_case or kebab-case to PascalCase."""
+    # Handle both underscores and hyphens
+    name = name.replace("-", "_")
     return "".join(word.capitalize() for word in name.split("_"))
 
 
@@ -431,8 +446,10 @@ def _generate_multi_step_task_function(
         step_var = f"step_{i}_result"
         step_results.append(step_var)
 
-        step_code.append(f"""    # Execute step {i + 1}: {step_task}
-    {step_var} = {step_task.replace("-", "_")}({step_input_str})""")
+        step_code.append(
+            f"""    # Execute step {i + 1}: {step_task}
+    {step_var} = {step_task.replace("-", "_")}({step_input_str})"""
+        )
 
     # Generate output construction with better mapping
     output_schema = task_def.get("output", {})
@@ -493,6 +510,57 @@ def {func_name}({", ".join(input_params)}) -> {output_type}:
 """
 
 
+# Legacy functions (deprecated - use template-based generation instead)
+def _generate_intelligence_config(
+    spec_data: Dict[str, Any], config: Dict[str, Any]
+) -> str:
+    """Generate intelligence configuration for DACP invoke_intelligence.
+
+    Deprecated: Use PythonCodeSerializer.dict_to_python_code() instead.
+    """
+    from .code_generation import PythonCodeSerializer
+
+    intelligence = spec_data.get("intelligence", {})
+    intelligence_config = {
+        "engine": intelligence.get("engine", "openai"),
+        "model": intelligence.get("model", config.get("model", "gpt-4")),
+        "endpoint": intelligence.get(
+            "endpoint", config.get("endpoint", "https://api.openai.com/v1")
+        ),
+    }
+
+    # Add additional config if present
+    intelligence_cfg = intelligence.get("config", {})
+    if intelligence_cfg:
+        intelligence_config.update(intelligence_cfg)
+
+    # Use proper serialization
+    serializer = PythonCodeSerializer()
+    return serializer.dict_to_python_code(intelligence_config)
+
+
+def _generate_embedded_config(spec_data: Dict[str, Any]) -> str:
+    """Generate embedded YAML configuration as Python dict.
+
+    Deprecated: Use AgentDataPreparator._prepare_embedded_config() instead.
+    """
+    from .data_preparation import AgentDataPreparator
+
+    preparator = AgentDataPreparator()
+    return preparator._prepare_embedded_config(spec_data)
+
+
+def _generate_setup_logging_method() -> str:
+    """Generate setup_logging method for DACP logging integration.
+
+    Deprecated: Use AgentDataPreparator._prepare_setup_logging_method() instead.
+    """
+    from .data_preparation import AgentDataPreparator
+
+    preparator = AgentDataPreparator()
+    return preparator._prepare_setup_logging_method()
+
+
 def _generate_tool_task_function(
     task_name: str,
     task_def: Dict[str, Any],
@@ -513,9 +581,6 @@ def _generate_tool_task_function(
     # Get tool information
     tool_id = task_def["tool"]
     tool_params = task_def.get("tool_params", {})
-
-    # Get the configured model
-    model = config.get("model", "gpt-4")
 
     # Map tool parameters to DACP parameter names
     tool_param_mapping = {}
@@ -586,7 +651,7 @@ def _generate_tool_task_function(
     )
 
     return f"""
-from dacp import call_llm, run_tool
+from dacp import invoke_intelligence, execute_tool
 from dacp.protocol import parse_agent_response, is_tool_request, get_tool_request, wrap_tool_result, get_final_response, is_final_response
 
 @behavioural_contract(
@@ -622,8 +687,11 @@ Respond with JSON in one of these formats:
 
 Remember: Only use the tool if it's necessary for your task.'''
 
+    # Configure intelligence for DACP
+    intelligence_config = {_generate_intelligence_config(spec_data, config)}
+
     # Call the LLM with tool context
-    response = call_llm(tool_prompt, model="{model}")
+    response = invoke_intelligence(tool_prompt, intelligence_config)
 
     # Parse the response
     parsed_response = parse_agent_response(response)
@@ -633,7 +701,7 @@ Remember: Only use the tool if it's necessary for your task.'''
         tool_name, tool_params = get_tool_request(parsed_response)
 
         # Execute the tool
-        tool_result = run_tool(tool_name, tool_params)
+        tool_result = execute_tool(tool_name, tool_params)
 
         # Wrap the tool result for the LLM
         wrapped_result = wrap_tool_result(tool_name, tool_result)
@@ -647,7 +715,7 @@ Based on this result, provide your final response in JSON format:
 
 Remember to respond with valid JSON.'''
 
-        final_response = call_llm(follow_up_prompt, model="{model}")
+        final_response = invoke_intelligence(follow_up_prompt, intelligence_config)
         final_parsed = parse_agent_response(final_response)
 
         if is_final_response(final_parsed):
@@ -746,7 +814,6 @@ def _generate_task_function(
 
     # Determine client usage based on engine
     engine = spec_data.get("intelligence", {}).get("engine", "openai")
-    model = config.get("model", "gpt-4")
     custom_module = spec_data.get("intelligence", {}).get("module", None)
 
     # Use DACP for LLM communication or custom router
@@ -755,10 +822,14 @@ def _generate_task_function(
     router = load_custom_llm_router("{config["endpoint"]}", "{config["model"]}", {{}})
     result = router.run(prompt, **input_dict)"""
     else:
-        client_code = f"""from dacp import call_llm
+        intelligence_config_str = _generate_intelligence_config(spec_data, config)
+        client_code = f"""from dacp import invoke_intelligence
+
+    # Configure intelligence for DACP
+    intelligence_config = {intelligence_config_str}
 
     # Call the LLM using DACP
-    result = call_llm(prompt, model="{model}")"""
+    result = invoke_intelligence(prompt, intelligence_config)"""
 
     # Generate prompt rendering with actual parameter values
     prompt_render_params = []
@@ -842,7 +913,7 @@ def {func_name}({", ".join(input_params)}) -> {output_type}:
 def generate_agent_code(
     output: Path, spec_data: Dict[str, Any], agent_name: str, class_name: str
 ) -> None:
-    """Generate the agent.py file."""
+    """Generate the agent.py file using template-based approach."""
     if (output / "agent.py").exists():
         log.warning("agent.py already exists and will be overwritten")
 
@@ -851,246 +922,96 @@ def generate_agent_code(
         log.warning("No tasks defined in spec file")
         return
 
-    config = {
-        "endpoint": spec_data.get("intelligence", {}).get(
-            "endpoint", "https://api.openai.com/v1"
-        ),
-        "model": spec_data.get("intelligence", {}).get("model", "gpt-3.5-turbo"),
-        "temperature": spec_data.get("intelligence", {})
-        .get("config", {})
-        .get("temperature", 0.7),
-        "max_tokens": spec_data.get("intelligence", {})
-        .get("config", {})
-        .get("max_tokens", 1000),
-    }
-    memory_config = get_memory_config(spec_data)
+    # Use the new data preparation and template-based generation
+    from .data_preparation import AgentDataPreparator
+    from .code_generation import CodeGenerator
 
-    # Generate task functions and class methods
-    task_functions = []
-    class_methods = []
-    model_definitions = []
+    try:
+        # Prepare all data using the structured approach
+        preparator = AgentDataPreparator()
+        template_data = preparator.prepare_all_data(spec_data, agent_name, class_name)
 
-    for task_name, task_def in tasks.items():
-        # Generate model definition
-        model_name = f"{task_name.replace('-', '_').title()}Output"
-        model_def = _generate_pydantic_model(model_name, task_def.get("output", {}))
-        if model_def:
-            model_definitions.append(model_def)
+        # Generate code using templates
+        generator = CodeGenerator()
 
-        # Generate task function
-        task_functions.append(
-            _generate_task_function(
-                task_name, task_def, spec_data, agent_name, memory_config, config
-            )
-        )
-
-        # Generate corresponding class method
-        input_params_without_memory = [
-            param.split(":")[0]
-            for param in _generate_input_params(task_def)
-            if param != "memory_summary: str = ''"
-        ]
-
-        # Handle the case where there are no input parameters
-        if input_params_without_memory:
-            method_signature = f"def {task_name.replace('-', '_')}(self, {', '.join(input_params_without_memory)}) -> {model_name}:"
-            method_call = f"return {task_name.replace('-', '_')}({', '.join(input_params_without_memory)}, memory_summary=memory_summary)"
-        else:
-            method_signature = (
-                f"def {task_name.replace('-', '_')}(self) -> {model_name}:"
-            )
-            method_call = (
-                f"return {task_name.replace('-', '_')}(memory_summary=memory_summary)"
-            )
-
-        class_methods.append(
-            f'''
-    {method_signature}
-        """Process {task_name} task."""
-        memory_summary = self.get_memory() if hasattr(self, 'get_memory') else ""
-        {method_call}
-'''
-        )
-
-    # Generate memory-related methods if memory is enabled
-    memory_methods = []
-    if memory_config["enabled"]:
-        memory_methods.append(
-            '''
-    def get_memory(self) -> str:
-        """Get memory for the current context.
-
-        This is a stub method that should be implemented by the developer.
-        The memory format and retrieval mechanism are not prescribed by OAS.
-
-        Returns:
-            str: Memory string in the format specified by the spec
-        """
-        return ""  # Implement your memory retrieval logic here
-'''
-        )
-
-    # Generate example task execution code
-    example_task_code = ""
-    if tasks:
-        # Prioritize multi-step tasks for examples
-        multi_step_tasks = [
-            name
-            for name, task_def in tasks.items()
-            if task_def.get("multi_step", False)
-        ]
-
-        if multi_step_tasks:
-            # Use the first multi-step task for the example
-            example_task_name = multi_step_tasks[0]
-            example_task_def = tasks[example_task_name]
-
-            # Use the actual input parameters for the method signature
-            input_params = [
-                param.split(":")[0]
-                for param in _generate_input_params(example_task_def)
-                if param != "memory_summary: str = ''"
-            ]
-            if input_params:
-                example_params = ", ".join(f'{k}="example_{k}"' for k in input_params)
-                example_task_code = f"""
-    # Example usage with multi-step task: {example_task_name}
-    result = agent.{example_task_name.replace("-", "_")}({example_params})
-    # Handle both Pydantic models and dictionaries
-    if hasattr(result, 'model_dump'):
-        print(json.dumps(result.model_dump(), indent=2))
-    else:
-        print(json.dumps(result, indent=2))"""
-            else:
-                example_task_code = f"""
-    # Example usage with multi-step task: {example_task_name}
-    result = agent.{example_task_name.replace("-", "_")}()
-    # Handle both Pydantic models and dictionaries
-    if hasattr(result, 'model_dump'):
-        print(json.dumps(result.model_dump(), indent=2))
-    else:
-        print(json.dumps(result, indent=2))"""
-        else:
-            # Fall back to the first regular task
-            first_task_name = next(iter(tasks))
-            first_task_def = tasks[first_task_name]
-
-            # Check if this is a tool task
-            if "tool" in first_task_def:
-                # For tool tasks, provide safe example values
-                tool_id = first_task_def["tool"]
-                if tool_id == "file_writer":
-                    example_params = (
-                        'file_path="./output/example.txt", content="Hello World!"'
-                    )
-                else:
-                    # For other tools, use generic example values
-                    input_props = first_task_def.get("input", {}).get("properties", {})
-                    example_params = ", ".join(
-                        f'{k}="example_{k}"' for k in input_props
-                    )
-            else:
-                # For regular tasks, use the input properties
-                input_props = first_task_def.get("input", {}).get("properties", {})
-                example_params = ", ".join(f'{k}="example_{k}"' for k in input_props)
-
-            example_task_code = f"""
-    # Example usage with {first_task_name} task
-    result = agent.{first_task_name.replace("-", "_")}({example_params})
-    # Handle both Pydantic models and dictionaries
-    if hasattr(result, 'model_dump'):
-        print(json.dumps(result.model_dump(), indent=2))
-    else:
-        print(json.dumps(result, indent=2))"""
-
-    # Generate the complete agent code
-    engine = spec_data.get("intelligence", {}).get("engine", "openai")
-    custom_module = spec_data.get("intelligence", {}).get("module", None)
-    imports = ["from typing import Dict, Any, List, Optional"]
-
-    if engine == "openai":
-        imports.append("import openai")
-    elif engine == "anthropic":
-        imports.append("import anthropic")
-    elif engine == "custom" and custom_module:
-        imports.append("import importlib")
-    else:
-        imports.append("# Add your local or custom engine dependencies here")
-
-    imports.extend(
-        [
-            "import json",
-            "import logging",
-            "import os",
-            "from dotenv import load_dotenv",
-            "from behavioural_contracts import behavioural_contract",
-            "from jinja2 import Environment, FileSystemLoader",
-            "from pydantic import BaseModel",
-        ]
-    )
-
-    # Add tools import if tools are defined
-    if spec_data.get("tools"):
-        imports.append("from oas_cli.tools import get_tool_implementation")
-
-    # Generate API key logic based on engine
-    if engine == "openai":
-        api_key_logic = "        if api_key:\n            openai.api_key = api_key"
-    elif engine == "anthropic":
-        api_key_logic = (
-            "        if api_key:\n            os.environ['ANTHROPIC_API_KEY'] = api_key"
-        )
-    else:
-        api_key_logic = "        # No API key logic for local/custom engines"
-
-    # Add custom router loader if needed
-    custom_router_loader = ""
-    custom_router_init = ""
-    if engine == "custom" and custom_module:
-        custom_router_loader = f'''
-def load_custom_llm_router(endpoint, model, config):
-    """Dynamically load a custom LLM router from the specified module and class."""
-    module_path, class_name = "{custom_module}".rsplit('.', 1)
-    module = importlib.import_module(module_path)
-    CustomLLMRouter = getattr(module, class_name)
-    router = CustomLLMRouter(endpoint, model, config)
-    if not hasattr(router, 'run'):
-        raise AttributeError("Custom LLM router must have a 'run' method")
-    return router
-'''
-        custom_router_init = f'        self.router = load_custom_llm_router("{config["endpoint"]}", "{config["model"]}", {{}})  # {custom_module}'
-
-    agent_code = f"""{chr(10).join(imports)}
+        # Ensure the agent template exists with a default
+        default_agent_template = """{{ imports | join('\\n') }}
 
 load_dotenv()
 
 log = logging.getLogger(__name__)
 
-ROLE = "{agent_name.title()}"
+ROLE = "{{ agent_name.title() }}"
 
 # Generate output models
-{chr(10).join(model_definitions)}
+{% for model in models %}
+{{ model }}
 
-{chr(10).join(task_functions)}
-{custom_router_loader}
-class {class_name}:
-    def __init__(self, api_key: str | None = None):
-        self.model = "{config["model"]}"
-{api_key_logic}
-{custom_router_init}
-{chr(10).join(class_methods)}
-{chr(10).join(memory_methods)}
+{% endfor %}
+
+# Task functions
+{% for task_function in task_functions %}
+{{ task_function }}
+{% endfor %}
+
+{% if custom_router_loader %}
+{{ custom_router_loader }}
+{% endif %}
+
+class {{ class_name }}(dacp.Agent):
+    def __init__(self, agent_id: str, orchestrator: Orchestrator):
+        super().__init__()
+        self.agent_id = agent_id
+        orchestrator.register_agent(agent_id, self)
+        self.model = "{{ config.model }}"
+
+        # Embed YAML config as dict during generation
+        {{ embedded_config }}
+
+        # Setup DACP logging FIRST
+        self.setup_logging()
+{% if custom_router_init %}
+        {{ custom_router_init }}
+{% endif %}
+
+{{ handle_message_method }}
+
+{{ setup_logging_method }}
+
+{% for class_method in class_methods %}
+{{ class_method }}
+{% endfor %}
+
+{% for memory_method in memory_methods %}
+{{ memory_method }}
+{% endfor %}
 
 def main():
-    agent = {class_name}()
-{example_task_code}
+    # Example usage - in production, you would get these from your orchestrator setup
+    from dacp.orchestrator import Orchestrator
+
+    orchestrator = Orchestrator()
+    agent = {{ class_name }}("example-agent-id", orchestrator)
+{{ example_task_code }}
 
 if __name__ == "__main__":
-    main()
-"""
-    (output / "agent.py").write_text(agent_code)
-    log.info("agent.py created")
-    log.debug(f"Agent class name generated: {class_name}")
+    main()"""
+
+        generator.ensure_template_exists("agent.py.j2", default_agent_template)
+
+        # Generate the agent code
+        agent_code = generator.generate_from_template("agent.py.j2", **template_data)
+
+        # Write the generated code
+        (output / "agent.py").write_text(agent_code)
+        log.info("agent.py created using template-based generation")
+        log.debug(f"Agent class name generated: {class_name}")
+
+    except Exception as e:
+        log.error(f"Error during template-based generation: {e}")
+        log.warning("Falling back to legacy generation method")
+        # Fallback to legacy method if template generation fails
+        _generate_agent_code_legacy(output, spec_data, agent_name, class_name)
 
 
 def map_type_to_python(t):
@@ -1469,3 +1390,185 @@ CONSTRAINTS:
 
     default_template.write_text(default_content)
     log.info("Created default prompt template: agent_prompt.jinja2")
+
+
+def _generate_agent_code_legacy(
+    output: Path, spec_data: Dict[str, Any], agent_name: str, class_name: str
+) -> None:
+    """Legacy agent code generation method (fallback only).
+
+    This is kept as a fallback in case template-based generation fails.
+    Should not be used directly - use generate_agent_code() instead.
+    """
+    log.warning("Using legacy agent code generation method")
+
+    tasks = spec_data.get("tasks", {})
+    config = {
+        "endpoint": spec_data.get("intelligence", {}).get(
+            "endpoint", "https://api.openai.com/v1"
+        ),
+        "model": spec_data.get("intelligence", {}).get("model", "gpt-3.5-turbo"),
+        "temperature": spec_data.get("intelligence", {})
+        .get("config", {})
+        .get("temperature", 0.7),
+        "max_tokens": spec_data.get("intelligence", {})
+        .get("config", {})
+        .get("max_tokens", 1000),
+    }
+    memory_config = get_memory_config(spec_data)
+
+    # Generate task functions and class methods using legacy methods
+    task_functions = []
+    class_methods = []
+    model_definitions = []
+
+    for task_name, task_def in tasks.items():
+        # Generate model definition
+        model_name = f"{task_name.replace('-', '_').title()}Output"
+        model_def = _generate_pydantic_model(model_name, task_def.get("output", {}))
+        if model_def:
+            model_definitions.append(model_def)
+
+        # Generate task function
+        task_functions.append(
+            _generate_task_function(
+                task_name, task_def, spec_data, agent_name, memory_config, config
+            )
+        )
+
+        # Generate corresponding class method
+        input_params_without_memory = [
+            param.split(":")[0]
+            for param in _generate_input_params(task_def)
+            if param != "memory_summary: str = ''"
+        ]
+
+        if input_params_without_memory:
+            method_signature = f"def {task_name.replace('-', '_')}(self, {', '.join(input_params_without_memory)}) -> {model_name}:"
+            method_call = f"return {task_name.replace('-', '_')}({', '.join(input_params_without_memory)}, memory_summary=memory_summary)"
+        else:
+            method_signature = (
+                f"def {task_name.replace('-', '_')}(self) -> {model_name}:"
+            )
+            method_call = (
+                f"return {task_name.replace('-', '_')}(memory_summary=memory_summary)"
+            )
+
+        class_methods.append(
+            f'''
+    {method_signature}
+        """Process {task_name} task."""
+        memory_summary = self.get_memory() if hasattr(self, 'get_memory') else ""
+        {method_call}
+'''
+        )
+
+    # Generate memory-related methods if memory is enabled
+    memory_methods = []
+    if memory_config["enabled"]:
+        memory_methods.append(
+            '''
+    def get_memory(self) -> str:
+        """Get memory for the current context.
+
+        This is a stub method that should be implemented by the developer.
+        The memory format and retrieval mechanism are not prescribed by OAS.
+
+        Returns:
+            str: Memory string in the format specified by the spec
+        """
+        return ""  # Implement your memory retrieval logic here
+'''
+        )
+
+    # Generate basic example task code
+    example_task_code = ""
+    if tasks:
+        first_task_name = next(iter(tasks))
+        example_task_code = f"""
+    # Example usage with {first_task_name} task
+    result = agent.{first_task_name.replace("-", "_")}()
+    print(result)"""
+
+    # Generate handle_message method
+    handle_message_method = '''
+    def handle_message(self, message: dict) -> dict:
+        """Handle incoming messages from the orchestrator."""
+        task = message.get("task")
+        if not task:
+            return {"error": "Missing required field: task"}
+        method_name = task.replace("-", "_")
+        if not hasattr(self, method_name):
+            return {"error": f"Unknown task: {task}"}
+        try:
+            method = getattr(self, method_name)
+            method_params = {k: v for k, v in message.items() if k != "task"}
+            result = method(**method_params)
+            if hasattr(result, 'model_dump'):
+                return result.model_dump()
+            else:
+                return result
+        except Exception as e:
+            return {"error": f"Error executing task {task}: {str(e)}"}
+'''
+
+    # Generate imports
+    imports = [
+        "from typing import Dict, Any, List, Optional",
+        "import json",
+        "import logging",
+        "import os",
+        "from dotenv import load_dotenv",
+        "from behavioural_contracts import behavioural_contract",
+        "from jinja2 import Environment, FileSystemLoader",
+        "from pydantic import BaseModel",
+        "from dacp.orchestrator import Orchestrator",
+        "import dacp",
+    ]
+
+    # Generate the complete agent code using legacy f-string approach
+    agent_code = f"""{chr(10).join(imports)}
+
+load_dotenv()
+
+log = logging.getLogger(__name__)
+
+ROLE = "{agent_name.title()}"
+
+# Generate output models
+{chr(10).join(model_definitions)}
+
+{chr(10).join(task_functions)}
+
+class {class_name}(dacp.Agent):
+    def __init__(self, agent_id: str, orchestrator: Orchestrator):
+        super().__init__()
+        self.agent_id = agent_id
+        orchestrator.register_agent(agent_id, self)
+        self.model = "{config["model"]}"
+
+        # Embed YAML config as dict during generation
+        {_generate_embedded_config(spec_data)}
+
+        # Setup DACP logging FIRST
+        self.setup_logging()
+
+{handle_message_method}
+
+{_generate_setup_logging_method()}
+
+{chr(10).join(class_methods)}
+
+{chr(10).join(memory_methods)}
+
+def main():
+    from dacp.orchestrator import Orchestrator
+    orchestrator = Orchestrator()
+    agent = {class_name}("example-agent-id", orchestrator)
+{example_task_code}
+
+if __name__ == "__main__":
+    main()
+"""
+    (output / "agent.py").write_text(agent_code)
+    log.info("agent.py created using legacy generation method")

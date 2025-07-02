@@ -311,6 +311,56 @@
           "user"
         ]
       },
+      "logging": {
+        "type": "object",
+        "properties": {
+          "enabled": {
+            "type": "boolean",
+            "default": true,
+            "description": "Whether to enable DACP logging"
+          },
+          "level": {
+            "type": "string",
+            "enum": ["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"],
+            "default": "INFO",
+            "description": "Logging level"
+          },
+          "format_style": {
+            "type": "string",
+            "enum": ["emoji", "detailed", "simple"],
+            "default": "emoji",
+            "description": "Logging format style"
+          },
+          "include_timestamp": {
+            "type": "boolean",
+            "default": true,
+            "description": "Include timestamps in logs"
+          },
+          "log_file": {
+            "type": "string",
+            "description": "Optional: log to file (auto-creates directories)"
+          },
+          "env_overrides": {
+            "type": "object",
+            "properties": {
+              "level": {
+                "type": "string",
+                "description": "Environment variable that overrides level"
+              },
+              "format_style": {
+                "type": "string",
+                "description": "Environment variable that overrides format_style"
+              },
+              "log_file": {
+                "type": "string",
+                "description": "Environment variable that overrides log_file"
+              }
+            },
+            "description": "Environment variable overrides for runtime configuration"
+          }
+        },
+        "description": "DACP logging configuration"
+      },
       "behavioural_contract": {
         "type": "object"
       },

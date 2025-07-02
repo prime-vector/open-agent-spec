@@ -118,7 +118,8 @@ def generate_test_agent(spec_data: Dict[str, Any], temp_dir: Path) -> Path:
 def create_mock_router_file(temp_dir: Path) -> Path:
     """Create the MockCustomLLMRouter.py file"""
     router_file = temp_dir / "MockCustomLLMRouter.py"
-    router_file.write_text("""
+    router_file.write_text(
+        """
 import json
 
 class MockCustomLLMRouter:
@@ -132,21 +133,24 @@ class MockCustomLLMRouter:
         return json.dumps({
             "response": f"Hello {name}!"
         })
-""")
+"""
+    )
     return router_file
 
 
 def create_invalid_router_file(temp_dir: Path) -> Path:
     """Create the InvalidRouter.py file"""
     router_file = temp_dir / "InvalidRouter.py"
-    router_file.write_text("""
+    router_file.write_text(
+        """
 class InvalidRouter:
     def __init__(self, endpoint: str, model: str, config: dict):
         self.endpoint = endpoint
         self.model = model
         self.config = config
     # No run method!
-""")
+"""
+    )
     return router_file
 
 
@@ -154,12 +158,12 @@ def verify_agent_code(agent_file: Path) -> str:
     """Verify the generated agent code contains expected elements"""
     agent_code = agent_file.read_text()
 
-    assert "import importlib" in agent_code, (
-        "Should import importlib for dynamic loading"
-    )
-    assert "load_custom_llm_router" in agent_code, (
-        "Should have custom router loading function"
-    )
+    assert (
+        "import importlib" in agent_code
+    ), "Should import importlib for dynamic loading"
+    assert (
+        "load_custom_llm_router" in agent_code
+    ), "Should have custom router loading function"
     assert "CustomLLMRouter" in agent_code, "Should reference CustomLLMRouter"
 
     return agent_code
@@ -188,21 +192,27 @@ def test_custom_llm_router_integration(base_spec, temp_project):
     try:
         from agent import TestAgent
 
-        agent = TestAgent()
+        # Mock orchestrator for testing since dacp might not be available in CI
+        class MockOrchestrator:
+            def register_agent(self, agent_id, agent):
+                pass
+
+        orchestrator = MockOrchestrator()
+        agent = TestAgent("test-agent-id", orchestrator)
         result = agent.greet(name="Alice")
 
         # Verify the result - handle both Pydantic models and dictionaries
         if hasattr(result, "response"):
             # Pydantic model
-            assert result.response == "Hello Alice!", (
-                f"Expected 'Hello Alice!', got '{result.response}'"
-            )
+            assert (
+                result.response == "Hello Alice!"
+            ), f"Expected 'Hello Alice!', got '{result.response}'"
         else:
             # Dictionary
             assert isinstance(result, dict), "Result should be a dictionary"
-            assert result.get("response") == "Hello Alice!", (
-                f"Expected 'Hello Alice!', got '{result.get('response')}'"
-            )
+            assert (
+                result.get("response") == "Hello Alice!"
+            ), f"Expected 'Hello Alice!', got '{result.get('response')}'"
 
     finally:
         sys.path.pop(0)
@@ -220,9 +230,9 @@ def test_custom_llm_router_error_handling(base_spec, temp_project):
 
     # Verify generated code contains the module reference
     agent_code = agent_file.read_text()
-    assert "NonExistentModule.NonExistentClass" in agent_code, (
-        "Should reference the specified module"
-    )
+    assert (
+        "NonExistentModule.NonExistentClass" in agent_code
+    ), "Should reference the specified module"
 
     # Test that importing the module fails as expected
     import sys
@@ -254,9 +264,9 @@ def test_custom_llm_router_missing_run_method(base_spec, temp_project):
     # Verify generated code contains validation logic
     agent_code = agent_file.read_text()
     assert "hasattr(router, 'run')" in agent_code, "Should check for run method"
-    assert "AttributeError" in agent_code, (
-        "Should raise AttributeError for missing run method"
-    )
+    assert (
+        "AttributeError" in agent_code
+    ), "Should raise AttributeError for missing run method"
 
     # Test that the InvalidRouter class doesn't have a run method
     import sys

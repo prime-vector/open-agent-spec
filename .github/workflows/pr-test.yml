@@ -32,5 +32,5 @@ jobs:
       - name: Run code quality checks
         run: |
           ruff check . --exclude test_output/
-          ruff format . --exclude test_output/
+          black --check . --exclude test_output/
           mypy oas_cli tests
