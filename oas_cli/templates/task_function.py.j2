@@ -1,0 +1,43 @@
+{% if llm_parser %}
+{{ llm_parser }}
+{% endif %}
+
+@behavioural_contract(
+{% for key, value in contract_data.items() %}
+    {{ key }}={{ value }}{% if not loop.last %},{% endif %}
+{% endfor %}
+)
+def {{ func_name }}({{ input_params | join(', ') }}) -> {{ output_type }}:
+    {{ docstring }}
+    # Define memory configuration
+    memory_config = {{ memory_config }}
+
+    # Define output format description
+    output_format = {{ output_description }}
+
+    # Load and render the prompt template
+    prompts_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "prompts")
+    env = Environment(loader=FileSystemLoader([".", prompts_dir]))
+    try:
+        template = env.get_template(f"{{ func_name }}.jinja2")
+    except FileNotFoundError:
+        log.warning(f"Task-specific prompt template not found, using default template")
+        template = env.get_template("agent_prompt.jinja2")
+
+    # Create input dictionary for template
+    input_dict = {
+{% for param in input_params_dict %}
+        "{{ param }}": {{ param }}{% if not loop.last %},{% endif %}
+{% endfor %}
+    }
+
+    # Render the prompt with all necessary context
+    prompt = template.render(
+        input=input_dict,
+        memory_summary={{ memory_summary }},
+        output_format=output_format,
+        memory_config=memory_config
+    )
+
+    {{ client_code }}
+    return {{ parser_function_name }}(result)
