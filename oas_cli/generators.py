@@ -651,7 +651,7 @@ def _generate_tool_task_function(
     )
 
     return f"""
-from dacp import invoke_intelligence, run_tool
+from dacp import invoke_intelligence, execute_tool
 from dacp.protocol import parse_agent_response, is_tool_request, get_tool_request, wrap_tool_result, get_final_response, is_final_response
 
 @behavioural_contract(
@@ -701,7 +701,7 @@ Remember: Only use the tool if it's necessary for your task.'''
         tool_name, tool_params = get_tool_request(parsed_response)
 
         # Execute the tool
-        tool_result = run_tool(tool_name, tool_params)
+        tool_result = execute_tool(tool_name, tool_params)
 
         # Wrap the tool result for the LLM
         wrapped_result = wrap_tool_result(tool_name, tool_result)
