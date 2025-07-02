@@ -78,7 +78,8 @@ def test_template(template_name, test_dir):
         print("Testing agent instantiation...")
         # Create a temporary test file to avoid one-liner class definition issues
         test_instantiation = agent_dir / "test_instantiation.py"
-        test_instantiation.write_text("""
+        test_instantiation.write_text(
+            """
 from agent import *
 
 class MockOrchestrator:
@@ -88,7 +89,8 @@ class MockOrchestrator:
 orchestrator = MockOrchestrator()
 agent = HelloWorldAgent("test-agent-id", orchestrator)
 print("✅ Agent instantiated successfully")
-""")
+"""
+        )
 
         run_command("python3 test_instantiation.py", cwd=agent_dir)
 
@@ -151,7 +153,8 @@ print("✅ All required methods and functions exist")
         # Test that the save_greeting method has correct signature
         print("Testing method signatures...")
         sig_test_file = agent_dir / "test_signature.py"
-        sig_test_file.write_text("""
+        sig_test_file.write_text(
+            """
 import sys, os
 sys.path.insert(0, os.getcwd())
 
@@ -170,7 +173,8 @@ params = list(sig.parameters.keys())
 expected_params = ['file_path', 'name']
 assert params == expected_params, "Method signature mismatch"
 print("✅ Method signature is correct")
-""")
+"""
+        )
 
         run_command("python3 test_signature.py", cwd=agent_dir)
 

@@ -102,7 +102,8 @@ def test_dacp_logging_integration_full_flow():
         print("\n5️⃣ Creating test script with mocked intelligence...")
 
         test_script = agent_dir / "test_with_mocked_intelligence.py"
-        test_script.write_text('''
+        test_script.write_text(
+            '''
 import sys
 import json
 from unittest.mock import patch
@@ -156,7 +157,8 @@ def test_agent_with_logging():
 
 if __name__ == "__main__":
     test_agent_with_logging()
-''')
+'''
+        )
 
         # Step 6: Run the test script
         print("\n6️⃣ Running agent with mocked intelligence...")
@@ -209,7 +211,8 @@ if __name__ == "__main__":
         print("\n8️⃣ Testing environment variable overrides...")
 
         env_test_script = agent_dir / "test_env_overrides.py"
-        env_test_script.write_text("""
+        env_test_script.write_text(
+            """
 import os
 from unittest.mock import patch
 from agent import HelloWorldAgent
@@ -228,7 +231,8 @@ with patch('dacp.invoke_intelligence', side_effect=mock_invoke_intelligence):
     agent = HelloWorldAgent("env-test-agent", orchestrator)
     result = agent.greet(name="Environment Test")
     print(f"✅ Environment override test completed: {result}")
-""")
+"""
+        )
 
         env_result = subprocess.run(
             [sys.executable, str(env_test_script)],
@@ -245,9 +249,9 @@ with patch('dacp.invoke_intelligence', side_effect=mock_invoke_intelligence):
 
         # Final verification
         assert test_result.returncode == 0, f"Main test failed: {test_result.stderr}"
-        assert "DACP logging configured" in output, (
-            "DACP logging setup not found in output"
-        )
+        assert (
+            "DACP logging configured" in output
+        ), "DACP logging setup not found in output"
 
         print("\n🏆 ALL INTEGRATION TESTS PASSED!")
         print("✅ CLI generation works")

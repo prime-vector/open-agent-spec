@@ -446,8 +446,10 @@ def _generate_multi_step_task_function(
         step_var = f"step_{i}_result"
         step_results.append(step_var)
 
-        step_code.append(f"""    # Execute step {i + 1}: {step_task}
-    {step_var} = {step_task.replace("-", "_")}({step_input_str})""")
+        step_code.append(
+            f"""    # Execute step {i + 1}: {step_task}
+    {step_var} = {step_task.replace("-", "_")}({step_input_str})"""
+        )
 
     # Generate output construction with better mapping
     output_schema = task_def.get("output", {})

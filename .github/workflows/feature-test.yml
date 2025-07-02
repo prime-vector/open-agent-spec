@@ -185,8 +185,14 @@ jobs:
       run: |
         echo "🔍 Running ruff checks..."
         ruff check . --exclude test_output/
-        ruff format . --exclude test_output/ --check
         echo "✅ Ruff checks passed"
+
+    - name: Run black
+      if: steps.check-prs.outputs.has-open-pr != 'true'
+      run: |
+        echo "🔍 Running black formatting checks..."
+        black --check . --exclude test_output/
+        echo "✅ Black formatting checks passed"
 
     - name: Run mypy
       if: steps.check-prs.outputs.has-open-pr != 'true'

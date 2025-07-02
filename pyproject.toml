@@ -90,7 +90,29 @@ select = [
     "RUF", # ruff-specific rules
 ]
 ignore = [
-    "E501",  # line length violations
+    "E501",  # line length violations (handled by Black)
+    "W503",  # line break before binary operator (Black compatibility)
+    "E203",  # whitespace before ':' (Black compatibility)
     "B008",  # do not perform function calls in argument defaults
     "RUF022",  # __all__ sorting
 ]
+
+[tool.black]
+line-length = 88
+target-version = ['py310']
+include = '\.pyi?$'
+exclude = '''
+/(
+    \.eggs
+  | \.git
+  | \.hg
+  | \.mypy_cache
+  | \.tox
+  | \.venv
+  | _build
+  | buck-out
+  | build
+  | dist
+  | test_output
+)/
+'''

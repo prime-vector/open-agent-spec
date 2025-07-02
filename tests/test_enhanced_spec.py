@@ -239,9 +239,9 @@ behavioural_contract:
             app,
             ["init", "--spec", str(spec_file), "--output", "test_output", "--dry-run"],
         )
-        assert result.exit_code == 0, (
-            f"Version {version} should be valid but failed: {result.stdout}"
-        )
+        assert (
+            result.exit_code == 0
+        ), f"Version {version} should be valid but failed: {result.stdout}"
 
     # Test invalid versions
     invalid_versions = ["1.0.0", "1.0.1", "1.0.2", "1.0.3", "0.3.0", "0.4.0"]
@@ -308,9 +308,9 @@ behavioural_contract:
             ["init", "--spec", str(spec_file), "--output", "test_output", "--dry-run"],
         )
         assert result.exit_code != 0, f"Version {version} should be invalid but passed"
-        assert "Spec validation failed" in result.output, (
-            f"Version {version} should show validation error"
-        )
+        assert (
+            "Spec validation failed" in result.output
+        ), f"Version {version} should show validation error"
 
 
 def test_agent_role_validation(enhanced_spec_yaml):
@@ -376,9 +376,9 @@ behavioural_contract:
             app,
             ["init", "--spec", str(spec_file), "--output", "test_output", "--dry-run"],
         )
-        assert result.exit_code == 0, (
-            f"Role {role} should be valid but failed: {result.output}"
-        )
+        assert (
+            result.exit_code == 0
+        ), f"Role {role} should be valid but failed: {result.output}"
 
     # Test invalid roles
     invalid_roles = ["smart_analyst", "test_role", "friendly_agent", "invalid_role", ""]
@@ -444,9 +444,9 @@ behavioural_contract:
             ["init", "--spec", str(spec_file), "--output", "test_output", "--dry-run"],
         )
         assert result.exit_code != 0, f"Role {role} should be invalid but passed"
-        assert "Spec validation failed" in result.output, (
-            f"Role {role} should show validation error"
-        )
+        assert (
+            "Spec validation failed" in result.output
+        ), f"Role {role} should show validation error"
 
 
 def test_agent_description_required(enhanced_spec_yaml):
@@ -507,9 +507,9 @@ behavioural_contract:
         app, ["init", "--spec", str(spec_file), "--output", "test_output", "--dry-run"]
     )
     assert result.exit_code != 0, "Missing description should cause validation failure"
-    assert "Spec validation failed" in result.output, (
-        "Missing description should show validation error"
-    )
+    assert (
+        "Spec validation failed" in result.output
+    ), "Missing description should show validation error"
 
 
 def test_intelligence_config_validation(enhanced_spec_yaml):
@@ -587,9 +587,9 @@ behavioural_contract:
             app,
             ["init", "--spec", str(spec_file), "--output", "test_output", "--dry-run"],
         )
-        assert result.exit_code == 0, (
-            f"Config {config} should be valid but failed: {result.output}"
-        )
+        assert (
+            result.exit_code == 0
+        ), f"Config {config} should be valid but failed: {result.output}"
 
     # Test invalid configurations
     invalid_configs = [
@@ -672,9 +672,9 @@ behavioural_contract:
             ["init", "--spec", str(spec_file), "--output", "test_output", "--dry-run"],
         )
         assert result.exit_code != 0, f"Config {config} should be invalid but passed"
-        assert "Spec validation failed" in result.output, (
-            f"Config {config} should show validation error"
-        )
+        assert (
+            "Spec validation failed" in result.output
+        ), f"Config {config} should show validation error"
 
 
 def test_intelligence_endpoint_validation(enhanced_spec_yaml):
@@ -748,9 +748,9 @@ behavioural_contract:
             app,
             ["init", "--spec", str(spec_file), "--output", "test_output", "--dry-run"],
         )
-        assert result.exit_code == 0, (
-            f"Endpoint {endpoint} should be valid but failed: {result.output}"
-        )
+        assert (
+            result.exit_code == 0
+        ), f"Endpoint {endpoint} should be valid but failed: {result.output}"
 
     # Test invalid endpoints
     invalid_endpoints = ["not-a-url", "ftp://invalid-protocol.com", "invalid://url", ""]
@@ -816,12 +816,12 @@ behavioural_contract:
             app,
             ["init", "--spec", str(spec_file), "--output", "test_output", "--dry-run"],
         )
-        assert result.exit_code != 0, (
-            f"Endpoint {endpoint} should be invalid but passed"
-        )
-        assert "Spec validation failed" in result.output, (
-            f"Endpoint {endpoint} should show validation error"
-        )
+        assert (
+            result.exit_code != 0
+        ), f"Endpoint {endpoint} should be invalid but passed"
+        assert (
+            "Spec validation failed" in result.output
+        ), f"Endpoint {endpoint} should show validation error"
 
 
 def test_tasks_schema_validation(enhanced_spec_yaml):
@@ -952,9 +952,9 @@ behavioural_contract:
             app,
             ["init", "--spec", str(spec_file), "--output", "test_output", "--dry-run"],
         )
-        assert result.exit_code == 0, (
-            f"Task {task['name']} should be valid but failed: {result.output}"
-        )
+        assert (
+            result.exit_code == 0
+        ), f"Task {task['name']} should be valid but failed: {result.output}"
 
     # Test invalid task configurations
     invalid_tasks = [
@@ -976,11 +976,7 @@ behavioural_contract:
             "description": "Task with invalid type",
             "input": {
                 "type": "object",
-                "properties": {
-                    "text": {
-                        "type": "invalid_type"  # Invalid type
-                    }
-                },
+                "properties": {"text": {"type": "invalid_type"}},  # Invalid type
             },
             "output": {"type": "object", "properties": {"result": {"type": "string"}}},
         },
@@ -1054,9 +1050,9 @@ behavioural_contract:
             app,
             ["init", "--spec", str(spec_file), "--output", "test_output", "--dry-run"],
         )
-        assert result.exit_code != 0, (
-            f"Task {task['name']} should be invalid but passed"
-        )
-        assert "Spec validation failed" in result.output, (
-            f"Task {task['name']} should show validation error"
-        )
+        assert (
+            result.exit_code != 0
+        ), f"Task {task['name']} should be invalid but passed"
+        assert (
+            "Spec validation failed" in result.output
+        ), f"Task {task['name']} should show validation error"
