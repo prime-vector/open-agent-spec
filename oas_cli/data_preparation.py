@@ -63,28 +63,41 @@ class AgentDataPreparator:
 
     def _prepare_imports(self, spec_data: Dict[str, Any]) -> List[str]:
         """Prepare import statements."""
+        # Base imports
         imports = [
-            "from typing import Dict, Any, List, Optional",
-            "import json",
-            "import logging",
             "import os",
-            "from dotenv import load_dotenv",
-            "from behavioural_contracts import behavioural_contract",
+            "import logging",
+            "import json",
+            "from pathlib import Path",
+            "from typing import Optional, Any, Dict",
             "from jinja2 import Environment, FileSystemLoader",
             "from pydantic import BaseModel",
-            "from dacp.orchestrator import Orchestrator",
+            "from behavioural_contracts import behavioural_contract",
+            "from dotenv import load_dotenv",
+            "",
             "import dacp",
+            "from dacp import parse_with_fallback, invoke_intelligence",
+            "from dacp.orchestrator import Orchestrator",
         ]
 
-        # Add custom module import if needed
+        # Check if any task uses tools
+        tasks = spec_data.get("tasks", {})
+        uses_tools = any(task_def.get("tool") for task_def in tasks.values())
+
+        if uses_tools:
+            imports.extend(
+                [
+                    "from dacp import execute_tool",
+                    "from dacp.protocol import parse_agent_response, is_tool_request, get_tool_request, wrap_tool_result, get_final_response, is_final_response",
+                ]
+            )
+
+        # Check if custom router is needed
         engine = spec_data.get("intelligence", {}).get("engine", "openai")
         custom_module = spec_data.get("intelligence", {}).get("module", None)
+
         if engine == "custom" and custom_module:
             imports.append("import importlib")
-
-        # Add tools import if tools are defined
-        if spec_data.get("tools"):
-            imports.append("from oas_cli.tools import get_tool_implementation")
 
         return imports
 

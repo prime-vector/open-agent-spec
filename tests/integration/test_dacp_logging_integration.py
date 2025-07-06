@@ -103,8 +103,7 @@ def test_dacp_logging_integration_full_flow():
 
         test_script = agent_dir / "test_with_mocked_intelligence.py"
         test_script.write_text(
-            '''
-import sys
+            """import sys
 import json
 from unittest.mock import patch
 import os
@@ -114,20 +113,22 @@ from agent import HelloWorldAgent
 from dacp.orchestrator import Orchestrator
 
 def mock_invoke_intelligence(prompt, config):
-    """Mock intelligence function that returns a realistic response."""
+    \"\"\"Mock intelligence function that returns a realistic response.\"\"\"
     print(f"🤖 Mock LLM called with engine: {config.get('engine', 'unknown')}")
     return json.dumps({
         "response": "Hello! I'm a test agent with DACP logging integration working perfectly!"
     })
 
 def test_agent_with_logging():
-    """Test the agent with mocked intelligence to see DACP logging."""
+    \"\"\"Test the agent with mocked intelligence to see DACP logging.\"\"\"
 
     print("\\n🚀 Starting DACP Logging Integration Test")
     print("=" * 60)
 
     # Mock the intelligence call to avoid needing API keys
-    with patch('dacp.invoke_intelligence', side_effect=mock_invoke_intelligence):
+    # Since the agent imports 'from dacp import invoke_intelligence',
+    # we need to patch it in the agent module
+    with patch('agent.invoke_intelligence', side_effect=mock_invoke_intelligence):
         print("\\n1. Creating orchestrator...")
         orchestrator = Orchestrator()
 
@@ -157,7 +158,7 @@ def test_agent_with_logging():
 
 if __name__ == "__main__":
     test_agent_with_logging()
-'''
+"""
         )
 
         # Step 6: Run the test script
@@ -223,10 +224,10 @@ os.environ['DACP_LOG_LEVEL'] = 'DEBUG'
 os.environ['DACP_LOG_STYLE'] = 'detailed'
 
 def mock_invoke_intelligence(prompt, config):
-    return "{\\"response\\": \\"Hello with env overrides!\\"}"
+    return '{"response": "Hello with env overrides!"}'
 
 print("🔧 Testing environment variable overrides...")
-with patch('dacp.invoke_intelligence', side_effect=mock_invoke_intelligence):
+with patch('agent.invoke_intelligence', side_effect=mock_invoke_intelligence):
     orchestrator = Orchestrator()
     agent = HelloWorldAgent("env-test-agent", orchestrator)
     result = agent.greet(name="Environment Test")
