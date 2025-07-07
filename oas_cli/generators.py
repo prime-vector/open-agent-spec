@@ -132,6 +132,10 @@ def _generate_contract_data(
             "description", behavioural_section.get("description", "")
         ),
     }
+    
+    # Add role if specified in behavioural_contract
+    if behavioural_section.get("role"):
+        contract_data["role"] = behavioural_section["role"]
 
     # Only add behavioural_flags if specified
     if behavioural_section.get("behavioural_flags"):

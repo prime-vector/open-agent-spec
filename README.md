@@ -299,6 +299,45 @@ output/
 └── CustomLLMRouter.py   # Custom router (if using custom engine)
 ```
 
+## Built-in Templates
+
+The OAS CLI includes ready-to-use templates for common use cases:
+
+### Minimal Templates
+```bash
+# Basic single-task agent
+oas init --template minimal --output my-agent/
+
+# Multi-task agent with parallel execution
+oas init --template minimal-multi-task --output my-multi-agent/
+
+# Agent with tool usage capabilities
+oas init --template minimal-agent-tool-usage --output my-tool-agent/
+```
+
+### Security Agent Templates
+Advanced security templates demonstrating multi-engine support and behavioral contracts:
+
+```bash
+# Security threat analyzer (Claude/Anthropic powered)
+oas init --spec oas_cli/templates/security-threat-analyzer.yaml --output threat-analyzer/
+
+# Security risk assessor (Claude/Anthropic powered)
+oas init --spec oas_cli/templates/security-risk-assessor.yaml --output risk-assessor/
+
+# Security incident responder (OpenAI powered)
+oas init --spec oas_cli/templates/security-incident-responder.yaml --output incident-responder/
+```
+
+**Security Templates Features:**
+- **Multi-Engine Support**: Templates for Claude/Anthropic and OpenAI
+- **Advanced Behavioral Contracts**: Security-focused validation and safety checks
+- **Real-World Use Cases**: SOC automation, threat hunting, incident response
+- **Agent-to-Agent Workflows**: Designed for DACP orchestration
+- **Production Ready**: Comprehensive logging, error handling, and compliance features
+
+See [SECURITY_TEMPLATES.md](oas_cli/templates/SECURITY_TEMPLATES.md) for detailed documentation and usage examples.
+
 ## Development
 
 ### Setup
