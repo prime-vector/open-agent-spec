@@ -940,7 +940,8 @@ def {func_name}({", ".join(input_params)}) -> {output_type}:
         input=input_dict,
         memory_summary={memory_summary_str},
         output_format=output_format,
-        memory_config=memory_config
+        memory_config=memory_config,
+        **input_dict  # Also pass variables directly for template access
     )
 
     {client_code}
