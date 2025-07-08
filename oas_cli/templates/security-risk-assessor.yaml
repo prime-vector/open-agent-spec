@@ -205,7 +205,6 @@ prompts:
 behavioural_contract:
   version: "0.1.2"
   description: "Comprehensive risk assessment with business-focused evaluation and actionable recommendations"
-  role: "Security risk assessor"
   behavioural_flags:
     conservatism: "high"
     verbosity: "comprehensive"
