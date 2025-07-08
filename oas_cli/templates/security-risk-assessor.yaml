@@ -1,0 +1,226 @@
+open_agent_spec: 1.0.8
+
+agent:
+  name: security-risk-assessor
+  description: Evaluates security threats and determines organizational risk with comprehensive mitigation recommendations
+  role: analyst
+
+intelligence:
+  type: llm
+  engine: anthropic
+  model: claude-3-5-sonnet-20241022
+  config:
+    temperature: 0.2
+    max_tokens: 1500
+
+logging:
+  enabled: true
+  level: "INFO"
+  format_style: "emoji"
+  include_timestamp: true
+  log_file: "./logs/risk-assessor.log"
+
+  env_overrides:
+    level: "DACP_LOG_LEVEL"
+    format_style: "DACP_LOG_STYLE"
+    log_file: "DACP_LOG_FILE_RISK"
+
+tasks:
+  assess_security_risk:
+    description: Evaluate security threats and determine organizational risk with actionable recommendations
+    timeout: 60
+    input:
+      type: object
+      properties:
+        threat_identified:
+          type: boolean
+          description: Whether a threat was identified by threat analysis
+        threat_type:
+          type: string
+          description: Type of threat identified
+          enum: [
+            "brute_force", "reconnaissance", "data_exfiltration", "malware",
+            "privilege_escalation", "denial_of_service", "insider_threat",
+            "phishing", "sql_injection", "xss", "none"
+          ]
+        threat_severity:
+          type: string
+          enum: [low, medium, high, critical]
+          description: Initial severity from threat analysis
+        threat_indicators:
+          type: array
+          items:
+            type: string
+          description: Indicators identified by threat analysis
+          maxItems: 20
+        analysis_summary:
+          type: string
+          description: Summary from threat analysis
+          minLength: 10
+          maxLength: 1000
+        asset_context:
+          type: string
+          description: Information about affected assets (criticality, data sensitivity, business impact)
+          default: "Standard production system"
+          maxLength: 500
+        business_context:
+          type: string
+          description: Business context and criticality information
+          default: "Normal business operations"
+          maxLength: 500
+      required: [threat_identified, threat_type, threat_severity, threat_indicators, analysis_summary]
+    output:
+      type: object
+      properties:
+        risk_score:
+          type: number
+          minimum: 0.0
+          maximum: 10.0
+          description: Calculated risk score (0.0-10.0)
+        risk_level:
+          type: string
+          enum: [minimal, low, medium, high, critical]
+          description: Categorized risk level
+        business_impact:
+          type: string
+          description: Detailed assessment of potential business impact
+          minLength: 20
+          maxLength: 1000
+        financial_impact:
+          type: string
+          description: Estimated financial impact range
+          enum: ["<$1K", "$1K-$10K", "$10K-$100K", "$100K-$1M", ">$1M", "unknown"]
+        immediate_actions:
+          type: array
+          items:
+            type: string
+          description: Actions to take immediately (0-4 hours)
+          minItems: 1
+          maxItems: 15
+        short_term_actions:
+          type: array
+          items:
+            type: string
+          description: Actions to take in short term (1-7 days)
+          maxItems: 10
+        long_term_recommendations:
+          type: array
+          items:
+            type: string
+          description: Long-term security improvements and strategic recommendations
+          maxItems: 10
+        escalation_required:
+          type: boolean
+          description: Whether this requires immediate escalation to management/security team
+        escalation_contacts:
+          type: array
+          items:
+            type: string
+          description: Recommended escalation contacts/teams
+          examples: ["CISO", "Security Operations Center", "Incident Response Team"]
+          maxItems: 5
+        confidence_level:
+          type: number
+          minimum: 0.0
+          maximum: 1.0
+          description: Confidence in the risk assessment
+        compliance_impact:
+          type: array
+          items:
+            type: string
+          description: Potential compliance or regulatory impacts
+          examples: ["GDPR", "SOX", "HIPAA", "PCI-DSS"]
+          maxItems: 10
+      required: [
+        risk_score, risk_level, business_impact, financial_impact,
+        immediate_actions, escalation_required, confidence_level
+      ]
+
+prompts:
+  system: >
+    You are an expert security risk assessor specializing in organizational risk evaluation and business impact analysis.
+    Evaluate security threats with focus on:
+    - Business impact and financial consequences
+    - Asset criticality and data sensitivity
+    - Likelihood of successful exploitation
+    - Practical, prioritized mitigation strategies
+    - Compliance and regulatory considerations
+    - Cost-benefit analysis of security controls
+    
+    Provide actionable, business-focused recommendations that balance security needs with operational requirements.
+  user: ""
+  
+  assess_security_risk:
+    system: >
+      Evaluate this security threat and determine organizational risk:
+      
+      Threat Analysis Results:
+      - Threat Identified: {{ threat_identified }}
+      - Threat Type: {{ threat_type }}
+      - Initial Severity: {{ threat_severity }}
+      - Confidence: Based on evidence and indicators
+      
+      Context Information:
+      - Asset Context: {{ asset_context }}
+      - Business Context: {{ business_context }}
+      
+      Risk Assessment Criteria:
+      - Business impact and operational disruption
+      - Financial impact and cost considerations
+      - Asset criticality and data sensitivity
+      - Likelihood of successful exploitation
+      - Available mitigation options and their effectiveness
+      - Compliance and regulatory requirements
+      - Incident response and recovery capabilities
+      
+      Respond ONLY with a JSON object in this exact format:
+      {
+        "risk_score": 7.5,
+        "risk_level": "high",
+        "business_impact": "Detailed business impact assessment",
+        "financial_impact": "$10K-$100K",
+        "immediate_actions": ["Action 1", "Action 2"],
+        "short_term_actions": ["Action 1", "Action 2"],
+        "long_term_recommendations": ["Recommendation 1", "Recommendation 2"],
+        "escalation_required": true,
+        "escalation_contacts": ["CISO", "Security Operations"],
+        "confidence_level": 0.85,
+        "compliance_impact": ["GDPR", "SOX"]
+      }
+      
+      IMPORTANT:
+      - risk_score must be a number between 0.0 and 10.0
+      - risk_level must be: "minimal", "low", "medium", "high", or "critical"
+      - financial_impact must be from the enum list
+      - All action arrays must contain actionable, specific items
+      - escalation_required must be boolean (true/false)
+      - confidence_level must be between 0.0 and 1.0
+      - Provide only valid JSON, no other text
+      
+      Provide practical, prioritized, and business-justified recommendations.
+    user: |
+      Threat Indicators: {{ threat_indicators }}
+      Analysis Summary: {{ analysis_summary }}
+
+behavioural_contract:
+  version: "0.1.2"
+  description: "Comprehensive risk assessment with business-focused evaluation and actionable recommendations"
+  behavioural_flags:
+    conservatism: "high"
+    verbosity: "comprehensive"
+    practicality: "high"
+    business_focus: "critical"
+    temperature_control:
+      mode: "strict"
+      range: [0.1, 0.3]
+  response_contract:
+    output_format:
+      required_fields: [risk_score, risk_level, business_impact, immediate_actions, confidence_level]
+    validation_rules:
+      min_immediate_actions: 1
+      max_risk_score: 10.0
+      confidence_threshold: 0.2
+    safety_checks:
+      harmful_content: false
+      recommendation_safety: true
+      business_alignment: true

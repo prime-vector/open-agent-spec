@@ -1,0 +1,258 @@
+open_agent_spec: 1.0.8
+
+agent:
+  name: security-incident-responder
+  description: Comprehensive security incident response agent with multi-step analysis and automated response coordination
+  role: executor
+
+intelligence:
+  type: llm
+  engine: openai  # Alternative: anthropic, local, custom
+  model: gpt-4    # Alternative: claude-3-5-sonnet-20241022
+  endpoint: https://api.openai.com/v1
+  config:
+    temperature: 0.3
+    max_tokens: 2000
+
+logging:
+  enabled: true
+  level: "INFO"
+  format_style: "emoji"
+  include_timestamp: true
+  log_file: "./logs/incident-responder.log"
+
+  env_overrides:
+    level: "DACP_LOG_LEVEL"
+    format_style: "DACP_LOG_STYLE"
+    log_file: "DACP_LOG_FILE_INCIDENT"
+
+tasks:
+  analyze_incident:
+    description: Initial incident analysis and classification
+    timeout: 45
+    input:
+      type: object
+      properties:
+        incident_description:
+          type: string
+          description: Detailed description of the security incident
+          minLength: 20
+          maxLength: 2000
+        incident_source:
+          type: string
+          description: How the incident was discovered
+          enum: ["automated_detection", "user_report", "security_scan", "external_notification", "routine_monitoring"]
+        affected_systems:
+          type: array
+          items:
+            type: string
+          description: List of affected systems or services
+          maxItems: 20
+        incident_time:
+          type: string
+          description: When the incident occurred or was discovered
+        severity_indication:
+          type: string
+          description: Initial severity indication
+          enum: ["low", "medium", "high", "critical", "unknown"]
+          default: "unknown"
+      required: [incident_description, incident_source, incident_time]
+    output:
+      type: object
+      properties:
+        incident_id:
+          type: string
+          description: Generated unique incident identifier
+        incident_classification:
+          type: string
+          enum: [
+            "security_breach", "malware_infection", "data_loss", "service_disruption",
+            "unauthorized_access", "policy_violation", "system_compromise", "false_positive"
+          ]
+        severity_level:
+          type: string
+          enum: ["low", "medium", "high", "critical"]
+        impact_assessment:
+          type: string
+          description: Assessment of business and technical impact
+        containment_status:
+          type: string
+          enum: ["not_started", "in_progress", "contained", "not_applicable"]
+        initial_response_plan:
+          type: array
+          items:
+            type: string
+          description: Initial response steps to be taken
+        stakeholders_to_notify:
+          type: array
+          items:
+            type: string
+          description: Stakeholders that need to be notified
+        estimated_timeline:
+          type: string
+          description: Estimated timeline for resolution
+      required: [incident_id, incident_classification, severity_level, impact_assessment, initial_response_plan]
+
+  coordinate_response:
+    description: Coordinate incident response activities and track progress
+    timeout: 30
+    input:
+      type: object
+      properties:
+        incident_id:
+          type: string
+          description: Incident identifier from analysis
+        current_status:
+          type: string
+          enum: ["investigating", "containing", "eradicating", "recovering", "closed"]
+        actions_completed:
+          type: array
+          items:
+            type: string
+          description: Response actions that have been completed
+        current_findings:
+          type: string
+          description: Current investigation findings
+          maxLength: 1000
+      required: [incident_id, current_status]
+    output:
+      type: object
+      properties:
+        next_actions:
+          type: array
+          items:
+            type: string
+          description: Next response actions to take
+        priority_level:
+          type: string
+          enum: ["low", "medium", "high", "critical"]
+        resource_requirements:
+          type: array
+          items:
+            type: string
+          description: Resources needed for response
+        timeline_update:
+          type: string
+          description: Updated timeline for resolution
+        escalation_needed:
+          type: boolean
+          description: Whether escalation is required
+      required: [next_actions, priority_level, escalation_needed]
+
+  generate_incident_report:
+    description: Generate comprehensive incident response report
+    timeout: 60
+    input:
+      type: object
+      properties:
+        incident_id:
+          type: string
+          description: Incident identifier
+        incident_summary:
+          type: string
+          description: Summary of the incident and response
+        lessons_learned:
+          type: array
+          items:
+            type: string
+          description: Key lessons learned from the incident
+        preventive_measures:
+          type: array
+          items:
+            type: string
+          description: Measures to prevent similar incidents
+      required: [incident_id, incident_summary]
+    output:
+      type: object
+      properties:
+        executive_summary:
+          type: string
+          description: Executive summary for leadership
+        technical_details:
+          type: string
+          description: Technical details of the incident
+        response_timeline:
+          type: string
+          description: Timeline of response activities
+        recommendations:
+          type: array
+          items:
+            type: string
+          description: Recommendations for improvement
+        compliance_notes:
+          type: string
+          description: Compliance and regulatory considerations
+      required: [executive_summary, technical_details, recommendations]
+
+prompts:
+  system: >
+    You are an expert security incident response coordinator with extensive experience in:
+    - Incident classification and impact assessment
+    - Response coordination and stakeholder management
+    - Technical investigation and forensic analysis
+    - Business continuity and recovery planning
+    - Compliance and regulatory requirements
+    - Post-incident analysis and improvement
+    
+    Provide structured, actionable guidance while maintaining clear communication
+    with both technical teams and business stakeholders.
+  user: ""
+
+  analyze_incident:
+    system: >
+      Analyze this security incident and provide initial classification:
+      
+      Incident Details:
+      - Description: {{ incident_description }}
+      - Source: {{ incident_source }}
+      - Discovery Time: {{ incident_time }}
+      - Affected Systems: {{ affected_systems }}
+      - Initial Severity: {{ severity_indication }}
+      
+      Provide structured analysis focusing on:
+      1. Incident classification and severity determination
+      2. Business and technical impact assessment  
+      3. Initial containment and response priorities
+      4. Stakeholder notification requirements
+      5. Resource and timeline estimates
+      
+      Generate a unique incident ID in format: INC-YYYY-NNNN
+    user: "Analyze incident: {{ incident_description }}"
+
+  coordinate_response:
+    system: >
+      Coordinate response for incident {{ incident_id }}:
+      
+      Current Status: {{ current_status }}
+      Completed Actions: {{ actions_completed }}
+      Current Findings: {{ current_findings }}
+      
+      Provide coordination guidance for:
+      1. Next priority actions and sequencing
+      2. Resource allocation and requirements
+      3. Timeline updates and milestone tracking
+      4. Escalation triggers and stakeholder updates
+      5. Quality assurance and documentation needs
+    user: "Current incident status: {{ current_status }}"
+
+behavioural_contract:
+  version: "0.1.2"
+  description: "Comprehensive incident response with structured coordination and clear communication"
+  behavioural_flags:
+    conservatism: "high"
+    verbosity: "comprehensive"
+    structure: "formal"
+    urgency_awareness: "critical"
+    temperature_control:
+      mode: "strict"
+      range: [0.2, 0.4]
+  response_contract:
+    output_format:
+      required_fields: [incident_classification, severity_level, impact_assessment]
+    validation_rules:
+      incident_id_format: "INC-\\d{4}-\\d{4}"
+      timeline_realism: true
+    safety_checks:
+      harmful_content: false
+      stakeholder_appropriate: true
+      compliance_aware: true

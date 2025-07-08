@@ -1,0 +1,166 @@
+open_agent_spec: 1.0.8
+
+agent:
+  name: security-threat-analyzer
+  description: Analyzes security events and identifies potential threats with detailed threat classification
+  role: analyst
+
+intelligence:
+  type: llm
+  engine: anthropic
+  model: claude-3-5-sonnet-20241022
+  config:
+    temperature: 0.3
+    max_tokens: 1000
+
+logging:
+  enabled: true
+  level: "INFO"
+  format_style: "emoji"
+  include_timestamp: true
+  log_file: "./logs/threat-analyzer.log"
+
+  env_overrides:
+    level: "DACP_LOG_LEVEL"
+    format_style: "DACP_LOG_STYLE"
+    log_file: "DACP_LOG_FILE_THREAT"
+
+tasks:
+  analyze_security_event:
+    description: Analyze a security event and identify potential threats
+    timeout: 45
+    input:
+      type: object
+      properties:
+        event_type:
+          type: string
+          description: Type of security event (login_failure, port_scan, data_access, etc.)
+          examples: ["login_failure", "port_scan", "data_access", "privilege_escalation"]
+        event_details:
+          type: string
+          description: Detailed information about the security event
+          minLength: 10
+          maxLength: 2000
+        source_ip:
+          type: string
+          description: Source IP address of the event
+          pattern: "^(?:[0-9]{1,3}\\.){3}[0-9]{1,3}$|^([0-9a-fA-F]{1,4}:){7}[0-9a-fA-F]{1,4}$"
+        timestamp:
+          type: string
+          description: When the event occurred (ISO 8601 format)
+          pattern: "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}Z?$"
+        affected_system:
+          type: string
+          description: System or service affected by the event
+          default: "unknown"
+      required: [event_type, event_details, source_ip, timestamp]
+    output:
+      type: object
+      properties:
+        threat_identified:
+          type: boolean
+          description: Whether a threat was identified
+        threat_type:
+          type: string
+          description: Type of threat identified
+          enum: [
+            "brute_force", "reconnaissance", "data_exfiltration", "malware",
+            "privilege_escalation", "denial_of_service", "insider_threat",
+            "phishing", "sql_injection", "xss", "none"
+          ]
+        threat_severity:
+          type: string
+          enum: [low, medium, high, critical]
+          description: Initial severity assessment
+        threat_indicators:
+          type: array
+          items:
+            type: string
+          description: List of indicators that suggest this is a threat
+          minItems: 0
+          maxItems: 20
+        analysis_summary:
+          type: string
+          description: Summary of the threat analysis
+          minLength: 20
+          maxLength: 500
+        confidence_score:
+          type: number
+          minimum: 0.0
+          maximum: 1.0
+          description: Confidence in the threat analysis (0.0 to 1.0)
+        recommended_actions:
+          type: array
+          items:
+            type: string
+          description: Immediate recommended actions
+          maxItems: 10
+      required: [threat_identified, threat_type, threat_severity, threat_indicators, analysis_summary, confidence_score]
+
+prompts:
+  system: >
+    You are an expert cybersecurity threat analyst specializing in security event analysis.
+    Analyze security events systematically to identify potential threats, focusing on:
+    - Attack patterns and known threat signatures
+    - Anomalous behavior and suspicious activities  
+    - Risk indicators and impact assessment
+    - Actionable threat intelligence
+    
+    Provide precise, evidence-based analysis with clear threat indicators.
+  user: ""
+  
+  analyze_security_event:
+    system: >
+      Analyze this security event for potential threats:
+      
+      Event Type: {{ event_type }}
+      Source IP: {{ source_ip }}
+      Timestamp: {{ timestamp }}
+      Affected System: {{ affected_system }}
+      
+      Evaluation Criteria:
+      - Attack patterns and known threat signatures
+      - Behavioral anomalies and suspicious timing
+      - Severity based on potential impact
+      - Confidence based on available evidence
+      
+      Respond ONLY with a JSON object in this exact format:
+      {
+        "threat_identified": true,
+        "threat_type": "brute_force",
+        "threat_severity": "high",
+        "threat_indicators": ["multiple failed attempts", "admin account targeted"],
+        "analysis_summary": "Detailed analysis summary here",
+        "confidence_score": 0.85,
+        "recommended_actions": ["Block source IP", "Reset credentials"]
+      }
+      
+      IMPORTANT:
+      - threat_identified must be boolean (true/false)
+      - threat_type must be from the enum list
+      - threat_severity must be: "low", "medium", "high", or "critical"
+      - threat_indicators must be an array of strings
+      - confidence_score must be a number between 0.0 and 1.0
+      - Provide only valid JSON, no other text
+    user: "Event Details: {{ event_details }}"
+
+behavioural_contract:
+  version: "0.1.2"
+  description: "Security-focused threat analysis with rigorous validation and evidence-based assessment"
+  behavioural_flags:
+    conservatism: "high"
+    verbosity: "detailed"
+    accuracy: "critical"
+    evidence_based: "strict"
+    temperature_control:
+      mode: "strict"
+      range: [0.2, 0.4]
+  response_contract:
+    output_format:
+      required_fields: [threat_identified, threat_type, threat_severity, analysis_summary, confidence_score]
+    validation_rules:
+      confidence_threshold: 0.3
+      min_indicators: 1
+    safety_checks:
+      false_positive_prevention: true
+      evidence_requirement: true

@@ -133,6 +133,11 @@ def _generate_contract_data(
         ),
     }
 
+    # Add role from agent section (not from behavioural_contract)
+    agent_role = spec_data.get("agent", {}).get("role")
+    if agent_role:
+        contract_data["role"] = agent_role
+
     # Only add behavioural_flags if specified
     if behavioural_section.get("behavioural_flags"):
         contract_data["behavioural_flags"] = behavioural_section["behavioural_flags"]
@@ -931,11 +936,11 @@ def {func_name}({", ".join(input_params)}) -> {output_type}:
 
     # Render the prompt with all necessary context - pass variables directly for template access
     prompt = template.render(
-        {", ".join(prompt_render_params)},
         input=input_dict,
         memory_summary={memory_summary_str},
         output_format=output_format,
-        memory_config=memory_config
+        memory_config=memory_config,
+        **input_dict  # Also pass variables directly for template access
     )
 
     {client_code}
