@@ -274,37 +274,71 @@ def generate_models(output: Path, spec_data: Dict[str, Any]) -> None:
 
 
 def _generate_llm_output_parser(task_name: str, output_schema: Dict[str, Any]) -> str:
-    """Generate a function for parsing LLM output into the task's model."""
+    """Generate a function for parsing LLM output using DACP's parse_with_fallback."""
     model_name = f"{task_name.replace('-', '_').title()}Output"
     parser_name = f"parse_{task_name.replace('-', '_')}_output"
 
-    # Use a raw string to avoid accidental formatting issues
-    return (
-        f"def {parser_name}(response) -> {model_name}:\n"
-        f'    """Parse LLM response into {model_name}.\n\n'
-        f"    Args:\n"
-        f"        response: Raw response from the LLM (str or dict)\n\n"
-        f"    Returns:\n"
-        f"        Parsed and validated {model_name} instance\n\n"
-        f"    Raises:\n"
-        f"        ValueError: If the response cannot be parsed as JSON or doesn't match the schema\n"
-        f'    """\n'
-        f"    if isinstance(response, {model_name}):\n"
-        f"        return response\n"
-        f"    if isinstance(response, dict):\n"
-        f"        return {model_name}(**response)\n"
-        f"    try:\n"
-        f"        # Try to find JSON in the response\n"
-        f"        json_start = response.find('{{')\n"
-        f"        json_end = response.rfind('}}') + 1\n"
-        f"        if json_start >= 0 and json_end > json_start:\n"
-        f"            json_str = response[json_start:json_end]\n"
-        f"            parsed = json.loads(json_str)\n"
-        f"            return {model_name}(**parsed)\n"
-        f"        raise ValueError('No valid JSON found in response')\n"
-        f"    except Exception as e:\n"
-        f"        raise ValueError(f'Error parsing response: {{e}}')\n"
-    )
+    # Generate default values for all required fields from the schema
+    properties = output_schema.get("properties", {})
+    default_values = []
+
+    # Parameters that conflict with parse_with_fallback function parameters
+    conflicting_params = {"response", "model_class"}
+
+    for field_name, field_schema in properties.items():
+        # Skip fields that would conflict with function parameters
+        if field_name in conflicting_params:
+            continue
+
+        field_type = field_schema.get("type", "string")
+        if field_type == "string":
+            default_value = f'"{field_name}_default"'
+        elif field_type == "boolean":
+            default_value = "False"
+        elif field_type in ["integer", "number"]:
+            default_value = "0"
+        elif field_type == "array":
+            default_value = "[]"
+        elif field_type == "object":
+            default_value = "{}"
+        else:
+            default_value = '""'
+
+        default_values.append(f'            "{field_name}": {default_value}')
+
+    # Build defaults as a properly formatted dictionary
+    if default_values:
+        defaults_dict = "{\n" + ",\n".join(default_values) + "\n        }"
+    else:
+        defaults_dict = "{}"
+
+    return f"""def {parser_name}(response) -> {model_name}:
+    \"\"\"Parse LLM response into {model_name} using DACP's enhanced parser.
+
+    Args:
+        response: Raw response from the LLM (str or dict)
+
+    Returns:
+        Parsed and validated {model_name} instance
+
+    Raises:
+        ValueError: If the response cannot be parsed
+    \"\"\"
+    if isinstance(response, {model_name}):
+        return response
+
+    # Use DACP's enhanced JSON parser with fallback support
+    try:
+        defaults = {defaults_dict}
+        result = parse_with_fallback(
+            response=response,
+            model_class={model_name},
+            **defaults
+        )
+        return result
+    except Exception as e:
+        raise ValueError(f'Error parsing response with DACP parser: {{e}}')
+"""
 
 
 def _generate_human_readable_output(schema: Dict[str, Any], indent: int = 0) -> str:
@@ -823,9 +857,7 @@ def _generate_task_function(
     result = router.run(prompt, **input_dict)"""
     else:
         intelligence_config_str = _generate_intelligence_config(spec_data, config)
-        client_code = f"""from dacp import invoke_intelligence
-
-    # Configure intelligence for DACP
+        client_code = f"""# Configure intelligence for DACP
     intelligence_config = {intelligence_config_str}
 
     # Call the LLM using DACP
@@ -897,8 +929,9 @@ def {func_name}({", ".join(input_params)}) -> {output_type}:
         {", ".join(f'"{param.split(":")[0]}": {param.split(":")[0]}' for param in input_params if param != "memory_summary: str = ''")}
     }}
 
-    # Render the prompt with all necessary context
+    # Render the prompt with all necessary context - pass variables directly for template access
     prompt = template.render(
+        {", ".join(prompt_render_params)},
         input=input_dict,
         memory_summary={memory_summary_str},
         output_format=output_format,
