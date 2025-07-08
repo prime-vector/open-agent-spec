@@ -936,7 +936,6 @@ def {func_name}({", ".join(input_params)}) -> {output_type}:
 
     # Render the prompt with all necessary context - pass variables directly for template access
     prompt = template.render(
-        {", ".join(prompt_render_params)},
         input=input_dict,
         memory_summary={memory_summary_str},
         output_format=output_format,
