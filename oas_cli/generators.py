@@ -132,7 +132,7 @@ def _generate_contract_data(
             "description", behavioural_section.get("description", "")
         ),
     }
-    
+
     # Add role from agent section (not from behavioural_contract)
     agent_role = spec_data.get("agent", {}).get("role")
     if agent_role:
