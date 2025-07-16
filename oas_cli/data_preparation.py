@@ -69,7 +69,7 @@ class AgentDataPreparator:
             "import logging",
             "import json",
             "from pathlib import Path",
-            "from typing import Optional, Any, Dict",
+            "from typing import Optional, Any, Dict, List",
             "from jinja2 import Environment, FileSystemLoader",
             "from pydantic import BaseModel",
             "from behavioural_contracts import behavioural_contract",

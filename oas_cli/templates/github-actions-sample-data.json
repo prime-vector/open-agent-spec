@@ -1,0 +1,162 @@
+{
+  "sample_failures": [
+    {
+      "name": "npm_build_failure",
+      "description": "Common npm build failure due to missing dependency",
+      "data": {
+        "job_name": "build-and-test",
+        "workflow_name": "CI",
+        "repository": "example/my-react-app",
+        "branch": "feature/add-new-component",
+        "commit_sha": "a1b2c3d4e5f6789012345678901234567890abcd",
+        "pr_number": 42,
+        "job_step": "Install dependencies",
+        "build_system": "npm",
+        "raw_logs": "2024-01-15T10:30:00.000Z ##[group]Run npm ci\n2024-01-15T10:30:00.123Z npm WARN deprecated react-scripts@5.0.1: This package is deprecated.\n2024-01-15T10:30:05.456Z npm ERR! code ERESOLVE\n2024-01-15T10:30:05.456Z npm ERR! ERESOLVE unable to resolve dependency tree\n2024-01-15T10:30:05.456Z npm ERR! \n2024-01-15T10:30:05.456Z npm ERR! While resolving: my-react-app@1.0.0\n2024-01-15T10:30:05.456Z npm ERR! Found: react@17.0.2\n2024-01-15T10:30:05.456Z npm ERR! node_modules/react\n2024-01-15T10:30:05.456Z npm ERR!   react@\"^17.0.2\" from the root project\n2024-01-15T10:30:05.456Z npm ERR! \n2024-01-15T10:30:05.456Z npm ERR! Could not resolve dependency:\n2024-01-15T10:30:05.456Z npm ERR! peer react@\"^18.0.0\" from @testing-library/react@13.4.0\n2024-01-15T10:30:05.456Z npm ERR! node_modules/@testing-library/react\n2024-01-15T10:30:05.456Z npm ERR!   @testing-library/react@\"^13.4.0\" from the root project\n2024-01-15T10:30:05.456Z npm ERR! \n2024-01-15T10:30:05.456Z npm ERR! Fix the upstream dependency conflict, or retry\n2024-01-15T10:30:05.456Z npm ERR! this command with --force, or --legacy-peer-deps\n2024-01-15T10:30:05.456Z npm ERR! to accept an incorrect (and potentially broken) dependency resolution.\n2024-01-15T10:30:05.456Z ##[error]Process completed with exit code 1."
+      }
+    },
+    {
+      "name": "python_test_failure",
+      "description": "Python test failure with syntax error",
+      "data": {
+        "job_name": "test-python",
+        "workflow_name": "Python Tests",
+        "repository": "example/python-api",
+        "branch": "main",
+        "commit_sha": "f1e2d3c4b5a6789012345678901234567890cdef",
+        "job_step": "Run tests",
+        "build_system": "python",
+        "raw_logs": "2024-01-15T11:15:00.000Z ##[group]Run python -m pytest tests/\n2024-01-15T11:15:00.100Z =================== test session starts ===================\n2024-01-15T11:15:00.100Z platform linux -- Python 3.9.16, pytest-7.2.0, pluggy-1.0.0\n2024-01-15T11:15:00.100Z rootdir: /home/runner/work/python-api/python-api\n2024-01-15T11:15:00.100Z plugins: cov-4.0.0\n2024-01-15T11:15:00.200Z collecting ... collected 15 items\n2024-01-15T11:15:00.300Z \n2024-01-15T11:15:00.300Z tests/test_api.py::test_get_users PASSED                    [  6%]\n2024-01-15T11:15:00.400Z tests/test_api.py::test_create_user FAILED                 [ 13%]\n2024-01-15T11:15:00.500Z tests/test_utils.py::test_validate_email PASSED            [ 20%]\n2024-01-15T11:15:00.600Z \n2024-01-15T11:15:00.600Z =========================== FAILURES ===========================\n2024-01-15T11:15:00.600Z _______________________ test_create_user _______________________\n2024-01-15T11:15:00.600Z \n2024-01-15T11:15:00.600Z     def test_create_user():\n2024-01-15T11:15:00.600Z         user_data = {\n2024-01-15T11:15:00.600Z             \"name\": \"John Doe\",\n2024-01-15T11:15:00.600Z             \"email\": \"john@example.com\"\n2024-01-15T11:15:00.600Z         }\n2024-01-15T11:15:00.600Z         response = client.post(\"/users\", json=user_data)\n2024-01-15T11:15:00.600Z >       assert response.status_code == 201\n2024-01-15T11:15:00.600Z E       assert 500 == 201\n2024-01-15T11:15:00.600Z E        +  where 500 = <Response [500]>.status_code\n2024-01-15T11:15:00.600Z \n2024-01-15T11:15:00.600Z tests/test_api.py:25: AssertionError\n2024-01-15T11:15:00.600Z --------------------------- Captured stdout ---------------------------\n2024-01-15T11:15:00.600Z File \"app/models.py\", line 23\n2024-01-15T11:15:00.600Z     def save(self\n2024-01-15T11:15:00.600Z                  ^\n2024-01-15T11:15:00.600Z SyntaxError: invalid syntax\n2024-01-15T11:15:00.700Z ##[error]Process completed with exit code 1."
+      }
+    },
+    {
+      "name": "docker_build_failure",
+      "description": "Docker build failure due to missing base image",
+      "data": {
+        "job_name": "build-docker",
+        "workflow_name": "Docker Build",
+        "repository": "example/microservice",
+        "branch": "develop",
+        "commit_sha": "1a2b3c4d5e6f789012345678901234567890beef",
+        "job_step": "Build Docker image",
+        "build_system": "docker",
+        "raw_logs": "2024-01-15T12:00:00.000Z ##[group]Run docker build -t my-app:latest .\n2024-01-15T12:00:00.100Z Sending build context to Docker daemon  2.048kB\n2024-01-15T12:00:00.100Z Step 1/8 : FROM node:18-alpine3.17\n2024-01-15T12:00:00.200Z 18-alpine3.17: Pulling from library/node\n2024-01-15T12:00:05.000Z ERROR: pull access denied for node, repository does not exist or may require 'docker login'\n2024-01-15T12:00:05.000Z Step 2/8 : WORKDIR /app\n2024-01-15T12:00:05.000Z ##[error]The command '/bin/sh -c apk add --no-cache python3 make g++' returned a non-zero code: 1\n2024-01-15T12:00:05.000Z ##[error]Process completed with exit code 1."
+      }
+    },
+    {
+      "name": "timeout_failure",
+      "description": "Job timeout during long-running tests",
+      "data": {
+        "job_name": "integration-tests",
+        "workflow_name": "Full Test Suite",
+        "repository": "example/large-application",
+        "branch": "release/v2.0",
+        "commit_sha": "9876543210abcdef123456789012345678901234",
+        "job_step": "Run integration tests",
+        "build_system": "maven",
+        "raw_logs": "2024-01-15T13:00:00.000Z ##[group]Run mvn test -Dtest=IntegrationTestSuite\n2024-01-15T13:00:00.100Z [INFO] Scanning for projects...\n2024-01-15T13:00:00.200Z [INFO] \n2024-01-15T13:00:00.200Z [INFO] ------------------------------------------------------------------------\n2024-01-15T13:00:00.200Z [INFO] Building Large Application 2.0.0\n2024-01-15T13:00:00.200Z [INFO] ------------------------------------------------------------------------\n2024-01-15T13:00:00.300Z [INFO] \n2024-01-15T13:00:00.300Z [INFO] -------------------------------------------------------\n2024-01-15T13:00:00.300Z [INFO]  T E S T S\n2024-01-15T13:00:00.300Z [INFO] -------------------------------------------------------\n2024-01-15T13:00:00.400Z [INFO] Running com.example.IntegrationTestSuite\n2024-01-15T13:00:30.000Z [INFO] Running test: testDatabaseConnection\n2024-01-15T13:01:00.000Z [INFO] Running test: testExternalApiIntegration\n2024-01-15T13:35:00.000Z [INFO] Running test: testLargeDataProcessing\n2024-01-15T13:59:59.000Z ##[error]The job running on runner GitHub Actions 2 has exceeded the maximum execution time of 60 minutes.\n2024-01-15T13:59:59.000Z ##[error]Process completed with exit code 1."
+      }
+    },
+    {
+      "name": "linting_failure",
+      "description": "ESLint failures in TypeScript code",
+      "data": {
+        "job_name": "lint-and-format",
+        "workflow_name": "Code Quality",
+        "repository": "example/typescript-project",
+        "branch": "feature/refactor-auth",
+        "commit_sha": "abcdef123456789012345678901234567890abcd",
+        "pr_number": 123,
+        "job_step": "Run ESLint",
+        "build_system": "npm",
+        "raw_logs": "2024-01-15T14:00:00.000Z ##[group]Run npm run lint\n2024-01-15T14:00:00.100Z > typescript-project@1.0.0 lint\n2024-01-15T14:00:00.100Z > eslint src/**/*.ts\n2024-01-15T14:00:00.200Z \n2024-01-15T14:00:00.200Z /home/runner/work/typescript-project/typescript-project/src/auth/login.ts\n2024-01-15T14:00:00.200Z   15:1   error  'console' is not defined                no-undef\n2024-01-15T14:00:00.200Z   23:25  error  Missing semicolon                       semi\n2024-01-15T14:00:00.200Z   45:1   error  Unexpected console statement            no-console\n2024-01-15T14:00:00.200Z   67:15  error  'username' is defined but never used    no-unused-vars\n2024-01-15T14:00:00.200Z \n2024-01-15T14:00:00.200Z /home/runner/work/typescript-project/typescript-project/src/utils/helpers.ts\n2024-01-15T14:00:00.200Z   12:1   error  Expected indentation of 4 spaces but found 2    indent\n2024-01-15T14:00:00.200Z   18:80  error  Line too long (82 > 80 characters)             max-len\n2024-01-15T14:00:00.200Z   34:1   error  'debugger' statement is not allowed            no-debugger\n2024-01-15T14:00:00.200Z \n2024-01-15T14:00:00.200Z ✖ 7 problems (7 errors, 0 warnings)\n2024-01-15T14:00:00.200Z   3 errors and 0 warnings potentially fixable with the `--fix` option.\n2024-01-15T14:00:00.200Z ##[error]Process completed with exit code 1."
+      }
+    }
+  ],
+  "usage_examples": {
+    "single_failure_analysis": {
+      "description": "Analyze a single GitHub Actions failure",
+      "example_input": {
+        "job_name": "build-and-test",
+        "workflow_name": "CI",
+        "raw_logs": "<!-- Use one of the raw_logs from sample_failures above -->",
+        "repository": "example/my-react-app",
+        "branch": "feature/add-new-component",
+        "commit_sha": "a1b2c3d4e5f6789012345678901234567890abcd",
+        "pr_number": 42,
+        "build_system": "npm"
+      }
+    },
+    "batch_analysis": {
+      "description": "Analyze multiple failures to identify patterns",
+      "example_input": {
+        "failure_reports": [
+          {
+            "job_name": "build-and-test",
+            "workflow_name": "CI",
+            "raw_logs": "<!-- npm failure logs -->",
+            "repository": "example/my-react-app",
+            "timestamp": "2024-01-15T10:30:00.000Z"
+          },
+          {
+            "job_name": "test-python",
+            "workflow_name": "Python Tests",
+            "raw_logs": "<!-- python failure logs -->",
+            "repository": "example/python-api",
+            "timestamp": "2024-01-15T11:15:00.000Z"
+          }
+        ]
+      }
+    }
+  },
+  "expected_workflow": {
+    "description": "How the multi-agent system would process these failures",
+    "steps": [
+      {
+        "step": 1,
+        "agent": "github-actions-error-collector",
+        "task": "collect_errors",
+        "description": "Extract structured error data from raw logs",
+        "output_example": {
+          "error_summary": {
+            "primary_error": "npm ERR! ERESOLVE unable to resolve dependency tree",
+            "error_type": "dependency_error",
+            "severity": "high",
+            "affected_files": ["package.json"],
+            "suggested_keywords": ["react", "dependency", "peer dependency", "version conflict"]
+          }
+        }
+      },
+      {
+        "step": 2,
+        "agent": "github-actions-error-analyzer",
+        "task": "analyze_error",
+        "description": "Provide developer-friendly analysis and fixes",
+        "output_example": {
+          "analysis_result": {
+            "root_cause": "React version conflict between main dependency (v17) and testing library peer dependency (v18)",
+            "error_category": "dependency_problem",
+            "confidence_level": "high"
+          },
+          "recommended_fixes": [
+            {
+              "fix_title": "Update React to v18",
+              "fix_description": "Update React and React-DOM to version 18 to match testing library requirements",
+              "fix_type": "immediate",
+              "estimated_effort": "low"
+            }
+          ]
+        }
+      },
+      {
+        "step": 3,
+        "agent": "github-actions-error-analyzer",
+        "task": "generate_pr_comment",
+        "description": "Generate formatted PR comment with analysis and fixes",
+        "output_example": {
+          "pr_comment": "## 🚨 GitHub Actions Build Failure Analysis\n\n**Job:** build-and-test\n**Error:** React version conflict\n\n### Root Cause\nThe build failed due to a dependency conflict between React v17 and @testing-library/react v13 which requires React v18.\n\n### Recommended Fix\n1. Update React to v18: `npm install react@^18.0.0 react-dom@^18.0.0`\n2. Update related dependencies if needed\n\n### Impact\nThis prevents the build from completing and blocks the PR from being merged."
+        }
+      }
+    ]
+  }
+}
