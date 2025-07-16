@@ -391,10 +391,10 @@ def main():
             print(f"⚠️  No .env file found at {analyzer_env_path}")
 
         # Check if API key is available
-        api_key = os.getenv("OPENAI_API_KEY") or os.getenv("OPENAI_API_KEY")
+        api_key = os.getenv("OPENAI_API_KEY") or os.getenv("ANTHROPIC_API_KEY")
         if not api_key:
-            print("❌ No OpenAI API key found in environment variables")
-            print("Please ensure your .env files contain OPENAI_API_KEY=your_key_here")
+            print("❌ No API key found in environment variables")
+            print("Please ensure your .env files contain OPENAI_API_KEY=your_key_here or ANTHROPIC_API_KEY=your_key_here")
             return
 
         print("✅ API key found in environment")
