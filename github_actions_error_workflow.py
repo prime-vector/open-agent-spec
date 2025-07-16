@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-GitHub Actions Error Analysis Multi-Agent Workflow
+GitHub Actions Task Analysis Multi-Agent Workflow
 
 This script demonstrates how to use the GitHub Actions error collector and analyzer agents
 together to provide comprehensive error analysis and developer-friendly explanations.
@@ -394,7 +394,9 @@ def main():
         api_key = os.getenv("OPENAI_API_KEY") or os.getenv("ANTHROPIC_API_KEY")
         if not api_key:
             print("❌ No API key found in environment variables")
-            print("Please ensure your .env files contain OPENAI_API_KEY=your_key_here or ANTHROPIC_API_KEY=your_key_here")
+            print(
+                "Please ensure your .env files contain OPENAI_API_KEY=your_key_here or ANTHROPIC_API_KEY=your_key_here"
+            )
             return
 
         print("✅ API key found in environment")
