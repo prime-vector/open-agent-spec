@@ -63,7 +63,7 @@ tasks:
         commit_sha:
           type: string
           description: Commit SHA that triggered the workflow
-          pattern: "^[a-fA-F0-9]{40}$"
+          pattern: "^[a-fA-F0-9]{40}$|^[a-fA-F0-9]{64}$"
         pr_number:
           type: integer
           description: Pull request number if applicable
