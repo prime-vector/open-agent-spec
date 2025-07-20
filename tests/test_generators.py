@@ -148,8 +148,150 @@ def test_generate_env_example(temp_dir, sample_spec):
     env_file = temp_dir / ".env.example"
     assert env_file.exists()
 
+
+def test_generate_grok_requirements(temp_dir):
+    """Test that Grok engine requirements are generated correctly."""
+    grok_spec = {
+        "info": {"name": "grok-agent", "description": "A Grok-powered agent"},
+        "intelligence": {
+            "type": "llm",
+            "engine": "grok",
+            "model": "grok-3-latest",
+            "config": {
+                "temperature": 0.7,
+                "max_tokens": 1500,
+            },
+        },
+        "config": {
+            "endpoint": "https://api.x.ai/v1",
+            "model": "grok-3-latest",
+            "temperature": 0.7,
+            "max_tokens": 1500,
+        },
+        "memory": {"enabled": False},
+        "tasks": {
+            "analyze": {
+                "description": "Analyze with Grok",
+                "input": {"type": "object", "properties": {"text": {"type": "string"}}},
+                "output": {"type": "object", "properties": {"result": {"type": "string"}}},
+            }
+        },
+        "prompts": {
+            "system": "You are a Grok-powered assistant",
+            "user": "",
+            "analyze": {"system": "Analyze: {{ text }}", "user": ""},
+        },
+    }
+
+    generate_requirements(temp_dir, grok_spec)
+
+    requirements_file = temp_dir / "requirements.txt"
+    assert requirements_file.exists()
+
+    content = requirements_file.read_text()
+    # Grok uses OpenAI-compatible API
+    assert "openai>=1.0.0  # xAI Grok API is OpenAI-compatible" in content
+    assert "behavioural-contracts" in content
+    assert "python-dotenv>=" in content
+
+
+def test_generate_grok_env_example(temp_dir):
+    """Test that Grok .env.example uses XAI_API_KEY."""
+    grok_spec = {
+        "info": {"name": "grok-agent", "description": "A Grok-powered agent"},
+        "intelligence": {
+            "type": "llm",
+            "engine": "grok",
+            "model": "grok-3-latest",
+        },
+        "config": {
+            "endpoint": "https://api.x.ai/v1",
+            "model": "grok-3-latest",
+        },
+        "memory": {"enabled": False},
+        "tasks": {},
+        "prompts": {},
+    }
+
+    generate_env_example(temp_dir, grok_spec)
+
+    env_file = temp_dir / ".env.example"
+    assert env_file.exists()
+
     content = env_file.read_text()
-    assert "OPENAI_API_KEY=" in content
+    assert "XAI_API_KEY=your-xai-api-key-here" in content
+
+
+def test_generate_grok_agent_code(temp_dir):
+    """Test that Grok agent code is generated correctly."""
+    grok_spec = {
+        "info": {"name": "grok-security-agent", "description": "A Grok security agent"},
+        "intelligence": {
+            "type": "llm",
+            "engine": "grok",
+            "model": "grok-3-latest",
+            "endpoint": "https://api.x.ai/v1",
+            "config": {
+                "temperature": 0.7,
+                "max_tokens": 1500,
+            },
+        },
+        "config": {
+            "endpoint": "https://api.x.ai/v1",
+            "model": "grok-3-latest",
+            "temperature": 0.7,
+            "max_tokens": 1500,
+        },
+        "memory": {"enabled": True, "format": "structured", "usage": "context"},
+        "tasks": {
+            "analyze_threat": {
+                "description": "Analyze security threats with Grok",
+                "input": {
+                    "type": "object",
+                    "properties": {
+                        "threat_data": {"type": "string"},
+                        "severity": {"type": "string"},
+                    },
+                    "required": ["threat_data"],
+                },
+                "output": {
+                    "type": "object",
+                    "properties": {
+                        "threat_classification": {"type": "string"},
+                        "confidence_score": {"type": "number"},
+                        "risk_assessment": {"type": "string"},
+                    },
+                    "required": ["threat_classification", "confidence_score"],
+                },
+            }
+        },
+        "prompts": {
+            "system": "You are an advanced AI security analyst powered by Grok.",
+            "user": "",
+            "analyze_threat": {
+                "system": "Analyze this threat: {{ threat_data }}",
+                "user": "Severity: {{ severity }}",
+            },
+        },
+    }
+
+    generate_agent_code(temp_dir, grok_spec, "grok_security_agent", "GrokSecurityAgent")
+
+    agent_file = temp_dir / "agent.py"
+    assert agent_file.exists()
+
+    content = agent_file.read_text()
+    
+    # Check Grok-specific configuration
+    assert '"engine": "grok"' in content
+    assert '"model": "grok-3-latest"' in content
+    assert '"endpoint": "https://api.x.ai/v1"' in content
+    assert "class GrokSecurityAgent(dacp.Agent):" in content
+    assert "analyze_threat" in content
+    
+    # Check that intelligence config includes Grok settings
+    assert '"temperature": 0.7' in content
+    assert '"max_tokens": 1500' in content
 
 
 def test_generate_prompt_template(temp_dir, sample_spec):

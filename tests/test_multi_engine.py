@@ -143,6 +143,83 @@ class TestEngineCompatibility:
         assert "recommendations" in parsed
         assert "confidence_level" in parsed
 
+    @patch("openai.OpenAI")
+    def test_grok_api_integration_mock(self, mock_openai_class):
+        """Test Grok API integration with mocked responses."""
+        # Setup mock client (Grok uses OpenAI-compatible interface)
+        mock_client = MagicMock()
+        mock_openai_class.return_value = mock_client
+
+        # Mock response
+        mock_response = MagicMock()
+        mock_response.choices = [MagicMock()]
+        mock_response.choices[0].message.content = json.dumps(
+            {
+                "threat_classification": "Advanced Persistent Threat",
+                "confidence_score": 0.92,
+                "attack_vector": "network_intrusion",
+                "indicators_of_compromise": ["suspicious TCP connections", "failed auth attempts"],
+                "recommended_actions": ["Isolate affected systems", "Analyze network logs"],
+                "risk_assessment": "Critical risk - immediate action required",
+                "grok_insights": "Advanced reasoning indicates targeted attack with APT characteristics"
+            }
+        )
+        mock_client.chat.completions.create.return_value = mock_response
+
+        # Simulate Grok agent call with xAI endpoint
+        client = mock_openai_class(
+            api_key="test-xai-key",
+            base_url="https://api.x.ai/v1"
+        )
+        response = client.chat.completions.create(
+            model="grok-3-latest",
+            messages=[{"role": "user", "content": "Analyze security event"}],
+            temperature=0.7,
+        )
+
+        # Verify response structure
+        content = response.choices[0].message.content
+        parsed = json.loads(content)
+        assert "threat_classification" in parsed
+        assert "confidence_score" in parsed
+        assert "attack_vector" in parsed
+        assert "grok_insights" in parsed
+        
+        # Verify Grok-specific fields
+        assert parsed["confidence_score"] >= 0.0 and parsed["confidence_score"] <= 1.0
+        assert isinstance(parsed["indicators_of_compromise"], list)
+        assert len(parsed["recommended_actions"]) > 0
+
+    def test_grok_engine_compatibility(self):
+        """Test that Grok engine follows same patterns as other engines."""
+        # Grok should use same response format as other engines
+        grok_response_data = {
+            "threat_classification": "SQL Injection Attack",
+            "confidence_score": 0.88,
+            "attack_vector": "web_application",
+            "indicators_of_compromise": ["malicious SQL queries", "anomalous database access"],
+            "recommended_actions": ["Update input validation", "Review database logs"],
+            "risk_assessment": "High risk - potential data exposure",
+            "grok_insights": "Pattern suggests automated attack tool usage"
+        }
+
+        # Test JSON serialization/deserialization
+        json_str = json.dumps(grok_response_data)
+        parsed = json.loads(json_str)
+        
+        # Verify all required fields are present
+        required_grok_fields = [
+            "threat_classification", "confidence_score", "attack_vector",
+            "recommended_actions", "risk_assessment"
+        ]
+        for field in required_grok_fields:
+            assert field in parsed
+            
+        # Verify data types
+        assert isinstance(parsed["confidence_score"], (int, float))
+        assert isinstance(parsed["recommended_actions"], list)
+        assert len(parsed["recommended_actions"]) > 0
+
     def test_temperature_consistency(self):
         """Test that temperature settings are applied consistently."""
         # Both engines should respect the same temperature range
