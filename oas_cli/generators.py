@@ -1,3 +1,7 @@
+# Copyright (c) Prime Vector Australia, Andrew Whitehouse, Open Agent Stack contributors
+# Licensed under AGPL-3.0 with Additional Terms
+# See LICENSE for details on attribution, naming, and branding restrictions.
+
 """File generation functions for Open Agent Spec."""
 
 import logging
@@ -297,7 +301,12 @@ def _generate_llm_output_parser(task_name: str, output_schema: Dict[str, Any]) -
 
         field_type = field_schema.get("type", "string")
         if field_type == "string":
-            default_value = f'"{field_name}_default"'
+            # Use description or field name for meaningful defaults
+            description = field_schema.get("description", "")
+            if description:
+                default_value = f'"{description.split()[0].lower()}_default"'
+            else:
+                default_value = f'"{field_name}_default"'
         elif field_type == "boolean":
             default_value = "False"
         elif field_type in ["integer", "number"]:
@@ -305,7 +314,33 @@ def _generate_llm_output_parser(task_name: str, output_schema: Dict[str, Any]) -
         elif field_type == "array":
             default_value = "[]"
         elif field_type == "object":
-            default_value = "{}"
+            # Generate structured defaults for objects
+            nested_props = field_schema.get("properties", {})
+            if nested_props:
+                nested_defaults = []
+                for nested_name, nested_schema in nested_props.items():
+                    nested_type = nested_schema.get("type", "string")
+                    if nested_type == "string":
+                        nested_defaults.append(
+                            f'"{nested_name}": "default_{nested_name}"'
+                        )
+                    elif nested_type == "boolean":
+                        nested_defaults.append(f'"{nested_name}": False')
+                    elif nested_type in ["integer", "number"]:
+                        nested_defaults.append(f'"{nested_name}": 0')
+                    elif nested_type == "array":
+                        nested_defaults.append(f'"{nested_name}": []')
+                    elif nested_type == "object":
+                        nested_defaults.append(f'"{nested_name}": {{}}')
+                    else:
+                        nested_defaults.append(f'"{nested_name}": ""')
+                default_value = (
+                    "{\n"
+                    + ",\n".join(f"                {d}" for d in nested_defaults)
+                    + "\n            }"
+                )
+            else:
+                default_value = "{}"
         else:
             default_value = '""'
 
@@ -331,6 +366,13 @@ def _generate_llm_output_parser(task_name: str, output_schema: Dict[str, Any]) -
     \"\"\"
     if isinstance(response, {model_name}):
         return response
+
+    # Parse JSON string if needed
+    if isinstance(response, str):
+        try:
+            response = json.loads(response)
+        except json.JSONDecodeError as e:
+            raise ValueError(f'Failed to parse JSON response: {{e}}')
 
     # Use DACP's enhanced JSON parser with fallback support
     try:
@@ -419,6 +461,94 @@ def _get_human_readable_type(schema: Dict[str, Any]) -> str:
         return "object"
     else:
         return "any"
+
+
+def _generate_json_example(
+    field_name: str, field_schema: Dict[str, Any], indent: int = 0, comma: str = ""
+) -> List[str]:
+    """Generate a structured JSON example for a field based on its schema.
+
+    Args:
+        field_name: Name of the field
+        field_schema: JSON schema for the field
+        indent: Indentation level
+        comma: Comma to append (for formatting)
+
+    Returns:
+        List of lines for the JSON example
+    """
+    lines = []
+    field_type = field_schema.get("type", "string")
+    description = field_schema.get("description", "")
+
+    # Add field name with proper indentation
+    field_line = f'{" " * indent}"{field_name}": '
+
+    if field_type == "string":
+        # Use description or field name for meaningful examples
+        if description:
+            example_value = f'"{description.split()[0].lower()}_example"'
+        else:
+            example_value = f'"{field_name}_example"'
+        lines.append(field_line + example_value + comma)
+
+    elif field_type == "integer":
+        lines.append(field_line + "123" + comma)
+
+    elif field_type == "number":
+        lines.append(field_line + "123.45" + comma)
+
+    elif field_type == "boolean":
+        lines.append(field_line + "true" + comma)
+
+    elif field_type == "array":
+        items = field_schema.get("items", {})
+        if items.get("type") == "object":
+            # Array of objects
+            lines.append(field_line + "[")
+            lines.append(f'{" " * (indent + 2)}{{')
+            nested_props = items.get("properties", {})
+            for j, (nested_name, nested_schema) in enumerate(nested_props.items()):
+                nested_comma = "," if j < len(nested_props) - 1 else ""
+                nested_lines = _generate_json_example(
+                    nested_name, nested_schema, indent + 4, nested_comma
+                )
+                lines.extend(nested_lines)
+            lines.append(f'{" " * (indent + 2)}}}')
+            lines.append(f'{" " * indent}]' + comma)
+        else:
+            # Array of primitives
+            item_type = items.get("type", "string")
+            if item_type == "string":
+                lines.append(
+                    field_line + f'["{field_name}_item1", "{field_name}_item2"]' + comma
+                )
+            elif item_type == "integer":
+                lines.append(field_line + "[1, 2, 3]" + comma)
+            elif item_type == "number":
+                lines.append(field_line + "[1.1, 2.2, 3.3]" + comma)
+            elif item_type == "boolean":
+                lines.append(field_line + "[true, false]" + comma)
+            else:
+                lines.append(field_line + "[]" + comma)
+
+    elif field_type == "object":
+        # Object with nested properties
+        lines.append(field_line + "{")
+        nested_props = field_schema.get("properties", {})
+        for j, (nested_name, nested_schema) in enumerate(nested_props.items()):
+            nested_comma = "," if j < len(nested_props) - 1 else ""
+            nested_lines = _generate_json_example(
+                nested_name, nested_schema, indent + 2, nested_comma
+            )
+            lines.extend(nested_lines)
+        lines.append(f'{" " * indent}}}' + comma)
+
+    else:
+        # Fallback
+        lines.append(field_line + f'"{field_name}_value"' + comma)
+
+    return lines
 
 
 def _generate_multi_step_task_function(
@@ -1263,27 +1393,13 @@ def generate_prompt_template(output: Path, spec_data: Dict[str, Any]) -> None:
         output_schema = task_def.get("output", {})
 
         # Prepare example JSON for the output
-        # Use the output schema's properties to generate an example
+        # Use the output schema's properties to generate a structured example
         example_json_lines = []
         if output_schema.get("properties"):
             example_json_lines.append("{")
             for i, (k, v) in enumerate(output_schema["properties"].items()):
                 comma = "," if i < len(output_schema["properties"]) - 1 else ""
-                # For the example, use a meaningful value based on the field name
-                if k == "response":
-                    # If there's a 'name' input, use it in the response
-                    input_props = task_def.get("input", {}).get("properties", {})
-                    if "name" in input_props:
-                        example_json_lines.append(
-                            f'  "{k}": "Hello {{{{ input.name }}}}!"{comma}'
-                        )
-                    else:
-                        example_json_lines.append(
-                            f'  "{k}": "Your response here"{comma}'
-                        )
-                else:
-                    # Use a generic placeholder for any field
-                    example_json_lines.append(f'  "{k}": "Your {k} here"{comma}')
+                example_json_lines.extend(_generate_json_example(k, v, 2, comma))
             example_json_lines.append("}")
         else:
             example_json_lines.append("{}")

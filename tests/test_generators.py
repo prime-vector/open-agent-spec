@@ -363,8 +363,8 @@ def test_generate_multi_step_task(temp_dir):
                     "required": ["response", "compliment"],
                 },
                 "steps": [
-                    {"task": "greet", "input_map": {"name": "{{name}}"}},
-                    {"task": "compliment", "input_map": {"name": "{{name}}"}},
+                    {"task": "greet", "input_map": {"name": "{{ input.name }}"}},
+                    {"task": "compliment", "input_map": {"name": "{{ input.name }}"}},
                 ],
             },
         },

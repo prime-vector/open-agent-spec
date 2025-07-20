@@ -1,0 +1,294 @@
+open_agent_spec: 1.0.8
+
+agent:
+  name: github-actions-error-collector
+  description: Agent that collects and summarizes errors from GitHub Actions job logs and stack traces
+  role: analyst
+
+intelligence:
+  type: llm
+  engine: openai
+  model: gpt-3.5-turbo
+  endpoint: https://api.openai.com/v1
+  config:
+    temperature: 0.2
+    max_tokens: 1500
+
+logging:
+  enabled: true
+  level: "INFO"
+  format_style: "emoji"
+  include_timestamp: true
+  log_file: "./logs/github-actions-collector.log"
+
+  env_overrides:
+    level: "DACP_LOG_LEVEL"
+    format_style: "DACP_LOG_STYLE"
+    log_file: "DACP_LOG_FILE_COLLECTOR"
+
+tasks:
+  collect_errors:
+    description: Extract and summarize errors from GitHub Actions logs
+    timeout: 60
+    input:
+      type: object
+      properties:
+        job_name:
+          type: string
+          description: Name of the GitHub Actions job that failed
+          minLength: 1
+          maxLength: 200
+        workflow_name:
+          type: string
+          description: Name of the GitHub Actions workflow
+          minLength: 1
+          maxLength: 200
+        raw_logs:
+          type: string
+          description: Raw log output from the failed GitHub Actions job
+          minLength: 10
+          maxLength: 50000
+        job_step:
+          type: string
+          description: Specific step in the job where the error occurred
+          maxLength: 500
+        repository:
+          type: string
+          description: Repository where the workflow is running
+          pattern: "^[a-zA-Z0-9._-]+/[a-zA-Z0-9._-]+$"
+        branch:
+          type: string
+          description: Branch where the workflow was triggered
+          maxLength: 100
+        commit_sha:
+          type: string
+          description: Commit SHA that triggered the workflow
+          pattern: "^[a-fA-F0-9]{40}$|^[a-fA-F0-9]{64}$"
+        pr_number:
+          type: integer
+          description: Pull request number if applicable
+          minimum: 1
+      required: [job_name, workflow_name, raw_logs, repository]
+    output:
+      type: object
+      properties:
+        error_summary:
+          type: object
+          properties:
+            primary_error:
+              type: string
+              description: The main error message extracted from logs
+            error_type:
+              type: string
+              enum: [
+                "build_failure", "test_failure", "dependency_error", "syntax_error",
+                "runtime_error", "timeout", "permission_error", "network_error",
+                "configuration_error", "deployment_error", "linting_error", "other"
+              ]
+            severity:
+              type: string
+              enum: ["low", "medium", "high", "critical"]
+            affected_files:
+              type: array
+              items:
+                type: string
+              description: List of files mentioned in the error
+            stack_trace:
+              type: string
+              description: Cleaned and formatted stack trace if available
+            error_context:
+              type: string
+              description: Context around the error (before/after lines)
+            suggested_keywords:
+              type: array
+              items:
+                type: string
+              description: Keywords for further analysis
+          required: [primary_error, error_type, severity]
+        job_context:
+          type: object
+          properties:
+            job_name:
+              type: string
+            workflow_name:
+              type: string
+            repository:
+              type: string
+            branch:
+              type: string
+            commit_sha:
+              type: string
+            pr_number:
+              type: integer
+            failed_step:
+              type: string
+          required: [job_name, workflow_name, repository]
+        log_statistics:
+          type: object
+          properties:
+            total_lines:
+              type: integer
+            error_lines:
+              type: integer
+            warning_lines:
+              type: integer
+            duration_estimate:
+              type: string
+              description: Estimated job duration before failure
+          required: [total_lines, error_lines, warning_lines]
+      required: [error_summary, job_context, log_statistics]
+
+  extract_build_info:
+    description: Extract build-specific information from logs
+    timeout: 30
+    input:
+      type: object
+      properties:
+        raw_logs:
+          type: string
+          description: Raw log output to analyze for build information
+        build_system:
+          type: string
+          enum: ["npm", "maven", "gradle", "docker", "python", "rust", "go", "other"]
+          description: Type of build system used
+      required: [raw_logs]
+    output:
+      type: object
+      properties:
+        build_commands:
+          type: array
+          items:
+            type: string
+          description: Build commands that were executed
+        dependencies:
+          type: array
+          items:
+            type: string
+          description: Dependencies mentioned in the build
+        build_artifacts:
+          type: array
+          items:
+            type: string
+          description: Build artifacts that were expected
+        environment_info:
+          type: object
+          properties:
+            os:
+              type: string
+            node_version:
+              type: string
+            python_version:
+              type: string
+            java_version:
+              type: string
+          description: Environment information extracted from logs
+      required: [build_commands, dependencies]
+
+prompts:
+  system: >
+    You are an expert GitHub Actions log analyzer specialized in extracting and summarizing error information.
+    Your role is to process raw log output from failed GitHub Actions jobs and extract structured error information.
+
+    Focus on:
+    1. Identifying the root cause of failures
+    2. Extracting relevant error messages and stack traces
+    3. Categorizing the type of error
+    4. Providing clean, structured output for further analysis
+
+    Be precise and factual. Only extract information that is clearly present in the logs.
+
+  user: >
+    Analyze the following GitHub Actions job failure:
+
+    Job: {{ job_name }}
+    Workflow: {{ workflow_name }}
+    Repository: {{ repository }}
+    {% if branch %}Branch: {{ branch }}{% endif %}
+    {% if commit_sha %}Commit: {{ commit_sha }}{% endif %}
+    {% if pr_number %}PR: #{{ pr_number }}{% endif %}
+
+    Raw logs:
+    {{ raw_logs }}
+
+    Please extract and categorize the error information according to the task output schema.
+
+  collect_errors:
+    system: >
+      You are an expert GitHub Actions log analyzer specialized in extracting and summarizing error information.
+
+      TASK:
+      Extract and structure error information from GitHub Actions logs.
+
+      INSTRUCTIONS:
+      1. Analyze the raw logs carefully to identify the primary error
+      2. Categorize the error type from the predefined list
+      3. Assess the severity level
+      4. Extract any affected files mentioned
+      5. Identify stack traces if present
+      6. Count log statistics (total lines, error lines, warnings)
+      7. Provide context around the error
+
+      CRITICAL REQUIREMENTS:
+      - Respond ONLY with valid JSON matching the exact structure
+      - Do not include any explanatory text before or after the JSON
+      - Ensure all required fields are present
+      - Use null for optional fields that are not available
+      - Count lines accurately from the provided logs
+      - Be precise in error categorization and severity assessment
+
+    user: >
+      INPUT DATA:
+      Job: {{ job_name }}
+      Workflow: {{ workflow_name }}
+      Repository: {{ repository }}
+      {% if branch %}Branch: {{ branch }}{% endif %}
+      {% if commit_sha %}Commit: {{ commit_sha }}{% endif %}
+      {% if pr_number %}PR: #{{ pr_number }}{% endif %}
+      {% if job_step %}Failed Step: {{ job_step }}{% endif %}
+
+      Raw Logs:
+      {{ raw_logs }}
+
+      REQUIRED OUTPUT FORMAT (respond with valid JSON only):
+      ```json
+      {
+        "error_summary": {
+          "primary_error": "The main error message extracted from logs",
+          "error_type": "One of: build_failure, test_failure, dependency_error, syntax_error, runtime_error, timeout, permission_error, network_error, configuration_error, deployment_error, linting_error, other",
+          "severity": "One of: low, medium, high, critical",
+          "affected_files": ["list", "of", "files", "mentioned"],
+          "stack_trace": "Cleaned stack trace if available, or null",
+          "error_context": "Context around the error, or null",
+          "suggested_keywords": ["keywords", "for", "analysis"]
+        },
+        "job_context": {
+          "job_name": "{{ job_name }}",
+          "workflow_name": "{{ workflow_name }}",
+          "repository": "{{ repository }}",
+          "branch": "{{ branch or null }}",
+          "commit_sha": "{{ commit_sha or null }}",
+          "pr_number": {{ pr_number or null }},
+          "failed_step": "{{ job_step or null }}"
+        },
+        "log_statistics": {
+          "total_lines": 123,
+          "error_lines": 5,
+          "warning_lines": 2,
+          "duration_estimate": "Estimated duration or null"
+        }
+      }
+      ```
+
+behavioural_contract:
+  version: "0.1.2"
+  description: "Contract for GitHub Actions error collection and analysis"
+  role: "Log analyzer and error extractor"
+  behavioural_flags:
+    conservatism: "high"
+    verbosity: "detailed"
+  response_contract:
+    output_format:
+      required_fields: [error_summary, job_context, log_statistics]
+    quality_assurance:
+      accuracy: "high"
+      completeness: "thorough"

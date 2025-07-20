@@ -439,3 +439,12 @@ Myself and my collaborators would be happy to support your journey with AI agent
 
 ## Overview
 https://www.openagentstack.ai
+
+## License and Attribution
+
+This project is licensed under the [AGPL-3.0](./LICENSE), with Additional Terms designed to protect the unique terminology, branding, and concepts of Open Agent Stack and related projects.
+
+**Key Points:**
+- You must clearly attribute Prime Vector Australia, Andrew Whitehouse, and “Open Agent Stack” in all public forks, derivatives, and deployments.
+- You may not use the terms “Open Agent Stack,” “Open Agent Spec,” “Behavioral Contract Engineering (BCE),” “DACP,” “Shepard,” or any unique concepts/branding from this project as the name, identity, or primary branding of a fork or derivative without written permission from Prime Vector Australia or Andrew Whitehouse.
+- For commercial use or partnership, please contact andrew@primevector.com.au.
