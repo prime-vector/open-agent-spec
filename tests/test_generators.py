@@ -173,7 +173,10 @@ def test_generate_grok_requirements(temp_dir):
             "analyze": {
                 "description": "Analyze with Grok",
                 "input": {"type": "object", "properties": {"text": {"type": "string"}}},
-                "output": {"type": "object", "properties": {"result": {"type": "string"}}},
+                "output": {
+                    "type": "object",
+                    "properties": {"result": {"type": "string"}},
+                },
             }
         },
         "prompts": {
@@ -281,14 +284,14 @@ def test_generate_grok_agent_code(temp_dir):
     assert agent_file.exists()
 
     content = agent_file.read_text()
-    
+
     # Check Grok-specific configuration
     assert '"engine": "grok"' in content
     assert '"model": "grok-3-latest"' in content
     assert '"endpoint": "https://api.x.ai/v1"' in content
     assert "class GrokSecurityAgent(dacp.Agent):" in content
     assert "analyze_threat" in content
-    
+
     # Check that intelligence config includes Grok settings
     assert '"temperature": 0.7' in content
     assert '"max_tokens": 1500' in content
