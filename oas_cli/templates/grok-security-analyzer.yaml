@@ -1,0 +1,180 @@
+open_agent_spec: 1.0.8
+
+agent:
+  name: grok-security-analyzer
+  description: AI-powered security event analyzer using xAI Grok for advanced threat detection and analysis
+  role: analyst
+
+intelligence:
+  type: llm
+  engine: grok
+  model: grok-3-latest
+  endpoint: https://api.x.ai/v1
+  config:
+    temperature: 0.7
+    max_tokens: 1500
+    top_p: 0.9
+
+logging:
+  enabled: true
+  level: "INFO"
+  format_style: "emoji"
+  include_timestamp: true
+  log_file: "./logs/grok-security-analyzer.log"
+
+  env_overrides:
+    level: "DACP_LOG_LEVEL"
+    format_style: "DACP_LOG_STYLE"
+    log_file: "DACP_LOG_FILE_GROK"
+
+tasks:
+  analyze_threat:
+    description: Analyze security events using Grok's advanced reasoning capabilities
+    timeout: 60
+    input:
+      type: object
+      properties:
+        event_type:
+          type: string
+          description: Type of security event being analyzed
+          examples: ["malware_detection", "network_intrusion", "phishing_attempt", "data_breach", "privilege_escalation"]
+        event_data:
+          type: string
+          description: Raw event data including logs, network traffic, or forensic evidence
+          minLength: 20
+          maxLength: 5000
+        severity_level:
+          type: string
+          description: Initial severity assessment
+          enum: ["low", "medium", "high", "critical"]
+        context:
+          type: string
+          description: Additional context about the security environment
+          maxLength: 1000
+      required:
+        - event_type
+        - event_data
+        - severity_level
+
+    output:
+      type: object
+      properties:
+        threat_classification:
+          type: string
+          description: Detailed classification of the identified threat
+        confidence_score:
+          type: number
+          description: Confidence level of the analysis (0.0 to 1.0)
+          minimum: 0.0
+          maximum: 1.0
+        attack_vector:
+          type: string
+          description: Primary attack vector identified
+        indicators_of_compromise:
+          type: array
+          items:
+            type: string
+          description: List of IOCs discovered during analysis
+        recommended_actions:
+          type: array
+          items:
+            type: string
+          description: Immediate actions recommended to address the threat
+        risk_assessment:
+          type: string
+          description: Overall risk assessment and potential impact
+        grok_insights:
+          type: string
+          description: Advanced insights and reasoning provided by Grok's intelligence
+      required:
+        - threat_classification
+        - confidence_score
+        - attack_vector
+        - recommended_actions
+        - risk_assessment
+
+behavioural_contract:
+  version: "0.1.2"
+  description: "Security-focused contract with Grok's enhanced reasoning"
+  behavioural_flags:
+    conservatism: "high"
+    temperature_control:
+      mode: "strict"
+      range: [0.1, 0.4]
+    reasoning_depth: "enhanced"
+    
+  response_contract:
+    output_format:
+      required_fields: 
+        - threat_classification
+        - confidence_score
+        - attack_vector
+        - recommended_actions
+        - risk_assessment
+      
+    safety_checks:
+      harmful_content: true
+      pii_protection: true
+      security_disclosure: false
+      
+    quality_checks:
+      confidence_threshold: 0.7
+      reasoning_required: true
+      evidence_based: true
+
+memory:
+  enabled: true
+  format: "structured"
+  usage: "context"
+  required: false
+  description: "Maintains context of previous security analyses for pattern recognition"
+
+prompts:
+  system: >
+    You are an advanced AI security analyst powered by Grok, specializing in comprehensive threat analysis and cyber security intelligence.
+    Your role is to analyze security events with deep reasoning and provide actionable intelligence. You have access to:
+    - Advanced pattern recognition capabilities
+    - Real-time threat intelligence
+    - Comprehensive attack vector analysis
+    - Risk assessment methodologies
+    
+    Always provide thorough, evidence-based analysis with clear reasoning for your conclusions.
+  user: ""
+  
+  analyze_threat:
+    system: >
+      Analyze this security event using Grok's enhanced reasoning capabilities:
+      
+      Event Type: {{ event_type }}
+      Event Data: {{ event_data }}
+      Severity Level: {{ severity_level }}
+      Context: {{ context }}
+      
+      Evaluation Criteria:
+      - Advanced threat pattern recognition
+      - Attack vector analysis and classification
+      - Indicators of compromise identification
+      - Risk assessment with confidence scoring
+      - Evidence-based reasoning
+      
+      Respond ONLY with a JSON object in this exact format:
+      {
+        "threat_classification": "Advanced Persistent Threat",
+        "confidence_score": 0.85,
+        "attack_vector": "network_intrusion",
+        "indicators_of_compromise": ["suspicious network traffic", "unauthorized access attempts"],
+        "recommended_actions": ["Isolate affected systems", "Analyze network logs"],
+        "risk_assessment": "High risk - immediate action required",
+        "grok_insights": "Advanced reasoning insights here"
+      }
+      
+      IMPORTANT:
+      - threat_classification must be a descriptive string
+      - confidence_score must be a number between 0.0 and 1.0
+      - attack_vector must describe the primary attack method
+      - indicators_of_compromise must be an array of strings
+      - recommended_actions must be an array of actionable strings
+      - risk_assessment must describe overall risk and impact
+      - grok_insights must provide advanced reasoning and analysis
+      - Provide only valid JSON, no other text
+    user: "Additional Context: {{ context }}"
