@@ -1,3 +1,7 @@
+# Copyright (c) Prime Vector Australia, Andrew Whitehouse, Open Agent Stack contributors
+# Licensed under AGPL-3.0 with Additional Terms
+# See LICENSE for details on attribution, naming, and branding restrictions.
+
 """Validation functions for Open Agent Spec."""
 
 from typing import Tuple

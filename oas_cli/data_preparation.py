@@ -1,3 +1,7 @@
+# Copyright (c) Prime Vector Australia, Andrew Whitehouse, Open Agent Stack contributors
+# Licensed under AGPL-3.0 with Additional Terms
+# See LICENSE for details on attribution, naming, and branding restrictions.
+
 """Data preparation utilities for code generation."""
 
 import logging
@@ -69,7 +73,7 @@ class AgentDataPreparator:
             "import logging",
             "import json",
             "from pathlib import Path",
-            "from typing import Optional, Any, Dict",
+            "from typing import Optional, Any, Dict, List",
             "from jinja2 import Environment, FileSystemLoader",
             "from pydantic import BaseModel",
             "from behavioural_contracts import behavioural_contract",

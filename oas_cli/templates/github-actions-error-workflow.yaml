@@ -1,0 +1,271 @@
+open_agent_spec: 1.0.8
+
+workflow:
+  name: github-actions-error-analysis
+  description: Multi-agent workflow for analyzing GitHub Actions errors and providing developer-friendly explanations
+  version: "1.0.0"
+
+agents:
+  - name: github-actions-error-collector
+    spec: github-actions-error-collector.yaml
+    output_dir: "./temp/collector"
+
+  - name: github-actions-error-analyzer
+    spec: github-actions-error-analyzer.yaml
+    output_dir: "./temp/analyzer"
+
+workflows:
+  analyze_github_actions_failure:
+    description: Complete end-to-end analysis of GitHub Actions failures
+    steps:
+      # Step 1: Collect and structure errors from raw logs
+      - name: collect_errors
+        agent: github-actions-error-collector
+        task: collect_errors
+        input:
+          job_name: "{{ input.job_name }}"
+          workflow_name: "{{ input.workflow_name }}"
+          raw_logs: "{{ input.raw_logs }}"
+          job_step: "{{ input.job_step | default('') }}"
+          repository: "{{ input.repository }}"
+          branch: "{{ input.branch | default('main') }}"
+          commit_sha: "{{ input.commit_sha | default('') }}"
+          pr_number: "{{ input.pr_number | default(null) }}"
+        output_mapping:
+          error_summary: "{{ output.error_summary }}"
+          error_categories: "{{ output.error_categories }}"
+          affected_files: "{{ output.affected_files }}"
+          severity_level: "{{ output.severity_level }}"
+          build_info: "{{ output.build_info }}"
+          error_context: "{{ output.error_context }}"
+
+      # Step 2: Extract build system information
+      - name: extract_build_info
+        agent: github-actions-error-collector
+        task: extract_build_info
+        input:
+          job_name: "{{ input.job_name }}"
+          workflow_name: "{{ input.workflow_name }}"
+          repository: "{{ input.repository }}"
+          raw_logs: "{{ input.raw_logs }}"
+        output_mapping:
+          build_system: "{{ output.build_system }}"
+          dependencies: "{{ output.dependencies }}"
+          build_config: "{{ output.build_config }}"
+          environment_info: "{{ output.environment_info }}"
+
+      # Step 3: Analyze errors and provide fixes
+      - name: analyze_error
+        agent: github-actions-error-analyzer
+        task: analyze_error
+        input:
+          error_summary: "{{ steps.collect_errors.output.error_summary }}"
+          error_categories: "{{ steps.collect_errors.output.error_categories }}"
+          affected_files: "{{ steps.collect_errors.output.affected_files }}"
+          severity_level: "{{ steps.collect_errors.output.severity_level }}"
+          build_info: "{{ steps.extract_build_info.output.build_system }}"
+          error_context: "{{ steps.collect_errors.output.error_context }}"
+          job_name: "{{ input.job_name }}"
+          workflow_name: "{{ input.workflow_name }}"
+          repository: "{{ input.repository }}"
+        output_mapping:
+          root_cause_analysis: "{{ output.root_cause_analysis }}"
+          recommended_fixes: "{{ output.recommended_fixes }}"
+          developer_explanation: "{{ output.developer_explanation }}"
+          confidence_score: "{{ output.confidence_score }}"
+          fix_priority: "{{ output.fix_priority }}"
+
+      # Step 4: Generate PR comment
+      - name: generate_pr_comment
+        agent: github-actions-error-analyzer
+        task: generate_pr_comment
+        input:
+          error_analysis: "{{ steps.analyze_error.output.root_cause_analysis }}"
+          recommended_fixes: "{{ steps.analyze_error.output.recommended_fixes }}"
+          developer_explanation: "{{ steps.analyze_error.output.developer_explanation }}"
+          job_name: "{{ input.job_name }}"
+          workflow_name: "{{ input.workflow_name }}"
+          repository: "{{ input.repository }}"
+          pr_number: "{{ input.pr_number | default(null) }}"
+          severity_level: "{{ steps.collect_errors.output.severity_level }}"
+        output_mapping:
+          pr_comment: "{{ output.pr_comment }}"
+          comment_type: "{{ output.comment_type }}"
+          action_items: "{{ output.action_items }}"
+
+      # Step 5: Suggest workflow improvements
+      - name: suggest_workflow_improvements
+        agent: github-actions-error-analyzer
+        task: suggest_workflow_improvements
+        input:
+          error_analysis: "{{ steps.analyze_error.output.root_cause_analysis }}"
+          workflow_name: "{{ input.workflow_name }}"
+          repository: "{{ input.repository }}"
+          recurring_patterns: "{{ steps.analyze_error.output.recommended_fixes }}"
+        output_mapping:
+          workflow_improvements: "{{ output.workflow_improvements }}"
+          prevention_strategies: "{{ output.prevention_strategies }}"
+          monitoring_recommendations: "{{ output.monitoring_recommendations }}"
+
+    output:
+      type: object
+      properties:
+        error_collection:
+          type: object
+          description: Structured error data from the collector
+          properties:
+            error_summary: { type: string }
+            error_categories: { type: array, items: { type: string } }
+            affected_files: { type: array, items: { type: string } }
+            severity_level: { type: string }
+            build_info: { type: object }
+        error_analysis:
+          type: object
+          description: Detailed analysis and fixes from the analyzer
+          properties:
+            root_cause_analysis: { type: string }
+            recommended_fixes: { type: array, items: { type: string } }
+            developer_explanation: { type: string }
+            confidence_score: { type: number }
+            fix_priority: { type: string }
+        pr_comment:
+          type: object
+          description: Generated PR comment for GitHub
+          properties:
+            pr_comment: { type: string }
+            comment_type: { type: string }
+            action_items: { type: array, items: { type: string } }
+        workflow_improvements:
+          type: object
+          description: Suggestions for workflow optimization
+          properties:
+            workflow_improvements: { type: array, items: { type: string } }
+            prevention_strategies: { type: array, items: { type: string } }
+            monitoring_recommendations: { type: array, items: { type: string } }
+      required: [error_collection, error_analysis, pr_comment, workflow_improvements]
+
+  quick_error_analysis:
+    description: Simplified analysis for quick feedback
+    steps:
+      - name: collect_errors
+        agent: github-actions-error-collector
+        task: collect_errors
+        input:
+          job_name: "{{ input.job_name }}"
+          workflow_name: "{{ input.workflow_name }}"
+          raw_logs: "{{ input.raw_logs }}"
+          repository: "{{ input.repository }}"
+        output_mapping:
+          error_summary: "{{ output.error_summary }}"
+          severity_level: "{{ output.severity_level }}"
+
+      - name: analyze_error
+        agent: github-actions-error-analyzer
+        task: analyze_error
+        input:
+          error_summary: "{{ steps.collect_errors.output.error_summary }}"
+          severity_level: "{{ steps.collect_errors.output.severity_level }}"
+          job_name: "{{ input.job_name }}"
+          workflow_name: "{{ input.workflow_name }}"
+          repository: "{{ input.repository }}"
+        output_mapping:
+          root_cause_analysis: "{{ output.root_cause_analysis }}"
+          recommended_fixes: "{{ output.recommended_fixes }}"
+
+    output:
+      type: object
+      properties:
+        error_summary: { type: string }
+        severity_level: { type: string }
+        root_cause: { type: string }
+        quick_fixes: { type: array, items: { type: string } }
+      required: [error_summary, severity_level, root_cause, quick_fixes]
+
+configuration:
+  orchestrator:
+    type: dacp
+    config:
+      logging:
+        enabled: true
+        level: "INFO"
+        format_style: "emoji"
+        include_timestamp: true
+        log_file: "./logs/workflow.log"
+
+      error_handling:
+        retry_attempts: 3
+        retry_delay: 2
+        circuit_breaker:
+          enabled: true
+          failure_threshold: 5
+          recovery_timeout: 60
+
+      monitoring:
+        enabled: true
+        metrics:
+          - execution_time
+          - success_rate
+          - error_count
+          - agent_performance
+
+  agents:
+    github-actions-error-collector:
+      env:
+        OPENAI_API_KEY: "${OPENAI_API_KEY}"
+        DACP_LOG_LEVEL: "INFO"
+        DACP_LOG_FILE_COLLECTOR: "./logs/collector.log"
+
+    github-actions-error-analyzer:
+      env:
+        OPENAI_API_KEY: "${OPENAI_API_KEY}"
+        DACP_LOG_LEVEL: "INFO"
+        DACP_LOG_FILE_ANALYZER: "./logs/analyzer.log"
+
+usage_examples:
+  full_analysis:
+    description: "Complete end-to-end analysis with all steps"
+    input:
+      job_name: "build-and-test"
+      workflow_name: "CI Pipeline"
+      raw_logs: |
+        npm ERR! code ENOENT
+        npm ERR! syscall open
+        npm ERR! path /workspace/package.json
+        npm ERR! errno -2
+        npm ERR! enoent ENOENT: no such file or directory, open 'package.json'
+        npm ERR! enoent This is related to npm not being able to find a file.
+        npm ERR! enoent
+      repository: "myorg/myproject"
+      branch: "feature/new-feature"
+      commit_sha: "abc123def456"
+      pr_number: 42
+
+  quick_analysis:
+    description: "Quick analysis for immediate feedback"
+    input:
+      job_name: "test"
+      workflow_name: "Test Suite"
+      raw_logs: "Test failure: AssertionError: expected true but got false"
+      repository: "myorg/myproject"
+
+deployment:
+  docker:
+    enabled: true
+    base_image: "python:3.11-slim"
+    ports:
+      - "8000:8000"
+    volumes:
+      - "./logs:/app/logs"
+      - "./temp:/app/temp"
+
+  kubernetes:
+    enabled: false
+    namespace: "github-actions-analysis"
+    replicas: 2
+    resources:
+      requests:
+        memory: "512Mi"
+        cpu: "250m"
+      limits:
+        memory: "1Gi"
+        cpu: "500m"

@@ -659,3 +659,38 @@ specific requirements.
 if any, to sign a "copyright disclaimer" for the program, if necessary.
 For more information on this, and how to apply and follow the GNU AGPL, see
 <https://www.gnu.org/licenses/>.
+
+---
+## Additional Terms for Open Agent Stack and Related Projects
+
+In addition to the terms of the GNU Affero General Public License v3.0 (AGPL-3.0), the following conditions apply to the Open Agent Stack project and all related packages, including but not limited to: Open Agent Spec, Behavioral Contract Engineering (BCE), DACP (Declarative Agent Communication Protocol), Shepard, and any other original terminology, concepts, or branding introduced by Prime Vector Australia and Andrew Whitehouse.
+
+1. **Attribution:**
+   Any public use, fork, distribution, or derivative must clearly acknowledge the original project (“Open Agent Stack”) and its owners (“Prime Vector Australia” and “Andrew Whitehouse”), including but not limited to documentation, user interfaces, and project websites.
+
+2. **Unique Terminology and Branding:**
+   The following terms, concepts, and project names are reserved and may not be used for the name, branding, or primary identity of any fork, derivative, or competing project, without explicit written permission from Prime Vector Australia or Andrew Whitehouse:
+   - Open Agent Stack
+   - Open Agent Spec
+   - Behavioral Contract Engineering (BCE)
+   - DACP (Declarative Agent Communication Protocol)
+   - Shepard
+   - Any terminology, branding, or conceptual framework first published in this repository or associated publications.
+
+   Derivative works must clearly state that they are independent projects and not affiliated with, or endorsed by, the original owners or the Open Agent Stack project.
+
+3. **Commercial Use and Licensing:**
+   This project is licensed under AGPL-3.0 for open-source and non-commercial use only. For commercial licensing, partnership, or custom support, please contact the owners at andrew@primevector.com.au.
+
+4. **Community Code of Conduct:**
+   Constructive contributions, issue reporting, and feedback are welcome. However, the maintainers reserve the right to block or request removal of forks, clones, or derivatives that violate these terms or the spirit of the project.
+
+5. **Trademark and Branding:**
+   The project names and logos associated with Open Agent Stack, Open Agent Spec, BCE, DACP, Shepard, and all related terms are trademarks of Prime Vector Australia and Andrew Whitehouse. Unauthorized use is prohibited.
+
+These Additional Terms are intended to protect the integrity, identity, and original vision of the project while encouraging open collaboration.
+For questions, contact Prime Vector Australia and Andrew Whitehouse at [your email].
+
+---
+
+*This project is licensed under the AGPL-3.0 License with Additional Terms.*
