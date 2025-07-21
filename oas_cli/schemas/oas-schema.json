@@ -60,10 +60,11 @@
             "enum": [
               "openai",
               "anthropic",
+              "grok",
               "local",
               "custom"
             ],
-            "description": "LLM engine provider (e.g., openai, anthropic, local, custom)"
+            "description": "LLM engine provider (e.g., openai, anthropic, grok, local, custom)"
           },
           "model": {
             "type": "string",

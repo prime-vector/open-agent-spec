@@ -1334,6 +1334,8 @@ def generate_requirements(output: Path, spec_data: Dict[str, Any]) -> None:
         requirements.append("openai>=1.0.0")
     elif engine == "anthropic":
         requirements.append("anthropic>=0.18.0")
+    elif engine == "grok":
+        requirements.append("openai>=1.0.0  # xAI Grok API is OpenAI-compatible")
     elif engine == "local":
         requirements.append("# Add your local engine dependencies here")
     elif engine == "custom":
@@ -1367,6 +1369,8 @@ def generate_env_example(output: Path, spec_data: Dict[str, Any]) -> None:
         env_content = "ANTHROPIC_API_KEY=your-api-key-here\n"
     elif engine == "openai":
         env_content = "OPENAI_API_KEY=your-api-key-here\n"
+    elif engine == "grok":
+        env_content = "XAI_API_KEY=your-xai-api-key-here\n"
     elif engine == "local":
         env_content = "# Add your local engine environment variables here\n"
     elif engine == "custom":

@@ -53,7 +53,7 @@ agent:
   role: "assistant"                   # Agent role type (assistant, analyst, etc.)
 
 intelligence:
-  engine: "openai"                    # LLM engine: openai, anthropic, local, or custom
+  engine: "openai"                    # LLM engine: openai, anthropic, grok, local, or custom
   endpoint: "https://api.openai.com/v1"  # API endpoint URL
   model: "gpt-4"                      # Model name/identifier
   config:                             # Engine-specific configuration
@@ -135,7 +135,25 @@ intelligence:
 - Anthropic API key in environment variable `ANTHROPIC_API_KEY`
 - Valid Anthropic account and API access
 
-### 3. Local (`engine: "local"`)
+### 3. Grok (`engine: "grok"`)
+Use xAI's Grok models for LLM interactions via OpenAI-compatible API.
+
+```yaml
+intelligence:
+  engine: "grok"
+  endpoint: "https://api.x.ai/v1"        # xAI API endpoint
+  model: "grok-3-latest"                 # Grok model (grok-3-latest, grok-3-20241219)
+  config:
+    temperature: 0.7                     # Response randomness (0.0-2.0)
+    max_tokens: 1500                     # Maximum response length
+```
+
+**Requirements:**
+- xAI API key in environment variable `XAI_API_KEY`
+- Valid xAI account and API access
+- Uses OpenAI-compatible client library
+
+### 4. Local (`engine: "local"`)
 Use locally hosted LLM models (placeholder for future implementation).
 
 ```yaml
@@ -150,7 +168,7 @@ intelligence:
 
 **Note:** Local engine support is planned for future releases.
 
-### 4. Custom (`engine: "custom"`)
+### 5. Custom (`engine: "custom"`)
 Use custom LLM routers for specialized use cases, custom APIs, or proprietary models.
 
 ```yaml
@@ -222,7 +240,7 @@ class CustomLLMRouter:
 - **Purpose:** Specifies which LLM engine to use
 - **Format:** String (enum)
 - **Required:** Yes
-- **Options:** "openai", "anthropic", "local", "custom"
+- **Options:** "openai", "anthropic", "grok", "local", "custom"
 
 #### `intelligence.endpoint`
 - **Purpose:** API endpoint URL for the LLM service
@@ -327,10 +345,13 @@ oas init --spec oas_cli/templates/security-risk-assessor.yaml --output risk-asse
 
 # Security incident responder (OpenAI powered)
 oas init --spec oas_cli/templates/security-incident-responder.yaml --output incident-responder/
+
+# Grok security analyzer (xAI Grok powered)
+oas init --spec oas_cli/templates/grok-security-analyzer.yaml --output grok-analyzer/
 ```
 
 **Security Templates Features:**
-- **Multi-Engine Support**: Templates for Claude/Anthropic and OpenAI
+- **Multi-Engine Support**: Templates for Claude/Anthropic, OpenAI, and xAI Grok
 - **Advanced Behavioral Contracts**: Security-focused validation and safety checks
 - **Real-World Use Cases**: SOC automation, threat hunting, incident response
 - **Agent-to-Agent Workflows**: Designed for DACP orchestration
