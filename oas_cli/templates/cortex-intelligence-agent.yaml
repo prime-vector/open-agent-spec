@@ -1,0 +1,213 @@
+open_agent_spec: 1.0.8
+
+agent:
+  name: cortex-intelligence-agent
+  description: AI-powered agent using Cortex intelligence engine with advanced reasoning capabilities
+  role: analyst
+
+intelligence:
+  type: llm
+  engine: cortex
+  model: cortex-intelligence
+  config:
+    enable_layer3: true
+    enable_onnx: false
+    openai_api_key: ${OPENAI_API_KEY}
+    claude_api_key: ${CLAUDE_API_KEY}
+    temperature: 0.2
+    max_tokens: 1500
+
+logging:
+  enabled: true
+  level: "INFO"
+  format_style: "emoji"
+  include_timestamp: true
+  log_file: "./logs/cortex-agent.log"
+
+  env_overrides:
+    level: "DACP_LOG_LEVEL"
+    format_style: "DACP_LOG_STYLE"
+    log_file: "DACP_LOG_FILE_CORTEX"
+
+tasks:
+  analyze_complex_problem:
+    description: Analyze complex problems using Cortex's advanced reasoning capabilities
+    timeout: 120
+    input:
+      type: object
+      properties:
+        problem_description:
+          type: string
+          description: Detailed description of the complex problem to analyze
+          minLength: 20
+          maxLength: 5000
+        context:
+          type: string
+          description: Additional context and background information
+          maxLength: 2000
+        analysis_depth:
+          type: string
+          description: Desired depth of analysis
+          enum: ["basic", "detailed", "comprehensive"]
+        specific_aspects:
+          type: array
+          items:
+            type: string
+          description: Specific aspects to focus on during analysis
+      required:
+        - problem_description
+        - analysis_depth
+
+    output:
+      type: object
+      properties:
+        problem_summary:
+          type: string
+          description: Concise summary of the problem
+        analysis_breakdown:
+          type: array
+          items:
+            type: object
+            properties:
+              aspect:
+                type: string
+                description: Aspect of the problem analyzed
+              findings:
+                type: string
+                description: Key findings for this aspect
+              confidence:
+                type: number
+                minimum: 0.0
+                maximum: 1.0
+                description: Confidence level in the analysis
+        recommendations:
+          type: array
+          items:
+            type: string
+          description: Actionable recommendations
+        reasoning_chain:
+          type: string
+          description: Step-by-step reasoning process used
+        layer3_insights:
+          type: string
+          description: Advanced insights from Layer 3 intelligence
+      required:
+        - problem_summary
+        - analysis_breakdown
+        - recommendations
+        - reasoning_chain
+
+  generate_creative_solution:
+    description: Generate creative solutions using Cortex's innovative thinking
+    timeout: 90
+    input:
+      type: object
+      properties:
+        challenge:
+          type: string
+          description: The challenge or problem to solve
+          minLength: 10
+          maxLength: 2000
+        constraints:
+          type: array
+          items:
+            type: string
+          description: Constraints or limitations to consider
+        creativity_level:
+          type: string
+          description: Desired level of creativity
+          enum: ["practical", "innovative", "breakthrough"]
+      required:
+        - challenge
+        - creativity_level
+
+    output:
+      type: object
+      properties:
+        solution_overview:
+          type: string
+          description: High-level overview of the solution
+        detailed_approach:
+          type: string
+          description: Detailed implementation approach
+        innovation_points:
+          type: array
+          items:
+            type: string
+          description: Key innovative aspects of the solution
+        feasibility_assessment:
+          type: string
+          description: Assessment of solution feasibility
+        alternative_approaches:
+          type: array
+          items:
+            type: string
+          description: Alternative solution approaches
+      required:
+        - solution_overview
+        - detailed_approach
+        - innovation_points
+
+prompts:
+  system: >
+    You are an advanced AI agent powered by Cortex intelligence engine.
+    You excel at complex problem analysis, creative thinking, and providing
+    deep insights through multi-layered reasoning.
+    
+    When analyzing problems:
+    - Break down complex issues into manageable components
+    - Use systematic reasoning to explore different angles
+    - Provide evidence-based conclusions
+    - Consider multiple perspectives and scenarios
+    
+    When generating solutions:
+    - Think creatively while maintaining practicality
+    - Consider both immediate and long-term implications
+    - Provide actionable recommendations
+    - Leverage your advanced reasoning capabilities
+    
+    Always structure your responses according to the specified output schema
+    and maintain high quality, professional analysis.
+
+  user: >
+    Please analyze the provided input using your Cortex intelligence capabilities.
+    Follow the task-specific instructions and output schema requirements.
+
+  analyze_complex_problem: >
+    Analyze the following complex problem using your advanced reasoning capabilities:
+    
+    Problem: {{ input.problem_description }}
+    Context: {{ input.context if input.context else "No additional context provided" }}
+    Analysis Depth: {{ input.analysis_depth }}
+    {% if input.specific_aspects %}
+    Focus Areas: {{ ", ".join(input.specific_aspects) }}
+    {% endif %}
+    
+    Provide a comprehensive analysis following the output schema requirements.
+
+  generate_creative_solution: >
+    Generate a creative solution for the following challenge:
+    
+    Challenge: {{ input.challenge }}
+    Constraints: {{ ", ".join(input.constraints) if input.constraints else "No specific constraints" }}
+    Creativity Level: {{ input.creativity_level }}
+    
+    Create an innovative solution that addresses the challenge while considering
+    the specified constraints and creativity level.
+
+behavioural_contract:
+  version: "1.0.0"
+  description: "Advanced AI agent contract with Cortex intelligence capabilities"
+  behavioural_flags:
+    reasoning_depth: "comprehensive"
+    creativity_level: "high"
+    evidence_based: "strict"
+    innovation_focus: "high"
+    practical_application: "balanced"
+  response_contract:
+    output_format:
+      required_fields: ["problem_summary", "analysis_breakdown", "recommendations"]
+    quality_standards:
+      confidence_threshold: 0.7
+      reasoning_required: true
+      evidence_based: true 
