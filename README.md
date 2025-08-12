@@ -153,7 +153,35 @@ intelligence:
 - Valid xAI account and API access
 - Uses OpenAI-compatible client library
 
-### 4. Local (`engine: "local"`)
+### 4. Cortex (`engine: "cortex"`)
+Use Cortex intelligence engine for advanced reasoning and multi-layered analysis.
+
+```yaml
+intelligence:
+  engine: "cortex"
+  model: "cortex-intelligence"
+  config:
+    enable_layer3: true
+    enable_onnx: false
+    openai_api_key: ${OPENAI_API_KEY}
+    claude_api_key: ${CLAUDE_API_KEY}
+    temperature: 0.2
+    max_tokens: 1500
+```
+
+**Requirements:**
+- Cortex intelligence package: `cortex-intelligence`
+- OpenAI API key in environment variable `OPENAI_API_KEY`
+- Claude API key in environment variable `CLAUDE_API_KEY`
+- Valid OpenAI and Anthropic accounts with API access
+
+**Cortex-Specific Features:**
+- **Layer 3 Intelligence:** Advanced reasoning capabilities
+- **ONNX Runtime:** Optional optimization for performance
+- **Multi-Engine Integration:** Combines OpenAI and Claude capabilities
+- **Advanced Analysis:** Deep problem breakdown and creative solution generation
+
+### 5. Local (`engine: "local"`)
 Use locally hosted LLM models (placeholder for future implementation).
 
 ```yaml
@@ -240,7 +268,7 @@ class CustomLLMRouter:
 - **Purpose:** Specifies which LLM engine to use
 - **Format:** String (enum)
 - **Required:** Yes
-- **Options:** "openai", "anthropic", "grok", "local", "custom"
+- **Options:** "openai", "anthropic", "grok", "cortex", "local", "custom"
 
 #### `intelligence.endpoint`
 - **Purpose:** API endpoint URL for the LLM service

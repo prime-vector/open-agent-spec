@@ -1,9 +1,6 @@
 """Test Cortex engine integration with OAS."""
 
 import pytest
-from unittest.mock import patch, MagicMock
-import json
-from typing import Dict, Any
 
 pytestmark = pytest.mark.cortex
 
@@ -22,8 +19,8 @@ class TestCortexEngineIntegration:
                 "openai_api_key": "${OPENAI_API_KEY}",
                 "claude_api_key": "${CLAUDE_API_KEY}",
                 "temperature": 0.2,
-                "max_tokens": 1500
-            }
+                "max_tokens": 1500,
+            },
         }
 
         # Verify required fields
@@ -48,15 +45,14 @@ class TestCortexEngineIntegration:
 
     def test_cortex_agent_generation(self):
         """Test that Cortex agents can be generated properly."""
-        from oas_cli.generators import generate_agent_code
-        
+
         # Mock spec data for Cortex agent
         spec_data = {
             "open_agent_spec": "1.0.8",
             "agent": {
                 "name": "test-cortex-agent",
                 "description": "Test agent using Cortex engine",
-                "role": "analyst"
+                "role": "analyst",
             },
             "intelligence": {
                 "type": "llm",
@@ -66,8 +62,8 @@ class TestCortexEngineIntegration:
                     "enable_layer3": True,
                     "enable_onnx": False,
                     "temperature": 0.2,
-                    "max_tokens": 1500
-                }
+                    "max_tokens": 1500,
+                },
             },
             "tasks": {
                 "analyze": {
@@ -75,20 +71,16 @@ class TestCortexEngineIntegration:
                     "timeout": 60,
                     "input": {
                         "type": "object",
-                        "properties": {
-                            "query": {"type": "string"}
-                        },
-                        "required": ["query"]
+                        "properties": {"query": {"type": "string"}},
+                        "required": ["query"],
                     },
                     "output": {
                         "type": "object",
-                        "properties": {
-                            "result": {"type": "string"}
-                        },
-                        "required": ["result"]
-                    }
+                        "properties": {"result": {"type": "string"}},
+                        "required": ["result"],
+                    },
                 }
-            }
+            },
         }
 
         # This should not raise an error
@@ -108,28 +100,32 @@ class TestCortexEngineIntegration:
             "openai_api_key": "sk-...",
             "claude_api_key": "sk-ant-...",
             "temperature": 0.2,
-            "max_tokens": 1500
+            "max_tokens": 1500,
         }
 
         # All required fields present
-        required_fields = ["enable_layer3", "enable_onnx", "openai_api_key", "claude_api_key"]
+        required_fields = [
+            "enable_layer3",
+            "enable_onnx",
+            "openai_api_key",
+            "claude_api_key",
+        ]
         for field in required_fields:
             assert field in valid_config
 
         # Valid temperature range
         assert 0.0 <= valid_config["temperature"] <= 2.0
-        
+
         # Valid max_tokens
         assert valid_config["max_tokens"] > 0
 
     def test_cortex_environment_variables(self):
         """Test Cortex environment variable handling."""
-        import os
-        
+
         # Test environment variable substitution
         config_with_env = {
             "openai_api_key": "${OPENAI_API_KEY}",
-            "claude_api_key": "${CLAUDE_API_KEY}"
+            "claude_api_key": "${CLAUDE_API_KEY}",
         }
 
         # These should be properly formatted for environment substitution
@@ -145,7 +141,7 @@ class TestCortexEngineIntegration:
             {"enable_layer3": True, "enable_onnx": True},
             {"enable_layer3": True, "enable_onnx": False},
             {"enable_layer3": False, "enable_onnx": True},
-            {"enable_layer3": False, "enable_onnx": False}
+            {"enable_layer3": False, "enable_onnx": False},
         ]
 
         for config in layer3_configs:
@@ -160,8 +156,12 @@ class TestCortexEngineIntegration:
     def test_cortex_api_key_handling(self):
         """Test API key handling for Cortex integration."""
         # Test API key formats
-        openai_key = "sk-1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef"
-        claude_key = "sk-ant-1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef"
+        openai_key = (
+            "sk-1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef"
+        )
+        claude_key = (
+            "sk-ant-1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef"
+        )
 
         # Verify key formats
         assert openai_key.startswith("sk-")
@@ -176,7 +176,7 @@ class TestCortexEngineIntegration:
             "openai_api_key": openai_key,
             "claude_api_key": claude_key,
             "temperature": 0.2,
-            "max_tokens": 1500
+            "max_tokens": 1500,
         }
 
         # Keys should be properly stored
@@ -187,25 +187,26 @@ class TestCortexEngineIntegration:
         """Test that Cortex template follows OAS structure."""
         # Load the Cortex template
         template_path = "oas_cli/templates/cortex-intelligence-agent.yaml"
-        
+
         try:
             import yaml
-            with open(template_path, 'r') as f:
+
+            with open(template_path, "r") as f:
                 template_data = yaml.safe_load(f)
-            
+
             # Verify template structure
             assert "open_agent_spec" in template_data
             assert "agent" in template_data
             assert "intelligence" in template_data
             assert "tasks" in template_data
-            
+
             # Verify intelligence configuration
             intelligence = template_data["intelligence"]
             assert intelligence["engine"] == "cortex"
             assert intelligence["model"] == "cortex-intelligence"
             assert "enable_layer3" in intelligence["config"]
             assert "enable_onnx" in intelligence["config"]
-            
+
         except FileNotFoundError:
             pytest.skip("Cortex template not found")
         except Exception as e:
@@ -225,8 +226,8 @@ class TestCortexEngineCompatibility:
                 "enable_layer3": True,
                 "enable_onnx": False,
                 "temperature": 0.2,
-                "max_tokens": 1500
-            }
+                "max_tokens": 1500,
+            },
         }
 
         # Should have required DACP fields
@@ -241,13 +242,11 @@ class TestCortexEngineCompatibility:
             "behavioural_flags": {
                 "reasoning_depth": "comprehensive",
                 "creativity_level": "high",
-                "evidence_based": "strict"
+                "evidence_based": "strict",
             },
             "response_contract": {
-                "output_format": {
-                    "required_fields": ["result", "reasoning"]
-                }
-            }
+                "output_format": {"required_fields": ["result", "reasoning"]}
+            },
         }
 
         # Should have behavioral contract structure
@@ -262,11 +261,11 @@ class TestCortexEngineCompatibility:
             "multi_step": True,
             "steps": [
                 {"task": "analyze", "input_map": {"query": "{{input.query}}"}},
-                {"task": "synthesize", "input_map": {"analysis": "{{analyze.result}}"}}
-            ]
+                {"task": "synthesize", "input_map": {"analysis": "{{analyze.result}}"}},
+            ],
         }
 
         # Should have multi-step structure
         assert multi_task_config["multi_step"] is True
         assert "steps" in multi_task_config
-        assert len(multi_task_config["steps"]) > 0 
+        assert len(multi_task_config["steps"]) > 0

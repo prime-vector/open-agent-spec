@@ -506,7 +506,7 @@ def _generate_json_example(
         if items.get("type") == "object":
             # Array of objects
             lines.append(field_line + "[")
-            lines.append(f'{" " * (indent + 2)}{{')
+            lines.append(f"{' ' * (indent + 2)}{{")
             nested_props = items.get("properties", {})
             for j, (nested_name, nested_schema) in enumerate(nested_props.items()):
                 nested_comma = "," if j < len(nested_props) - 1 else ""
@@ -514,8 +514,8 @@ def _generate_json_example(
                     nested_name, nested_schema, indent + 4, nested_comma
                 )
                 lines.extend(nested_lines)
-            lines.append(f'{" " * (indent + 2)}}}')
-            lines.append(f'{" " * indent}]' + comma)
+            lines.append(f"{' ' * (indent + 2)}}}")
+            lines.append(f"{' ' * indent}]" + comma)
         else:
             # Array of primitives
             item_type = items.get("type", "string")
@@ -542,7 +542,7 @@ def _generate_json_example(
                 nested_name, nested_schema, indent + 2, nested_comma
             )
             lines.extend(nested_lines)
-        lines.append(f'{" " * indent}}}' + comma)
+        lines.append(f"{' ' * indent}}}" + comma)
 
     else:
         # Fallback
@@ -1339,7 +1339,9 @@ def generate_requirements(output: Path, spec_data: Dict[str, Any]) -> None:
     elif engine == "cortex":
         requirements.append("cortex-intelligence")
         requirements.append("openai>=1.0.0  # Required for Cortex OpenAI integration")
-        requirements.append("anthropic>=0.18.0  # Required for Cortex Claude integration")
+        requirements.append(
+            "anthropic>=0.18.0  # Required for Cortex Claude integration"
+        )
     elif engine == "local":
         requirements.append("# Add your local engine dependencies here")
     elif engine == "custom":
