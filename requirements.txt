@@ -4,3 +4,4 @@ behavioural-contracts>=0.1.2
 dacp>=0.3.3
 python-dotenv>=0.19.0
 toml
+cortex-intelligence

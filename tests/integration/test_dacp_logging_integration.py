@@ -250,9 +250,9 @@ with patch('agent.invoke_intelligence', side_effect=mock_invoke_intelligence):
 
         # Final verification
         assert test_result.returncode == 0, f"Main test failed: {test_result.stderr}"
-        assert (
-            "DACP logging configured" in output
-        ), "DACP logging setup not found in output"
+        assert "DACP logging configured" in output, (
+            "DACP logging setup not found in output"
+        )
 
         print("\n🏆 ALL INTEGRATION TESTS PASSED!")
         print("✅ CLI generation works")

@@ -61,10 +61,11 @@
               "openai",
               "anthropic",
               "grok",
+              "cortex",
               "local",
               "custom"
             ],
-            "description": "LLM engine provider (e.g., openai, anthropic, grok, local, custom)"
+            "description": "LLM engine provider (e.g., openai, anthropic, grok, cortex, local, custom)"
           },
           "model": {
             "type": "string",
@@ -106,6 +107,22 @@
                 "minimum": -2,
                 "maximum": 2,
                 "description": "Presence penalty (-2 to 2)"
+              },
+              "enable_layer3": {
+                "type": "boolean",
+                "description": "Enable Layer 3 intelligence capabilities (Cortex-specific)"
+              },
+              "enable_onnx": {
+                "type": "boolean",
+                "description": "Enable ONNX runtime optimization (Cortex-specific)"
+              },
+              "openai_api_key": {
+                "type": "string",
+                "description": "OpenAI API key for Cortex integration"
+              },
+              "claude_api_key": {
+                "type": "string",
+                "description": "Claude API key for Cortex integration"
               }
             },
             "description": "Configuration parameters for the LLM"

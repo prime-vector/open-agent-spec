@@ -32,7 +32,6 @@ dev = [
     "pytest-html>=3.0.0",
     "pytest-xdist>=3.0.0",
     "allure-pytest>=2.0.0",
-    "black>=23.0.0",
     "isort>=5.0.0",
     "mypy>=1.0.0",
     "ruff>=0.1.0",
@@ -78,6 +77,14 @@ ignore_missing_imports = true
 line-length = 88
 target-version = "py310"
 
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+line-ending = "lf"  # Use Unix line endings for consistency
+skip-magic-trailing-comma = false
+docstring-code-format = true
+docstring-code-line-length = 100
+preview = false  # Use stable formatting rules
 
 [tool.ruff.lint]
 select = [
@@ -96,23 +103,3 @@ ignore = [
     "B008",  # do not perform function calls in argument defaults
     "RUF022",  # __all__ sorting
 ]
-
-[tool.black]
-line-length = 88
-target-version = ['py310']
-include = '\.pyi?$'
-exclude = '''
-/(
-    \.eggs
-  | \.git
-  | \.hg
-  | \.mypy_cache
-  | \.tox
-  | \.venv
-  | _build
-  | buck-out
-  | build
-  | dist
-  | test_output
-)/
-'''
