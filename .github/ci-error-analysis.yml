@@ -26,7 +26,7 @@ jobs:
           echo "Branch: ${{ github.event.workflow_run.head_branch }}"
           
       - name: Run AI Error Analysis
-        uses: aswhitehouse/gh-pipeline-agents@main
+        uses: prime-vector/gh-pipeline-agents@main
         with:
           openai_api_key: ${{ secrets.OPENAI_API_KEY }}
           workflow_run_id: ${{ github.event.workflow_run.id }}
