@@ -1,8 +1,17 @@
 name: Error Analysis
 
+# This workflow triggers when any of the specified CI workflows fail
+# It uses the gh-pipeline-agents action to analyze the failure and provide insights
+# The workflow will only run when github.event.workflow_run.conclusion == 'failure'
+
 on:
   workflow_run:
-    workflows: ["CI", "Release"]
+    workflows: 
+      - "Push Tests"
+      - "PR Tests" 
+      - "Feature Branch Tests"
+      - "Integration Tests"
+      - "Publish to PyPI"
     types: [completed]
 
 jobs:
@@ -18,12 +27,43 @@ jobs:
     steps:
       - name: Debug Workflow Trigger
         run: |
+          echo "🔍 DEBUGGING WORKFLOW TRIGGER"
+          echo "================================"
           echo "Workflow run ID: ${{ github.event.workflow_run.id }}"
           echo "Workflow name: ${{ github.event.workflow_run.name }}"
           echo "Conclusion: ${{ github.event.workflow_run.conclusion }}"
           echo "Event name: ${{ github.event_name }}"
           echo "Repository: ${{ github.repository }}"
           echo "Branch: ${{ github.event.workflow_run.head_branch }}"
+          echo "Status: ${{ github.event.workflow_run.status }}"
+          echo "Created at: ${{ github.event.workflow_run.created_at }}"
+          echo "Updated at: ${{ github.event.workflow_run.updated_at }}"
+          echo "================================"
+          
+      - name: Check Workflow Failure
+        run: |
+          echo "🔍 CHECKING WORKFLOW STATUS"
+          echo "================================"
+          if [ "${{ github.event.workflow_run.conclusion }}" = "failure" ]; then
+            echo "✅ Workflow failed - proceeding with error analysis"
+            echo "Failed workflow: ${{ github.event.workflow_run.name }}"
+            echo "Failed branch: ${{ github.event.workflow_run.head_branch }}"
+            echo "================================"
+          else
+            echo "❌ Workflow did not fail - skipping error analysis"
+            echo "Workflow conclusion: ${{ github.event.workflow_run.conclusion }}"
+            echo "================================"
+            exit 1
+          fi
+          
+      - name: Get Workflow Logs
+        run: |
+          echo "📋 WORKFLOW LOGS INFO"
+          echo "================================"
+          echo "Attempting to get workflow logs..."
+          echo "Note: Workflow logs may not be immediately available"
+          echo "Workflow run URL: https://github.com/${{ github.repository }}/actions/runs/${{ github.event.workflow_run.id }}"
+          echo "================================"
           
       - name: Run AI Error Analysis
         uses: aswhitehouse/gh-pipeline-agents@main
@@ -35,3 +75,19 @@ jobs:
           commit_sha: ${{ github.event.workflow_run.head_sha }}
           pr_number: ${{ github.event.workflow_run.pull_requests[0].number || '' }}
           slack_webhook_url: ${{ secrets.SLACK_WEBHOOK_URL }}
+        continue-on-error: true
+        
+      - name: Report Analysis Status
+        if: always()
+        run: |
+          echo "📊 ANALYSIS STATUS REPORT"
+          echo "================================"
+          if [ "${{ job.status }}" = "success" ]; then
+            echo "✅ Error analysis completed successfully"
+            echo "The AI agent has analyzed the workflow failure and provided insights"
+          else
+            echo "❌ Error analysis failed"
+            echo "This may be due to missing secrets or API issues"
+            echo "Check the logs above for more details"
+          fi
+          echo "================================"
