@@ -4,12 +4,12 @@
 
 import logging
 import tempfile
+from importlib.metadata import version as _get_version
 from pathlib import Path
 from typing import Dict, Any, Tuple, Optional
 
 import typer
 import yaml
-import pkg_resources
 from rich.console import Console
 from rich.logging import RichHandler
 from rich.panel import Panel
@@ -38,9 +38,9 @@ def setup_logging(verbose: bool = False) -> logging.Logger:
 
 
 def get_version_from_pyproject():
-    """Get the version from package metadata."""
+    """Get the version from package metadata (no setuptools dependency)."""
     try:
-        return pkg_resources.get_distribution("open-agent-spec").version
+        return _get_version("open-agent-spec")
     except Exception:
         return "unknown"
 
@@ -105,11 +105,9 @@ def resolve_spec_path(
     if spec is not None:
         return spec, None
     elif template == "minimal":
-        # Load the template from the package resources
+        # Load the template from the package directory (no pkg_resources)
         try:
-            template_path = pkg_resources.resource_filename(
-                "oas_cli.templates", "minimal-agent.yaml"
-            )  # type: ignore
+            template_path = Path(__file__).parent / "templates" / "minimal-agent.yaml"
             with open(template_path, "rb") as f:
                 temp = tempfile.NamedTemporaryFile(delete=False, suffix=".yaml")
                 temp.write(f.read())
