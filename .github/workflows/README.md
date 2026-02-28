@@ -1,13 +1,24 @@
 # CI/CD Workflows
 
+## Main CI (single job)
+
 | Workflow | Trigger | Purpose |
 |----------|---------|---------|
-| **pr-test.yml** | PRs to `main`/`develop` | Fast feedback: pytest (single version), ruff, mypy. One run per branch (new pushes cancel previous). |
-| **test-enhanced.yml** | Push/PR to `main` | Full test matrix (Python 3.10 + 3.12), coverage, JUnit/HTML reports, Codecov, PR comment with results. |
-| **test.yml** | Push to `main`/`develop` | Push Tests: pytest, ruff, mypy (single Python 3.12). |
-| **integration-tests.yml** | Push/PR to `main`, manual | Runs `tests/integration/test_templates.py` (scaffold from templates, install deps, import/run agents). |
-| **feature-test.yml** | Feature branches | Optional feature-branch testing. |
-| **publish.yml** | Release/publish | Package publish. |
-| **ci-error-analysis.yaml** | — | Error analysis. |
+| **ci.yml** | PRs and pushes to `main` / `develop` | One job: Python 3.12, pytest + ruff (check + format) + mypy + integration tests (`test_templates.py`). Single green check per run. |
 
-**Python versions:** The project supports **Python ≥3.10**. We run the main test suite on **3.10 and 3.12** only (3.11 skipped to keep CI faster and reduce redundant runs). If you need to support 3.11 explicitly, add it back to the matrix in `test-enhanced.yml`.
+All testing and linting for PRs and main/develop runs in this one workflow. No matrix, no separate “Enhanced” or “PR Tests” jobs.
+
+## Other workflows
+
+| Workflow | Trigger | Purpose |
+|----------|---------|---------|
+| **publish.yml** | Release | Publish package. |
+| **ci-error-analysis.yaml** | — | Error analysis (if used). |
+
+## Removed (consolidated into ci.yml)
+
+- **pr-test.yml** — merged into ci.yml
+- **test-enhanced.yml** — matrix and reporting removed; single Python 3.12 in ci.yml
+- **test.yml** (Push Tests) — same steps now in ci.yml on push
+- **integration-tests.yml** — integration step runs inside ci.yml
+- **feature-test.yml** — removed; open a PR to run CI on feature branches
