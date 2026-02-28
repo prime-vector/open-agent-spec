@@ -45,12 +45,12 @@ oas init --spec path/to/spec.yaml --output path/to/output --verbose
 The spec file should be in YAML format with the following structure. Each section is explained in detail below:
 
 ```yaml
-spec_version: "1.0.7"  # OAS specification version
+open_agent_spec: "1.0.7"  # OAS specification version (canonical field)
 
 agent:
   name: "hello-world-agent"           # Unique identifier for the agent
   description: "A simple agent that responds with a greeting"  # Human-readable description
-  role: "assistant"                   # Agent role type (assistant, analyst, etc.)
+  role: "chat"                        # Agent role (schema enum: analyst, reviewer, chat, retriever, planner, executor)
 
 intelligence:
   engine: "openai"                    # LLM engine: openai, anthropic, grok, local, or custom
@@ -234,8 +234,8 @@ class CustomLLMRouter:
 
 ## YAML Field Explanations
 
-### `spec_version`
-- **Purpose:** Version of the OAS specification being used
+### `open_agent_spec`
+- **Purpose:** Version of the OAS specification being used (canonical field name; schema and code use this, not `spec_version`).
 - **Format:** String (e.g., "1.0.4")
 - **Required:** Yes
 - **Note:** Ensures compatibility with the CLI version
@@ -256,10 +256,10 @@ class CustomLLMRouter:
 - **Example:** "A friendly agent that greets people by name"
 
 #### `agent.role`
-- **Purpose:** Defines the agent's role type
+- **Purpose:** Defines the agent's role type (must match schema enum for validation).
 - **Format:** String (enum)
 - **Required:** No (optional)
-- **Options:** "assistant", "analyst", "specialist", "coordinator", "researcher", "consultant"
+- **Options (schema):** "analyst", "reviewer", "chat", "retriever", "planner", "executor"
 
 ### `intelligence` Section
 - **Purpose:** Configures the LLM engine and model settings

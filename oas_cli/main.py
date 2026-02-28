@@ -4,12 +4,12 @@
 
 import logging
 import tempfile
+from importlib.metadata import version as _get_version
 from pathlib import Path
 from typing import Dict, Any, Tuple, Optional
 
 import typer
 import yaml
-import pkg_resources
 from rich.console import Console
 from rich.logging import RichHandler
 from rich.panel import Panel
@@ -38,9 +38,9 @@ def setup_logging(verbose: bool = False) -> logging.Logger:
 
 
 def get_version_from_pyproject():
-    """Get the version from package metadata."""
+    """Get the version from package metadata (no setuptools dependency)."""
     try:
-        return pkg_resources.get_distribution("open-agent-spec").version
+        return _get_version("open-agent-spec")
     except Exception:
         return "unknown"
 
@@ -100,20 +100,19 @@ def load_and_validate_spec(
 
 def resolve_spec_path(
     spec: Optional[Path], template: Optional[str], log: logging.Logger
-) -> Path:
+) -> Tuple[Path, Optional[Path]]:
+    """Return (spec_path, temp_file_to_delete). Second is non-None only when using minimal template."""
     if spec is not None:
-        return spec
+        return spec, None
     elif template == "minimal":
-        # Load the template from the package resources
+        # Load the template from the package directory (no pkg_resources)
         try:
-            template_path = pkg_resources.resource_filename(
-                "oas_cli.templates", "minimal-agent.yaml"
-            )  # type: ignore
+            template_path = Path(__file__).parent / "templates" / "minimal-agent.yaml"
             with open(template_path, "rb") as f:
                 temp = tempfile.NamedTemporaryFile(delete=False, suffix=".yaml")
                 temp.write(f.read())
                 temp.close()
-                return Path(temp.name)
+                return Path(temp.name), Path(temp.name)
         except Exception as e:
             log.error(f"Failed to load minimal template from package: {e}")
             raise typer.Exit(1)
@@ -189,27 +188,35 @@ def init(
     )
 
     # Determine which spec to use
-    spec_path = resolve_spec_path(spec, template, log)
-    spec_data, agent_name, class_name = load_and_validate_spec(spec_path, log)
+    spec_path, temp_file_to_delete = resolve_spec_path(spec, template, log)
+    try:
+        spec_data, agent_name, class_name = load_and_validate_spec(spec_path, log)
 
-    if dry_run:
-        console.print(
-            Panel.fit(
-                "🧪 [bold]Dry run mode[/]: No files will be written.", style="yellow"
+        if dry_run:
+            console.print(
+                Panel.fit(
+                    "🧪 [bold]Dry run mode[/]: No files will be written.",
+                    style="yellow",
+                )
             )
-        )
-        log.info("Agent Name: %s", agent_name)
-        log.info("Class Name: %s", class_name)
-        log.info("Output directory would be: %s", output.resolve())
-        log.info("Files that would be created:")
-        log.info("- agent.py")
-        log.info("- README.md")
-        log.info("- requirements.txt")
-        log.info("- .env.example")
-        log.info("- prompts/agent_prompt.jinja2")
-        return
+            log.info("Agent Name: %s", agent_name)
+            log.info("Class Name: %s", class_name)
+            log.info("Output directory would be: %s", output.resolve())
+            log.info("Files that would be created:")
+            log.info("- agent.py")
+            log.info("- README.md")
+            log.info("- requirements.txt")
+            log.info("- .env.example")
+            log.info("- prompts/agent_prompt.jinja2")
+            return
 
-    generate_files(output, spec_data, agent_name, class_name, log)
+        generate_files(output, spec_data, agent_name, class_name, log)
+    finally:
+        if temp_file_to_delete is not None and temp_file_to_delete.exists():
+            try:
+                temp_file_to_delete.unlink()
+            except OSError:
+                pass
 
 
 @app.command()

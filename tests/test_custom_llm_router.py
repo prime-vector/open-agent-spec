@@ -36,11 +36,11 @@ class InvalidRouter:
 def base_spec() -> Dict[str, Any]:
     """Base spec template for custom LLM router tests"""
     return {
-        "spec_version": "1.0.4",
+        "open_agent_spec": "1.0.4",
         "agent": {
             "name": "TestAgent",
             "description": "A test agent with custom LLM router",
-            "role": "assistant",
+            "role": "chat",
         },
         "intelligence": {
             "engine": "custom",

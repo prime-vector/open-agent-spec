@@ -6,13 +6,13 @@
 
 import logging
 from pathlib import Path
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Optional
 
 log = logging.getLogger(__name__)
 
 
 def file_writer(
-    file_path: str, content: str, allowed_paths: List[str] = None
+    file_path: str, content: str, allowed_paths: Optional[List[str]] = None
 ) -> Dict[str, Any]:
     """Write content to a file with safety checks.
 
@@ -24,6 +24,8 @@ def file_writer(
     Returns:
         Dictionary with success status and file path
     """
+    if allowed_paths is None:
+        allowed_paths = []
     try:
         # Convert to Path object for easier manipulation
         target_path = Path(file_path).resolve()

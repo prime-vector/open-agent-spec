@@ -208,7 +208,7 @@ def validate_with_json_schema(spec_data: dict, schema_path: str) -> None:
     try:
         validate(instance=spec_data, schema=schema)
     except (ValidationError, SchemaError) as e:
-        raise ValueError(f"Spec validation failed: {e.message}")
+        raise ValueError(f"Spec validation failed: {str(e)}")
 
 
 def validate_spec(spec_data: dict) -> Tuple[str, str]:
