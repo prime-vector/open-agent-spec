@@ -1,6 +1,6 @@
-# OAS CLI Tests
+# OA CLI Tests
 
-This directory contains the test suite for the OAS CLI.
+This directory contains the test suite for the OA CLI.
 
 ## Test Structure
 
@@ -46,7 +46,7 @@ pytest tests/ -v
 
 ## Integration Tests
 
-Integration tests verify that the OAS CLI can:
+Integration tests verify that the OA CLI can:
 - Generate agents from templates
 - Install dependencies correctly
 - Import and instantiate generated agents

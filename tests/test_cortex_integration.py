@@ -1,4 +1,4 @@
-"""Test Cortex engine integration with OAS."""
+"""Test Cortex engine integration with OA."""
 
 import pytest
 
@@ -184,7 +184,7 @@ class TestCortexEngineIntegration:
         assert config_with_keys["claude_api_key"] == claude_key
 
     def test_cortex_template_structure(self):
-        """Test that Cortex template follows OAS structure."""
+        """Test that Cortex template follows OA structure."""
         # Load the Cortex template
         template_path = "oas_cli/templates/cortex-intelligence-agent.yaml"
 
@@ -214,7 +214,7 @@ class TestCortexEngineIntegration:
 
 
 class TestCortexEngineCompatibility:
-    """Test Cortex engine compatibility with existing OAS features."""
+    """Test Cortex engine compatibility with existing OA features."""
 
     def test_cortex_with_dacp_integration(self):
         """Test that Cortex works with DACP integration."""

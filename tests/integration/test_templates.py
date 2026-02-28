@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Local integration test script for OAS CLI templates.
+Local integration test script for OA CLI templates.
 This script tests all templates locally without requiring GitHub secrets.
 """
 
@@ -196,7 +196,7 @@ print("✅ Method signature is correct")
 
 def main():
     """Run all template tests."""
-    print("OAS CLI Template Integration Tests")
+    print("OA CLI Template Integration Tests")
     print("=" * 60)
 
     # Create test directory

@@ -1,6 +1,6 @@
-# Contributing to Open Agent Spec (OAS) CLI
+# Contributing to Open Agent Spec (OA) CLI
 
-Thank you for your interest in contributing to OAS CLI! This document provides guidelines and instructions for contributing.
+Thank you for your interest in contributing to OA CLI! This document provides guidelines and instructions for contributing.
 
 ## Code of Conduct
 
@@ -10,7 +10,7 @@ By participating in this project, you agree to maintain a respectful and inclusi
 
 ### Creating Agent Spec Files
 
-The Open Agent Spec (OAS) uses YAML files to define agent configurations. Here's how to create your own:
+The Open Agent Spec (OA) uses YAML files to define agent configurations. Here's how to create your own:
 
 #### Basic Structure
 ```yaml
@@ -169,4 +169,4 @@ Feel free to open an issue for any questions or concerns. We're here to help!
 
 ## License
 
-By contributing, you agree that your contributions will be licensed under the project's AGPLv3 License.
+By contributing, you agree that your contributions will be licensed under the project's MIT License.
