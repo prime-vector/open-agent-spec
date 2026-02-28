@@ -41,7 +41,7 @@ def get_version_from_pyproject():
     """Get the version from package metadata (no setuptools dependency)."""
     try:
         return _get_version("open-agent-spec")
-    except Exception:
+    except (ModuleNotFoundError, AttributeError):
         return "unknown"
 
 
@@ -113,7 +113,7 @@ def resolve_spec_path(
                 temp.write(f.read())
                 temp.close()
                 return Path(temp.name), Path(temp.name)
-        except Exception as e:
+        except (OSError, FileNotFoundError) as e:
             log.error(f"Failed to load minimal template from package: {e}")
             raise typer.Exit(1)
     else:
@@ -148,7 +148,7 @@ def generate_files(
         log.info("3. Run: pip install -r requirements.txt")
         log.info("4. Run: python agent.py")
 
-    except Exception as err:
+    except (OSError, ValueError, KeyError, TypeError, RuntimeError) as err:
         log.error(f"Error during file generation: {err}")
         raise RuntimeError(f"Failed to generate agent code: {err}") from err
 
