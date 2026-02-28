@@ -195,7 +195,8 @@ def init(
         if dry_run:
             console.print(
                 Panel.fit(
-                    "🧪 [bold]Dry run mode[/]: No files will be written.", style="yellow"
+                    "🧪 [bold]Dry run mode[/]: No files will be written.",
+                    style="yellow",
                 )
             )
             log.info("Agent Name: %s", agent_name)

@@ -16,7 +16,9 @@ def test_version_command():
     assert "Open Agent Spec CLI version" in result.output
     # CLI reports installed package version; assert it looks like a version (non-empty, contains digits)
     version_part = result.output.split("version")[-1].strip()
-    assert version_part and re.search(r"\d", version_part), "Version output should contain a version-like string"
+    assert version_part and re.search(r"\d", version_part), (
+        "Version output should contain a version-like string"
+    )
 
 
 def test_version_flag():
@@ -25,4 +27,6 @@ def test_version_flag():
     assert result.exit_code == 0
     assert "Open Agent Spec CLI version" in result.output
     version_part = result.output.split("version")[-1].strip()
-    assert version_part and re.search(r"\d", version_part), "Version output should contain a version-like string"
+    assert version_part and re.search(r"\d", version_part), (
+        "Version output should contain a version-like string"
+    )
