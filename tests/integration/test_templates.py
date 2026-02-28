@@ -33,6 +33,11 @@ def run_command(cmd, cwd=None, check=True):
     return result
 
 
+def oas_cmd(args: str) -> str:
+    """Build oas CLI command; use python -m oas_cli so it works in CI when 'oas' is not on PATH."""
+    return f"{sys.executable} -m oas_cli {args}"
+
+
 # Mark these as integration tests that should not be run by pytest
 @pytest.mark.skip(reason="Integration tests designed to run as standalone script")
 def test_template(template_name, test_dir):
@@ -51,7 +56,7 @@ def test_template(template_name, test_dir):
     try:
         # Generate agent
         print(f"Generating agent from {template_name}...")
-        run_command(f"oas init --spec {template_path} --output {agent_dir}")
+        run_command(oas_cmd(f"init --spec {template_path} --output {agent_dir}"))
 
         # Check required files exist
         print("Checking generated files...")
