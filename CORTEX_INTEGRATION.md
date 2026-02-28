@@ -1,6 +1,6 @@
 # Cortex Intelligence Engine Integration
 
-This document describes how to use the Cortex intelligence engine with Open Agent Spec (OAS).
+This document describes how to use the Cortex intelligence engine with Open Agent Spec (OA).
 
 ## Overview
 
@@ -263,7 +263,7 @@ Cortex integrates seamlessly with the DACP (Distributed Agent Control Protocol) 
 
 - **Automatic Integration**: No additional configuration required
 - **Tool Support**: Full support for DACP tools and workflows
-- **Behavioral Contracts**: Compatible with OAS behavioral contracts
+- **Behavioral Contracts**: Compatible with OA behavioral contracts
 - **Multi-Task Support**: Supports complex multi-step workflows
 
 ## Examples Directory

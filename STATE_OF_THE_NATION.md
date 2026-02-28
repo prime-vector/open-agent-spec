@@ -1,4 +1,4 @@
-# Open Agent Spec (OAS) — State of the Nation
+# Open Agent Spec (OA) — State of the Nation
 
 **Project:** `open-agent-spec` (oas-new)  
 **Location:** `Documents/src/oas-new/open-agent-spec`  

@@ -8,9 +8,9 @@
  `-------`---'   `-------`--- ---'  `--- ---`-------`-------`--- ---' `---'    `-------`---'   `-------`-------'
 ```
 
-# Open Agent Spec (OAS) CLI
+# Open Agent Spec (OA) CLI
 
-A command-line tool for generating AI agent projects based on Open Agent Spec YAML files. The OAS CLI supports multiple LLM engines including OpenAI, Anthropic, local models, and custom LLM routers.
+A command-line tool for generating AI agent projects based on Open Agent Spec YAML files. The OA CLI supports multiple LLM engines including OpenAI, Anthropic, local models, and custom LLM routers.
 
 ## Installation
 
@@ -45,7 +45,7 @@ oas init --spec path/to/spec.yaml --output path/to/output --verbose
 The spec file should be in YAML format with the following structure. Each section is explained in detail below:
 
 ```yaml
-open_agent_spec: "1.0.7"  # OAS specification version (canonical field)
+open_agent_spec: "1.0.7"  # OA specification version (canonical field)
 
 agent:
   name: "hello-world-agent"           # Unique identifier for the agent
@@ -99,7 +99,7 @@ behavioural_contract:                 # Optional behavioural contract
 
 ## Intelligence Engine Options
 
-The OAS CLI supports multiple LLM engines through the `intelligence.engine` field:
+The OA CLI supports multiple LLM engines through the `intelligence.engine` field:
 
 ### 1. OpenAI (`engine: "openai"`)
 Use OpenAI's API for LLM interactions.
@@ -235,7 +235,7 @@ class CustomLLMRouter:
 ## YAML Field Explanations
 
 ### `open_agent_spec`
-- **Purpose:** Version of the OAS specification being used (canonical field name; schema and code use this, not `spec_version`).
+- **Purpose:** Version of the OA specification being used (canonical field name; schema and code use this, not `spec_version`).
 - **Format:** String (e.g., "1.0.4")
 - **Required:** Yes
 - **Note:** Ensures compatibility with the CLI version
@@ -347,7 +347,7 @@ output/
 
 ## Built-in Templates
 
-The OAS CLI includes ready-to-use templates for common use cases:
+The OA CLI includes ready-to-use templates for common use cases:
 
 ### Minimal Templates
 ```bash
@@ -472,28 +472,9 @@ Your package will be available on PyPI within a few minutes.
 
 ## License
 
-This project is licensed under the GNU Affero General Public License v3.0 (AGPLv3), which ensures that improvements and deployments of this codebase stay open and benefit the wider community.
+This project is licensed under the MIT License. You are free to use, modify, and distribute the software, including in proprietary projects, provided the copyright notice and license text are included.
 
-If you're a business or enterprise and would like to:
-
-- Use this tool in a proprietary or internal-only setting
-- Avoid open-sourcing your modifications or integrations
-- Receive custom implementation support or consulting
-- Discuss a commercial license or enterprise partnership
-
-➡️ Please feel free to reach out:
-📧 andrewswhitehouse@gmail.com
-
-Myself and my collaborators would be happy to support your journey with AI agents and ensure responsible, scalable use of this tooling in your stack.
+See [LICENSE](./LICENSE) for the full text.
 
 ## Overview
 https://www.openagentstack.ai
-
-## License and Attribution
-
-This project is licensed under the [AGPL-3.0](./LICENSE), with Additional Terms designed to protect the unique terminology, branding, and concepts of Open Agent Stack and related projects.
-
-**Key Points:**
-- You must clearly attribute Prime Vector Australia, Andrew Whitehouse, and “Open Agent Stack” in all public forks, derivatives, and deployments.
-- You may not use the terms “Open Agent Stack,” “Open Agent Spec,” “Behavioral Contract Engineering (BCE),” “DACP,” “Shepard,” or any unique concepts/branding from this project as the name, identity, or primary branding of a fork or derivative without written permission from Prime Vector Australia or Andrew Whitehouse.
-- For commercial use or partnership, please contact andrew@primevector.com.au.

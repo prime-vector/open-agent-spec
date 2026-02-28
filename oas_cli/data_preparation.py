@@ -1,6 +1,5 @@
 # Copyright (c) Prime Vector Australia, Andrew Whitehouse, Open Agent Stack contributors
-# Licensed under AGPL-3.0 with Additional Terms
-# See LICENSE for details on attribution, naming, and branding restrictions.
+# Licensed under the MIT License. See LICENSE for details.
 
 """Data preparation utilities for code generation."""
 
@@ -197,7 +196,7 @@ class AgentDataPreparator:
         """Get memory for the current context.
 
         This is a stub method that should be implemented by the developer.
-        The memory format and retrieval mechanism are not prescribed by OAS.
+        The memory format and retrieval mechanism are not prescribed by OA.
 
         Returns:
             str: Memory string in the format specified by the spec

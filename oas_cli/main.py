@@ -1,6 +1,5 @@
 # Copyright (c) Prime Vector Australia, Andrew Whitehouse, Open Agent Stack contributors
-# Licensed under AGPL-3.0 with Additional Terms
-# See LICENSE for details on attribution, naming, and branding restrictions.
+# Licensed under the MIT License. See LICENSE for details.
 
 import logging
 import tempfile
@@ -24,7 +23,7 @@ from .generators import (
 )
 from .validators import validate_spec, validate_with_json_schema
 
-app = typer.Typer(help="Open Agent Spec (OAS) CLI")
+app = typer.Typer(help="Open Agent Spec (OA) CLI")
 console = Console()
 
 
@@ -66,7 +65,7 @@ def main(
                 "Use [bold magenta]oas update[/] to update existing agent code\n"
                 "Define it via Open Agent Spec YAML\n"
                 "Use [bold yellow]--dry-run[/] to preview actions without writing files.",
-                title="[bold green]OAS CLI[/]",
+                title="[bold green]OA CLI[/]",
                 subtitle="Open Agent Spec Generator",
             )
         )
@@ -182,7 +181,7 @@ def init(
     console.print(
         Panel(
             ASCII_TITLE,
-            title="[bold cyan]OAS CLI[/]",
+            title="[bold cyan]OA CLI[/]",
             subtitle="[green]Open Agent Spec Generator[/]",
         )
     )
@@ -238,7 +237,7 @@ def update(
     console.print(
         Panel(
             ASCII_TITLE,
-            title="[bold cyan]OAS CLI[/]",
+            title="[bold cyan]OA CLI[/]",
             subtitle="[green]Open Agent Spec Updater[/]",
         )
     )
