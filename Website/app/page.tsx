@@ -1,20 +1,20 @@
 "use client";
 
 import React, { useCallback, useState, useEffect } from "react";
-import { SplitScreen } from "@/components/layout/SplitScreen";
-import { ResultTabs, type ResultTabId } from "@/components/layout/ResultTabs";
-import { YamlEditor } from "@/components/editor/YamlEditor";
-import { GenerateButton } from "@/components/playground/GenerateButton";
-import { RunButton } from "@/components/playground/RunButton";
-import { GeneratedCodeTab } from "@/components/output/GeneratedCodeTab";
-import { LogsTab } from "@/components/output/LogsTab";
-import { OutputTab } from "@/components/output/OutputTab";
-import { parseAndValidateSpec } from "@/lib/spec/parse";
-import { generateScaffold, type TargetLanguage } from "@/lib/codegen/generate";
-import { runFirstTaskWithSampleInput } from "@/lib/runtime/mockRuntime";
-import type { OpenAgentSpec } from "@/lib/spec/types";
-import type { ExecutionResult } from "@/lib/runtime/types";
-import { DEFAULT_SPEC_YAML } from "@/content/defaultSpec";
+import { SplitScreen } from "../components/layout/SplitScreen";
+import { ResultTabs, type ResultTabId } from "../components/layout/ResultTabs";
+import { YamlEditor } from "../components/editor/YamlEditor";
+import { GenerateButton } from "../components/playground/GenerateButton";
+import { RunButton } from "../components/playground/RunButton";
+import { GeneratedCodeTab } from "../components/output/GeneratedCodeTab";
+import { LogsTab } from "../components/output/LogsTab";
+import { OutputTab } from "../components/output/OutputTab";
+import { parseAndValidateSpec } from "../lib/spec/parse";
+import { generateScaffold, type TargetLanguage } from "../lib/codegen/generate";
+import { runFirstTaskWithSampleInput } from "../lib/runtime/mockRuntime";
+import type { OpenAgentSpec } from "../lib/spec/types";
+import type { ExecutionResult } from "../lib/runtime/types";
+import { DEFAULT_SPEC_YAML } from "../content/defaultSpec";
 
 export default function PlaygroundPage() {
   const [yaml, setYaml] = useState(DEFAULT_SPEC_YAML);

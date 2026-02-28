@@ -1,0 +1,1 @@
+<?xml version="1.0" encoding="utf-8"?><testsuites><testsuite name="pytest" errors="0" failures="0" skipped="0" tests="1" time="0.451" timestamp="2026-02-28T16:43:06.516664+11:00" hostname="Andrews-MBP.modem"><testcase classname="tests.test_generators" name="test_generate_multi_step_task" time="0.032" /></testsuite></testsuites>
