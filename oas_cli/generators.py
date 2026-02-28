@@ -8,6 +8,7 @@ import logging
 from pathlib import Path
 from typing import Any, Dict, List
 
+from .code_generation import PythonCodeSerializer
 
 log = logging.getLogger("oas")
 
@@ -620,47 +621,29 @@ def _generate_multi_step_task_function(
     {step_var} = {step_task.replace("-", "_")}({step_input_str})"""
         )
 
-    # Generate output construction with better mapping
+    # Generate output construction with generic mapping from step results to output schema
     output_schema = task_def.get("output", {})
     output_properties = output_schema.get("properties", {})
 
     output_construction = []
-
-    # Special handling for save_greeting task
-    if task_name == "save_greeting" and len(step_results) >= 2:
-        # step_0_result is from greet task (has greeting)
-        # step_1_result is from write_file task (has success, file_path)
-        output_construction = [
-            f"        success={step_results[1]}.success if hasattr({step_results[1]}, 'success') else {step_results[1]}.get('success', False)",
-            f"        file_path={step_results[1]}.file_path if hasattr({step_results[1]}, 'file_path') else {step_results[1]}.get('file_path', '')",
-            f"        greeting={step_results[0]}.greeting if hasattr({step_results[0]}, 'greeting') else {step_results[0]}.get('greeting', '')",
-        ]
-    else:
-        # Generic mapping for other multi-step tasks
-        for i, prop_name in enumerate(output_properties):
-            if i < len(step_results):
-                step_result = step_results[i]
-                output_construction.append(
-                    f"        {prop_name}={step_result}.{prop_name} if hasattr({step_result}, '{prop_name}') else {step_result}.get('{prop_name}', '')"
-                )
+    for prop_name in output_properties:
+        # Collect candidates: getattr then dict.get for each step; use first that is not None (preserves False, 0, "")
+        candidates = []
+        for sv in step_results:
+            candidates.append(f"getattr({sv}, '{prop_name}', None)")
+            candidates.append(
+                f"({sv}.get('{prop_name}', None) if isinstance({sv}, dict) else None)"
+            )
+        candidates_str = ", ".join(candidates)
+        output_construction.append(
+            f"        {prop_name}=next((v for v in [{candidates_str}] if v is not None), None)"
+        )
 
     output_construction_str = ",\n".join(output_construction)
 
-    # Format the contract data for the decorator
-    def format_value(v):
-        if isinstance(v, bool):
-            return str(v)
-        elif isinstance(v, (list, tuple)):
-            return f"[{', '.join(format_value(x) for x in v)}]"
-        elif isinstance(v, dict):
-            items = [f'"{k}": {format_value(v)}' for k, v in v.items()]
-            return f"{{{', '.join(items)}}}"
-        elif isinstance(v, str):
-            return f'"{v}"'
-        return str(v)
-
+    # Format the contract data for the decorator (single shared implementation)
     contract_str = ",\n    ".join(
-        f"{k}={format_value(v)}" for k, v in contract_data.items()
+        f"{k}={PythonCodeSerializer.format_value(v)}" for k, v in contract_data.items()
     )
 
     return f"""
@@ -802,21 +785,9 @@ def _generate_tool_task_function(
 
     tool_description_with_params = tool_description
 
-    # Format the contract data for the decorator
-    def format_value(v):
-        if isinstance(v, bool):
-            return str(v)
-        elif isinstance(v, (list, tuple)):
-            return f"[{', '.join(format_value(x) for x in v)}]"
-        elif isinstance(v, dict):
-            items = [f'"{k}": {format_value(v)}' for k, v in v.items()]
-            return f"{{{', '.join(items)}}}"
-        elif isinstance(v, str):
-            return f'"{v}"'
-        return str(v)
-
+    # Format the contract data for the decorator (single shared implementation)
     contract_str = ",\n    ".join(
-        f"{k}={format_value(v)}" for k, v in contract_data.items()
+        f"{k}={PythonCodeSerializer.format_value(v)}" for k, v in contract_data.items()
     )
 
     return f"""
@@ -1019,21 +990,9 @@ def _generate_task_function(
     output_description = _generate_human_readable_output(task_def.get("output", {}))
     output_description_str = f'"""\n{output_description}\n"""'
 
-    # Format the contract data for the decorator with proper Python values
-    def format_value(v):
-        if isinstance(v, bool):
-            return str(v)
-        elif isinstance(v, (list, tuple)):
-            return f"[{', '.join(format_value(x) for x in v)}]"
-        elif isinstance(v, dict):
-            items = [f'"{k}": {format_value(v)}' for k, v in v.items()]
-            return f"{{{', '.join(items)}}}"
-        elif isinstance(v, str):
-            return f'"{v}"'
-        return str(v)
-
+    # Format the contract data for the decorator (single shared implementation)
     contract_str = ",\n    ".join(
-        f"{k}={format_value(v)}" for k, v in contract_data.items()
+        f"{k}={PythonCodeSerializer.format_value(v)}" for k, v in contract_data.items()
     )
 
     return f"""
@@ -1175,7 +1134,7 @@ if __name__ == "__main__":
         log.info("agent.py created using template-based generation")
         log.debug(f"Agent class name generated: {class_name}")
 
-    except Exception as e:
+    except (OSError, ValueError, KeyError, TypeError, RuntimeError) as e:
         log.error(f"Error during template-based generation: {e}")
         log.warning("Falling back to legacy generation method")
         # Fallback to legacy method if template generation fails

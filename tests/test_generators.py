@@ -533,7 +533,9 @@ def test_generate_multi_step_task(temp_dir):
     assert "step_0_result = greet(name=name)" in agent_code
     assert "step_1_result = compliment(name=name)" in agent_code
 
-    # Check that output is constructed from step results
+    # Check that output is constructed from step results (generic mapping from steps to output schema)
     assert "return Greet_And_ComplimentOutput(" in agent_code
-    assert "response=step_0_result.response" in agent_code
-    assert "compliment=step_1_result.compliment" in agent_code
+    assert "response=" in agent_code and "compliment=" in agent_code
+    assert "step_0_result" in agent_code and "step_1_result" in agent_code
+    # Mapping must use "is not None" (not "or") so falsy values like success=False are preserved
+    assert "if v is not None" in agent_code
