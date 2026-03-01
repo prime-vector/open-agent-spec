@@ -10,7 +10,7 @@ scripts or other tools instead of the CLI.
 
 import logging
 from pathlib import Path
-from typing import Any, Dict, Optional, Tuple
+from typing import Any
 
 import yaml
 
@@ -25,7 +25,7 @@ from .validators import validate_spec as validate_spec_data
 from .validators import validate_with_json_schema
 
 
-def validate_spec_file(spec_path: Path) -> Tuple[Dict[str, Any], str, str]:
+def validate_spec_file(spec_path: Path) -> tuple[dict[str, Any], str, str]:
     """
     Load and validate a spec file.
 
@@ -47,11 +47,11 @@ def validate_spec_file(spec_path: Path) -> Tuple[Dict[str, Any], str, str]:
 
 def generate_files(
     output: Path,
-    spec_data: Dict[str, Any],
+    spec_data: dict[str, Any],
     agent_name: str,
     class_name: str,
     log: logging.Logger,
-    console: Optional[Any] = None,
+    console: Any | None = None,
 ) -> None:
     """
     Generate all agent files into output directory.
@@ -85,7 +85,7 @@ def generate(
     spec_path: Path,
     output_dir: Path,
     dry_run: bool = False,
-    logger: Optional[logging.Logger] = None,
+    logger: logging.Logger | None = None,
 ) -> None:
     """
     Load spec, validate, and generate agent files into output_dir.

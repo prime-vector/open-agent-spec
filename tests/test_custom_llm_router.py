@@ -1,9 +1,11 @@
 import json
-import pytest
 import tempfile
-import yaml
 from pathlib import Path
-from typing import Dict, Any
+from typing import Any
+
+import pytest
+import yaml
+
 from oas_cli.generators import generate_agent_code
 
 
@@ -33,7 +35,7 @@ class InvalidRouter:
 
 
 @pytest.fixture
-def base_spec() -> Dict[str, Any]:
+def base_spec() -> dict[str, Any]:
     """Base spec template for custom LLM router tests"""
     return {
         "open_agent_spec": "1.0.4",
@@ -98,7 +100,7 @@ def temp_project():
         yield temp_path
 
 
-def create_spec_file(spec_data: Dict[str, Any], temp_dir: Path) -> Path:
+def create_spec_file(spec_data: dict[str, Any], temp_dir: Path) -> Path:
     """Create a spec file in the temp directory"""
     spec_file = temp_dir / "test_agent.yaml"
     with open(spec_file, "w") as f:
@@ -106,7 +108,7 @@ def create_spec_file(spec_data: Dict[str, Any], temp_dir: Path) -> Path:
     return spec_file
 
 
-def generate_test_agent(spec_data: Dict[str, Any], temp_dir: Path) -> Path:
+def generate_test_agent(spec_data: dict[str, Any], temp_dir: Path) -> Path:
     """Generate agent code from spec data"""
     agent_name = spec_data["agent"]["name"]
     class_name = agent_name
