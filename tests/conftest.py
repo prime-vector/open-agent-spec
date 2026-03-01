@@ -1,11 +1,12 @@
 """Pytest configuration and fixtures for framework tests."""
 
-import pytest
-from unittest.mock import MagicMock
 import json
-import tempfile
 import shutil
+import tempfile
 from pathlib import Path
+from unittest.mock import MagicMock
+
+import pytest
 
 
 @pytest.fixture

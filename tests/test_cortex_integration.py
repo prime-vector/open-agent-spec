@@ -40,7 +40,7 @@ class TestCortexEngineIntegration:
         # Verify data types
         assert isinstance(config["enable_layer3"], bool)
         assert isinstance(config["enable_onnx"], bool)
-        assert isinstance(config["temperature"], (int, float))
+        assert isinstance(config["temperature"], int | float)
         assert isinstance(config["max_tokens"], int)
 
     def test_cortex_agent_generation(self):
@@ -191,7 +191,7 @@ class TestCortexEngineIntegration:
         try:
             import yaml
 
-            with open(template_path, "r") as f:
+            with open(template_path) as f:
                 template_data = yaml.safe_load(f)
 
             # Verify template structure

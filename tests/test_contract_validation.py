@@ -1,8 +1,9 @@
 """Test behavioral contract validation across engines."""
 
-import pytest
-from unittest.mock import patch, MagicMock
 import json
+from unittest.mock import MagicMock, patch
+
+import pytest
 
 pytestmark = pytest.mark.contract
 
@@ -39,7 +40,7 @@ class TestContractValidation:
         # Validate types and constraints
         assert isinstance(content["risk_assessment"], str)
         assert isinstance(content["recommendations"], list)
-        assert isinstance(content["confidence_level"], (int, float))
+        assert isinstance(content["confidence_level"], int | float)
         assert 0.0 <= content["confidence_level"] <= 1.0
 
     @patch("anthropic.Anthropic")
@@ -71,7 +72,7 @@ class TestContractValidation:
         # Validate types and constraints
         assert isinstance(content["risk_assessment"], str)
         assert isinstance(content["recommendations"], list)
-        assert isinstance(content["confidence_level"], (int, float))
+        assert isinstance(content["confidence_level"], int | float)
         assert 0.0 <= content["confidence_level"] <= 1.0
 
     def test_required_fields_validation(self, missing_fields_response):
@@ -90,12 +91,12 @@ class TestContractValidation:
 
     def test_type_validation(self, invalid_types_response):
         """Test that invalid field types trigger contract violations."""
+
         from pydantic import BaseModel, ValidationError
-        from typing import List
 
         class TestOutput(BaseModel):
             risk_assessment: str
-            recommendations: List[str]
+            recommendations: list[str]
             confidence_level: float
 
         # Test invalid data
@@ -110,12 +111,12 @@ class TestContractValidation:
 
     def test_confidence_level_bounds(self):
         """Test confidence level must be between 0.0 and 1.0."""
-        from pydantic import BaseModel, ValidationError, Field
-        from typing import List
+
+        from pydantic import BaseModel, Field, ValidationError
 
         class TestOutput(BaseModel):
             risk_assessment: str
-            recommendations: List[str]
+            recommendations: list[str]
             confidence_level: float = Field(ge=0.0, le=1.0)
 
         # Valid confidence levels
@@ -185,12 +186,12 @@ class TestMultiEngineCompatibility:
     def test_response_format_consistency(self):
         """Test that both engines produce compatible response formats."""
         # Both engines should produce the same Pydantic model structure
-        from typing import List
+
         from pydantic import BaseModel
 
         class UnifiedOutput(BaseModel):
             risk_assessment: str
-            recommendations: List[str]
+            recommendations: list[str]
             confidence_level: float
 
         # Test with OpenAI-style response

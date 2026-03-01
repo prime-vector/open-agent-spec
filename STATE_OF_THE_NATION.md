@@ -80,11 +80,11 @@ The Open Agent Spec CLI is a Python tool that scaffolds AI agent projects from Y
 
 ## 6. Open-source and project hygiene
 
-- **Pytest marks:** Tests use `@pytest.mark.contract`, `@pytest.mark.cortex`, `@pytest.mark.multi_engine` but these marks are not registered in `pyproject.toml` or `pytest.ini`, so you get “Unknown pytest.mark” warnings. Register them under `[tool.pytest.ini_options]` (or equivalent).
-- **Version in tests:** Version tests assume “version comes from repo’s pyproject.toml”. In CI you often install the package, so reported version is the built package. Either (a) test that version string is non-empty and matches a pattern, or (b) install in editable mode and keep asserting against pyproject, or (c) inject version in tests via env/mock.
-- **Ruff config:** Ruff is configured in both `pyproject.toml` and `ruff.toml` (e.g. different `line-ending`: `lf` vs `auto`). One source of truth (prefer `pyproject.toml`) avoids confusion.
-- **Duplicate/overlapping workflows:** Many workflow files (e.g. `feature-test.yml`, `test.yml`, `test-enhanced.yml`, `pr-test.yml`, `integration-tests.yml`). Risk of drift and duplicated logic; consider consolidating or clearly documenting when each runs.
-- **CONTRIBUTING / README:** README is detailed; CONTRIBUTING exists. Ensure “how to run tests”, “how to add a template”, and “version field: use `open_agent_spec`” are consistent.
+- **Pytest marks:** **Resolved.** Marks are registered in `pytest.ini` and in `pyproject.toml` under `[tool.pytest.ini_options]` (contract, cortex, multi_engine, generator, integration, slow).
+- **Version in tests:** **Resolved.** Version tests in test_main.py assert a version-like string (non-empty, contains digits), not a literal from pyproject, so they pass when the installed package version differs.
+- **Ruff config:** **Resolved.** Single source of truth in `pyproject.toml`; `ruff.toml` removed.
+- **Duplicate/overlapping workflows:** **Addressed.** Workflows are consolidated to `ci.yml` and `publish.yml`; `.github/workflows/README.md` documents when each runs.
+- **CONTRIBUTING / README:** **Addressed.** CONTRIBUTING now states: run tests with pytest tests/, how to register new pytest marks, canonical spec version field open_agent_spec, and how to add a template. README already documents tests, templates, and open_agent_spec.
 
 ---
 
@@ -181,7 +181,7 @@ The Open Agent Spec CLI is a Python tool that scaffolds AI agent projects from Y
 | Schema | `oas_cli/schemas/oas-schema.json` | open_agent_spec, agent, intelligence, tasks, prompts, roles |
 | Templates | `oas_cli/templates/*.yaml` | minimal-agent, security-*, github-actions-*, cortex-* |
 | Tests | `tests/*.py` | test_main (version), test_generators, test_enhanced_spec, test_cortex_integration, test_multi_engine, test_contract_validation, integration/ |
-| Config | `pyproject.toml`, `ruff.toml`, `.pre-commit-config.yaml` | Version 1.0.9; Ruff in both; pytest marks not registered |
+| Config | `pyproject.toml`, `.pre-commit-config.yaml` | Version 1.0.9; Ruff in pyproject only; pytest marks in pytest.ini and pyproject. |
 
 ---
 

@@ -5,14 +5,14 @@
 
 import logging
 from pathlib import Path
-from typing import Dict, Any, List, Optional
+from typing import Any
 
 log = logging.getLogger(__name__)
 
 
 def file_writer(
-    file_path: str, content: str, allowed_paths: Optional[List[str]] = None
-) -> Dict[str, Any]:
+    file_path: str, content: str, allowed_paths: list[str] | None = None
+) -> dict[str, Any]:
     """Write content to a file with safety checks.
 
     Args:

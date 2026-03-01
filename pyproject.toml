@@ -99,9 +99,18 @@ select = [
     "RUF", # ruff-specific rules
 ]
 ignore = [
-    "E501",  # line length violations (handled by Black)
-    "W503",  # line break before binary operator (Black compatibility)
-    "E203",  # whitespace before ':' (Black compatibility)
+    "E501",  # line length (handled by formatter)
+    "E203",  # whitespace before ':' (formatter compatibility)
     "B008",  # do not perform function calls in argument defaults
     "RUF022",  # __all__ sorting
+]
+
+[tool.pytest.ini_options]
+markers = [
+    "contract: behavioural contract tests",
+    "cortex: cortex integration tests",
+    "multi_engine: multi-LLM engine compatibility tests",
+    "generator: code generator tests",
+    "integration: integration tests",
+    "slow: slow-running tests (deselect with '-m \"not slow\"')",
 ]

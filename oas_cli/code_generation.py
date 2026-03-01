@@ -5,7 +5,8 @@
 
 import textwrap
 from pathlib import Path
-from typing import Any, Dict, List, Set, Union, Optional
+from typing import Any
+
 from jinja2 import Environment, FileSystemLoader, meta
 
 
@@ -21,9 +22,9 @@ class PythonCodeSerializer:
             return str(value)
         elif isinstance(value, str):
             return f'"{value}"'
-        elif isinstance(value, (int, float)):
+        elif isinstance(value, int | float):
             return str(value)
-        elif isinstance(value, (list, tuple)):
+        elif isinstance(value, list | tuple):
             items = [PythonCodeSerializer.format_value(x) for x in value]
             return f"[{', '.join(items)}]"
         elif isinstance(value, dict):
@@ -36,7 +37,7 @@ class PythonCodeSerializer:
             return str(value)
 
     @staticmethod
-    def dict_to_python_code(data: Dict[str, Any], indent: int = 0) -> str:
+    def dict_to_python_code(data: dict[str, Any], indent: int = 0) -> str:
         """Convert dictionary to properly formatted Python code."""
         if not data:
             return "{}"
@@ -57,7 +58,7 @@ class PythonCodeSerializer:
         return "{\n" + ",\n".join(items) + f"\n{indent_str}}}"
 
     @staticmethod
-    def list_to_python_code(data: List[str], indent: int = 0) -> str:
+    def list_to_python_code(data: list[str], indent: int = 0) -> str:
         """Convert list of strings to Python list code."""
         if not data:
             return "[]"
@@ -70,7 +71,7 @@ class TemplateVariableParser:
     """Utility for parsing template variables from strings."""
 
     @staticmethod
-    def extract_jinja_variables(template_str: str) -> Set[str]:
+    def extract_jinja_variables(template_str: str) -> set[str]:
         """Extract variables from Jinja2 template string using proper parsing."""
         try:
             env = Environment()
@@ -81,7 +82,7 @@ class TemplateVariableParser:
             return TemplateVariableParser._manual_extract_variables(template_str)
 
     @staticmethod
-    def _manual_extract_variables(template_str: str) -> Set[str]:
+    def _manual_extract_variables(template_str: str) -> set[str]:
         """Manual extraction of {{variable}} patterns as fallback."""
         import re
 
@@ -103,7 +104,7 @@ class TemplateVariableParser:
 class CodeGenerator:
     """Main code generation framework using templates."""
 
-    def __init__(self, template_dir: Optional[Union[str, Path]] = None):
+    def __init__(self, template_dir: str | Path | None = None):
         if template_dir is None:
             # Default to templates directory relative to this file
             current_dir = Path(__file__).parent
@@ -125,11 +126,11 @@ class CodeGenerator:
         template = self.env.get_template(template_name)
         return template.render(**data)
 
-    def generate_python_dict(self, data: Dict[str, Any], indent: int = 0) -> str:
+    def generate_python_dict(self, data: dict[str, Any], indent: int = 0) -> str:
         """Generate Python dictionary code."""
         return self.serializer.dict_to_python_code(data, indent)
 
-    def generate_python_list(self, data: List[str], indent: int = 0) -> str:
+    def generate_python_list(self, data: list[str], indent: int = 0) -> str:
         """Generate Python list code."""
         return self.serializer.list_to_python_code(data, indent)
 
