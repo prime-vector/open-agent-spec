@@ -157,6 +157,31 @@ def _generate_contract_data(
     return contract_data
 
 
+def _format_contract_for_decorator(contract_data: dict[str, Any]) -> str:
+    """Format contract data dict as the argument list for @behavioural_contract(...)."""
+    return ",\n    ".join(
+        f"{k}={PythonCodeSerializer.format_value(v)}" for k, v in contract_data.items()
+    )
+
+
+def _get_task_function_preamble(
+    task_name: str,
+    task_def: dict[str, Any],
+    spec_data: dict[str, Any],
+    agent_name: str,
+    memory_config: dict[str, Any],
+) -> tuple[str, list[str], str, str, dict[str, Any]]:
+    """Return (func_name, input_params, output_type, docstring, contract_data) for task generators."""
+    func_name = task_name.replace("-", "_")
+    input_params = _generate_input_params(task_def)
+    output_type = f"{task_name.replace('-', '_').title()}Output"
+    docstring = _generate_function_docstring(task_name, task_def, output_type)
+    contract_data = _generate_contract_data(
+        spec_data, task_def, agent_name, memory_config
+    )
+    return func_name, input_params, output_type, docstring, contract_data
+
+
 def _generate_pydantic_model(
     name: str, schema: dict[str, Any], is_root: bool = True
 ) -> str:
@@ -551,82 +576,56 @@ def _generate_json_example(
     return lines
 
 
-def _generate_multi_step_task_function(
-    task_name: str,
-    task_def: dict[str, Any],
-    spec_data: dict[str, Any],
-    agent_name: str,
-    memory_config: dict[str, Any],
-) -> str:
-    """Generate a multi-step task function that orchestrates other tasks."""
-    func_name = task_name.replace("-", "_")
-    input_params = _generate_input_params(task_def)
-    output_type = f"{task_name.replace('-', '_').title()}Output"
-    docstring = _generate_function_docstring(task_name, task_def, output_type)
-    contract_data = _generate_contract_data(
-        spec_data, task_def, agent_name, memory_config
-    )
-
-    # Get the steps from the task definition
-    steps = task_def.get("steps", [])
-
-    # Generate step execution code
+def _build_multi_step_execution_code(steps: list[dict[str, Any]]) -> str:
+    """Build the step execution code block for a multi-step task (e.g. step_0_result = ...)."""
     step_code = []
     step_results: list[str] = []
-
     for i, step in enumerate(steps):
         step_task = step["task"]
         input_map = step.get("input_map", {})
-
-        # Convert input mapping to Python code
         step_inputs = []
         for param, value in input_map.items():
-            # Handle Jinja2-style templating {{variable}}
             if isinstance(value, str) and "{{" in value and "}}" in value:
-                # Extract variable name from {{variable}}
                 var_name = value.replace("{{", "").replace("}}", "").strip()
-                # Handle nested references like input.name -> extract just 'name'
                 if "." in var_name:
                     parts = var_name.split(".")
                     if parts[0] == "input":
-                        # This is an input parameter
                         var_name = parts[-1]
                         step_inputs.append(f"{param}={var_name}")
                     elif parts[0] == "steps" and len(parts) >= 3:
-                        # This is a reference to a previous step result
                         step_index = int(parts[1])
                         field_name = parts[2]
-                        if step_index < i:  # Only reference previous steps
+                        if step_index < i:
                             step_var = step_results[step_index]
                             step_inputs.append(
                                 f"{param}={step_var}.{field_name} if hasattr({step_var}, '{field_name}') else {step_var}.get('{field_name}', '')"
                             )
                         else:
-                            # Invalid reference to future step
                             step_inputs.append(f'{param}=""')
+                    else:
+                        step_inputs.append(f"{param}={var_name}")
                 else:
-                    # Simple variable name without dots
                     step_inputs.append(f"{param}={var_name}")
             else:
-                # Literal value
                 step_inputs.append(f'{param}="{value}"')
-
         step_input_str = ", ".join(step_inputs)
         step_var = f"step_{i}_result"
         step_results.append(step_var)
-
         step_code.append(
             f"""    # Execute step {i + 1}: {step_task}
     {step_var} = {step_task.replace("-", "_")}({step_input_str})"""
         )
+    return "\n".join(step_code)
 
-    # Generate output construction with generic mapping from step results to output schema
-    output_schema = task_def.get("output", {})
+
+def _build_multi_step_output_construction(
+    steps: list[dict[str, Any]], output_schema: dict[str, Any]
+) -> str:
+    """Build the output construction from step results (prop=next((v for v in [...]), None))."""
+    step_results = [f"step_{i}_result" for i in range(len(steps))]
     output_properties = output_schema.get("properties", {})
-
     output_construction = []
     for prop_name in output_properties:
-        # Collect candidates: getattr then dict.get for each step; use first that is not None (preserves False, 0, "")
         candidates = []
         for sv in step_results:
             candidates.append(f"getattr({sv}, '{prop_name}', None)")
@@ -637,13 +636,29 @@ def _generate_multi_step_task_function(
         output_construction.append(
             f"        {prop_name}=next((v for v in [{candidates_str}] if v is not None), None)"
         )
+    return ",\n".join(output_construction)
 
-    output_construction_str = ",\n".join(output_construction)
 
-    # Format the contract data for the decorator (single shared implementation)
-    contract_str = ",\n    ".join(
-        f"{k}={PythonCodeSerializer.format_value(v)}" for k, v in contract_data.items()
+def _generate_multi_step_task_function(
+    task_name: str,
+    task_def: dict[str, Any],
+    spec_data: dict[str, Any],
+    agent_name: str,
+    memory_config: dict[str, Any],
+) -> str:
+    """Generate a multi-step task function that orchestrates other tasks."""
+    func_name, input_params, output_type, docstring, contract_data = (
+        _get_task_function_preamble(
+            task_name, task_def, spec_data, agent_name, memory_config
+        )
     )
+    steps = task_def.get("steps", [])
+
+    step_code = _build_multi_step_execution_code(steps)
+    output_construction_str = _build_multi_step_output_construction(
+        steps, task_def.get("output", {})
+    )
+    contract_str = _format_contract_for_decorator(contract_data)
 
     return f"""
 @behavioural_contract(
@@ -652,7 +667,7 @@ def _generate_multi_step_task_function(
 def {func_name}({", ".join(input_params)}) -> {output_type}:
     {docstring}
     # Execute multi-step task: {task_name}
-{chr(10).join(step_code)}
+{step_code}
 
     # Construct output from step results
     return {output_type}(
@@ -712,49 +727,28 @@ def _generate_setup_logging_method() -> str:
     return preparator._prepare_setup_logging_method()
 
 
-def _generate_tool_task_function(
-    task_name: str,
+def _build_tool_args_and_description(
     task_def: dict[str, Any],
-    spec_data: dict[str, Any],
-    agent_name: str,
-    memory_config: dict[str, Any],
-    config: dict[str, Any],
-) -> str:
-    """Generate a task function that uses a DACP tool."""
-    func_name = task_name.replace("-", "_")
-    input_params = _generate_input_params(task_def)
-    output_type = f"{task_name.replace('-', '_').title()}Output"
-    docstring = _generate_function_docstring(task_name, task_def, output_type)
-    contract_data = _generate_contract_data(
-        spec_data, task_def, agent_name, memory_config
-    )
-
-    # Get tool information
+) -> tuple[str, list[str], str, dict[str, str]]:
+    """Build tool_args lines, tool description, and param mapping for a tool task. Returns (tool_id, tool_args_lines, tool_description_with_params, tool_param_mapping)."""
     tool_id = task_def["tool"]
     tool_params = task_def.get("tool_params", {})
-
-    # Map tool parameters to DACP parameter names
-    tool_param_mapping = {}
-    tool_args_lines = []
+    tool_param_mapping: dict[str, str] = {}
+    tool_args_lines: list[str] = []
 
     if tool_params:
-        # Use explicit tool_params mapping if provided
         for param_name, param_info in tool_params.items():
             if isinstance(param_info, dict):
-                # Parameter mapping specified
                 dacp_param = param_info.get("dacp_param", param_name)
                 tool_param_mapping[param_name] = dacp_param
                 tool_args_lines.append(f'        "{dacp_param}": {param_name}')
             else:
-                # Direct mapping
                 tool_param_mapping[param_name] = param_name
                 tool_args_lines.append(f'        "{param_name}": {param_name}')
     else:
-        # Auto-map input parameters to tool parameters based on common patterns
         input_props = task_def.get("input", {}).get("properties", {})
         for param_name in input_props.keys():
             if tool_id == "file_writer":
-                # Map file_writer specific parameters
                 if param_name == "file_path":
                     tool_param_mapping[param_name] = "path"
                     tool_args_lines.append(f'        "path": {param_name}')
@@ -762,15 +756,12 @@ def _generate_tool_task_function(
                     tool_param_mapping[param_name] = "content"
                     tool_args_lines.append(f'        "content": {param_name}')
                 else:
-                    # Default mapping
                     tool_param_mapping[param_name] = param_name
                     tool_args_lines.append(f'        "{param_name}": {param_name}')
             else:
-                # Default mapping for other tools
                 tool_param_mapping[param_name] = param_name
                 tool_args_lines.append(f'        "{param_name}": {param_name}')
 
-    # Create tool description
     tool_description = f"Tool: {tool_id}"
     if tool_params:
         param_descriptions = []
@@ -781,13 +772,56 @@ def _generate_tool_task_function(
             else:
                 param_descriptions.append(f"- {param_name}")
         tool_description += "\nParameters:\n" + "\n".join(param_descriptions)
+    return tool_id, tool_args_lines, tool_description, tool_param_mapping
 
-    tool_description_with_params = tool_description
 
-    # Format the contract data for the decorator (single shared implementation)
-    contract_str = ",\n    ".join(
-        f"{k}={PythonCodeSerializer.format_value(v)}" for k, v in contract_data.items()
+def _build_memory_config_python_code(memory_config: dict[str, Any]) -> str:
+    """Build the memory_config dict literal as Python code for generated task functions."""
+    return f"""{{
+        "enabled": {memory_config["enabled"]!r},
+        "format": "{memory_config["format"]}",
+        "usage": "{memory_config["usage"]}",
+        "required": {memory_config["required"]!r},
+        "description": "{memory_config["description"]}"
+    }}"""
+
+
+def _build_single_step_llm_client_code(
+    spec_data: dict[str, Any], config: dict[str, Any], input_dict: dict[str, str]
+) -> str:
+    """Build the LLM client code block (DACP or custom router) for a single-step task."""
+    engine = spec_data.get("intelligence", {}).get("engine", "openai")
+    custom_module = spec_data.get("intelligence", {}).get("module", None)
+    if engine == "custom" and custom_module:
+        return f"""# Create and use custom LLM router
+    router = load_custom_llm_router("{config["endpoint"]}", "{config["model"]}", {{}})
+    result = router.run(prompt, **input_dict)"""
+    intelligence_config_str = _generate_intelligence_config(spec_data, config)
+    return f"""# Configure intelligence for DACP
+    intelligence_config = {intelligence_config_str}
+
+    # Call the LLM using DACP
+    result = invoke_intelligence(prompt, intelligence_config)"""
+
+
+def _generate_tool_task_function(
+    task_name: str,
+    task_def: dict[str, Any],
+    spec_data: dict[str, Any],
+    agent_name: str,
+    memory_config: dict[str, Any],
+    config: dict[str, Any],
+) -> str:
+    """Generate a task function that uses a DACP tool."""
+    func_name, input_params, output_type, docstring, contract_data = (
+        _get_task_function_preamble(
+            task_name, task_def, spec_data, agent_name, memory_config
+        )
     )
+    tool_id, tool_args_lines, tool_description_with_params, tool_param_mapping = (
+        _build_tool_args_and_description(task_def)
+    )
+    contract_str = _format_contract_for_decorator(contract_data)
 
     return f"""
 from dacp import invoke_intelligence, execute_tool
@@ -929,12 +963,10 @@ def _generate_task_function(
         )
 
     # Regular single-step task generation (existing logic)
-    func_name = task_name.replace("-", "_")
-    input_params = _generate_input_params(task_def)
-    output_type = f"{task_name.replace('-', '_').title()}Output"
-    docstring = _generate_function_docstring(task_name, task_def, output_type)
-    contract_data = _generate_contract_data(
-        spec_data, task_def, agent_name, memory_config
+    func_name, input_params, output_type, docstring, contract_data = (
+        _get_task_function_preamble(
+            task_name, task_def, spec_data, agent_name, memory_config
+        )
     )
 
     # Create input dict with actual parameter values
@@ -947,52 +979,17 @@ def _generate_task_function(
     # Add LLM output parser if this is an LLM-based agent
     llm_parser = ""
     parser_function_name = ""
-    if config.get("model"):  # If model is specified, this is an LLM agent
+    if config.get("model"):
         llm_parser = _generate_llm_output_parser(task_name, task_def.get("output", {}))
         parser_function_name = f"parse_{task_name.replace('-', '_')}_output"
 
-    # Determine client usage based on engine
-    engine = spec_data.get("intelligence", {}).get("engine", "openai")
-    custom_module = spec_data.get("intelligence", {}).get("module", None)
+    client_code = _build_single_step_llm_client_code(spec_data, config, input_dict)
 
-    # Use DACP for LLM communication or custom router
-    if engine == "custom" and custom_module:
-        client_code = f"""# Create and use custom LLM router
-    router = load_custom_llm_router("{config["endpoint"]}", "{config["model"]}", {{}})
-    result = router.run(prompt, **input_dict)"""
-    else:
-        intelligence_config_str = _generate_intelligence_config(spec_data, config)
-        client_code = f"""# Configure intelligence for DACP
-    intelligence_config = {intelligence_config_str}
-
-    # Call the LLM using DACP
-    result = invoke_intelligence(prompt, intelligence_config)"""
-
-    # Generate prompt rendering with actual parameter values
-    prompt_render_params = []
-    for param in input_params:
-        if param != "memory_summary: str = ''":
-            param_name = param.split(":")[0]
-            prompt_render_params.append(f"{param_name}={param_name}")
-
-    # Define memory configuration with proper Python boolean values
-    memory_config_str = f"""{{
-        "enabled": {memory_config["enabled"]!r},
-        "format": "{memory_config["format"]}",
-        "usage": "{memory_config["usage"]}",
-        "required": {memory_config["required"]!r},
-        "description": "{memory_config["description"]}"
-    }}"""
+    memory_config_str = _build_memory_config_python_code(memory_config)
     memory_summary_str = "memory_summary if memory_config['enabled'] else ''"
-
-    # Generate human-readable output description
     output_description = _generate_human_readable_output(task_def.get("output", {}))
     output_description_str = f'"""\n{output_description}\n"""'
-
-    # Format the contract data for the decorator (single shared implementation)
-    contract_str = ",\n    ".join(
-        f"{k}={PythonCodeSerializer.format_value(v)}" for k, v in contract_data.items()
-    )
+    contract_str = _format_contract_for_decorator(contract_data)
 
     return f"""
 {llm_parser}

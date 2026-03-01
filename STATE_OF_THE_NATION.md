@@ -58,7 +58,7 @@ The Open Agent Spec CLI is a Python tool that scaffolds AI agent projects from Y
 - **Bare `except Exception`:** **Partly resolved.** Narrowed to specific exceptions in `main.py` and `generators.py` (template fallback). Remaining broad catches are in generated code or intentional fallbacks.
 - **Deprecated API:** **Resolved.** Replaced `pkg_resources` with `importlib.metadata.version` in `main.py`.
 - **Magic task name:** **Resolved.** Replaced `save_greeting` special-case with generic mapping from step results to output schema (first value that is not None per property).
-- **Large functions:** `_generate_task_function`, `_generate_tool_task_function`, `_generate_multi_step_task_function`, and `_generate_agent_code_legacy` are very long (hundreds of lines) and mix concerns (contract formatting, code gen, tool wiring). Hard to test and refactor.
+- **Large functions:** **Partly addressed.** `_generate_task_function`, `_generate_tool_task_function`, and `_generate_multi_step_task_function` now delegate to shared helpers (`_format_contract_for_decorator`, `_get_task_function_preamble`) and smaller builders (`_build_multi_step_execution_code`, `_build_tool_args_and_description`, `_build_memory_config_python_code`, `_build_single_step_llm_client_code`, etc.). `_generate_agent_code_legacy` remains long.
 
 ### 4.3 Missing or weak abstraction
 
@@ -135,7 +135,7 @@ The Open Agent Spec CLI is a Python tool that scaffolds AI agent projects from Y
     Replace the hard-coded `task_name == "save_greeting"` branch with a generic mapping from step results to output schema (e.g. from `steps` and `output.properties`).
 
 11. **Split large generator functions**  
-    Break `_generate_task_function`, `_generate_tool_task_function`, and `_generate_multi_step_task_function` into smaller functions (e.g. “build contract dict”, “build client code”, “build prompt render”) and reuse shared helpers.
+    Break `_generate_task_function`, `_generate_tool_task_function`, and `_generate_multi_step_task_function` into smaller functions (e.g. “build contract dict”, “build client code”, “build prompt render”) and reuse shared helpers. **Addressed:** Shared helpers added: `_format_contract_for_decorator`, `_get_task_function_preamble`; multi-step: `_build_multi_step_execution_code`, `_build_multi_step_output_construction`; tool: `_build_tool_args_and_description`; single-step: `_build_memory_config_python_code`, `_build_single_step_llm_client_code`. All three main generators now use the preamble and contract formatter; each delegates to smaller builders where applicable.
 
 ### Phase 4 — Structure and API
 
