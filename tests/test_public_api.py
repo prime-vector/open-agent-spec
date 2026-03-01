@@ -21,19 +21,19 @@ def test_validate_spec_returns_spec_data_and_names():
 
 def test_validate_spec_raises_on_missing_file():
     """validate_spec raises ValueError for missing file."""
-    with pytest.raises(ValueError, match="Invalid spec path|Invalid YAML"):
+    with pytest.raises(ValueError, match=r"Invalid spec path|Invalid YAML"):
         validate_spec(Path("/nonexistent/spec.yaml"))
 
 
 def test_validate_spec_raises_on_directory():
     """validate_spec raises ValueError when path is a directory (not a file)."""
-    with pytest.raises(ValueError, match="Invalid spec path|Invalid YAML"):
+    with pytest.raises(ValueError, match=r"Invalid spec path|Invalid YAML"):
         validate_spec(Path(__file__).parent)  # tests/ is a directory
 
 
 def test_generate_raises_value_error_on_directory_spec(tmp_path):
     """generate() raises ValueError when spec_path is a directory."""
-    with pytest.raises(ValueError, match="Invalid spec path|Invalid YAML"):
+    with pytest.raises(ValueError, match=r"Invalid spec path|Invalid YAML"):
         generate(Path(__file__).parent, tmp_path, dry_run=False)
 
 
