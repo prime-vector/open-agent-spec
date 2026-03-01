@@ -34,8 +34,14 @@ def test_version_flag():
 
 def test_init_with_directory_spec_returns_clean_error(tmp_path):
     """init --spec <directory> exits with error and no traceback (ValueError normalized)."""
-    result = runner.invoke(app, ["init", "--spec", str(tmp_path), "--output", str(tmp_path / "out")])
+    result = runner.invoke(
+        app, ["init", "--spec", str(tmp_path), "--output", str(tmp_path / "out")]
+    )
     assert result.exit_code != 0
     # Should show a user-facing error, not a Python traceback
     assert "Traceback" not in result.output
-    assert "ValueError" in result.output or "Invalid spec" in result.output or "Invalid YAML" in result.output
+    assert (
+        "ValueError" in result.output
+        or "Invalid spec" in result.output
+        or "Invalid YAML" in result.output
+    )

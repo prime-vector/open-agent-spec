@@ -74,8 +74,8 @@ dmypy.json
 .env.local
 .env.*.local
 
-# Project specific
-output/
+# Project specific (root output only; Website/components/output/ is source)
+/output/
 *.spec.yaml
 !example.spec.yaml
 
