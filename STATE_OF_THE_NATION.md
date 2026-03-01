@@ -72,7 +72,9 @@ The Open Agent Spec CLI is a Python tool that scaffolds AI agent projects from Y
 
 - **Entrypoint:** `main.py` does CLI, validation, and orchestration. Fine for a CLI, but “load spec → validate → prepare data → generate” could be a small library API (e.g. `oas_cli.generate(spec_path, output_dir)`) for reuse from other tools or scripts.
 - **Layering:** `generators.py` mixes high-level orchestration (`generate_agent_code`, `generate_readme`, …) with low-level string building (`_generate_pydantic_model`, `_generate_llm_output_parser`, …). Splitting into “orchestrator” vs “snippet generators” would improve composability.
-- **Package layout:** Single package `oas_cli` with many modules. No clear split like `oas_cli.spec`, `oas_cli.generate`, `oas_cli.cli`; adding that would make boundaries clearer.
+- **Package layout:** Single package `oas_cli` with many modules. A clear split like `oas_cli.spec`, `oas_cli.generate`, `oas_cli.cli` would make boundaries clearer; the new `oas_cli.core` module is a first step.
+
+**Section 5 work completed:** A thin public API was added: `from oas_cli import generate, validate_spec`. `validate_spec(spec_path)` returns `(spec_data, agent_name, class_name)`; `generate(spec_path, output_dir, dry_run=False)` runs the full pipeline. Core logic lives in `oas_cli.core`; the CLI in `main.py` delegates to it. See `oas_cli/__init__.py`, `oas_cli/core.py`, and `tests/test_public_api.py`.
 
 ---
 

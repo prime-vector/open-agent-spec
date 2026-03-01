@@ -8,20 +8,12 @@ from pathlib import Path
 from typing import Dict, Any, Tuple, Optional
 
 import typer
-import yaml
 from rich.console import Console
 from rich.logging import RichHandler
 from rich.panel import Panel
 
 from .banner import ASCII_TITLE
-from .generators import (
-    generate_agent_code,
-    generate_env_example,
-    generate_prompt_template,
-    generate_readme,
-    generate_requirements,
-)
-from .validators import validate_spec, validate_with_json_schema
+from .core import generate_files as core_generate_files, validate_spec_file
 
 app = typer.Typer(help="Open Agent Spec (OA) CLI")
 console = Console()
@@ -77,24 +69,13 @@ def load_and_validate_spec(
     """Load and validate a spec file, returning the data and derived names."""
     log.info(f"Reading spec from: {spec_path}")
     try:
-        with open(spec_path) as f:
-            spec_data = yaml.safe_load(f)
+        spec_data, agent_name, class_name = validate_spec_file(spec_path)
         log.info("Spec file loaded successfully")
-    except (yaml.YAMLError, FileNotFoundError) as err:
-        log.error(f"Error reading spec file: {err}")
-        raise ValueError("Invalid YAML format or file not found") from err
-
-    try:
-        # Get the path to the schema file relative to the main.py file
-        schema_path = Path(__file__).parent / "schemas" / "oas-schema.json"
-        validate_with_json_schema(spec_data, str(schema_path))
-
-        agent_name, class_name = validate_spec(spec_data)
         return spec_data, agent_name, class_name
     except ValueError as err:
         log.error(str(err))
         typer.echo(str(err), err=True)
-        raise ValueError(f"Invalid spec: {err}") from err
+        raise
 
 
 def resolve_spec_path(
@@ -127,29 +108,8 @@ def generate_files(
     class_name: str,
     log: logging.Logger,
 ) -> None:
-    """Generate all agent files."""
-    try:
-        # Create output directory
-        output.mkdir(parents=True, exist_ok=True)
-
-        # Generate each file
-        generate_agent_code(output, spec_data, agent_name, class_name)
-        generate_readme(output, spec_data)
-        generate_requirements(output, spec_data)
-        generate_env_example(output, spec_data)
-        generate_prompt_template(output, spec_data)
-
-        console.print("\n[bold green]✅ Agent project initialized![/] ✨")
-        log.info("Project initialized")
-        log.info("\nNext steps:")
-        log.info("1. cd into the output directory")
-        log.info("2. Copy .env.example to .env and set your OpenAI key")
-        log.info("3. Run: pip install -r requirements.txt")
-        log.info("4. Run: python agent.py")
-
-    except (OSError, ValueError, KeyError, TypeError, RuntimeError) as err:
-        log.error(f"Error during file generation: {err}")
-        raise RuntimeError(f"Failed to generate agent code: {err}") from err
+    """Generate all agent files (CLI wrapper with Rich console output)."""
+    core_generate_files(output, spec_data, agent_name, class_name, log, console=console)
 
 
 @app.command()
