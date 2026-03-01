@@ -10,7 +10,7 @@ By participating in this project, you agree to maintain a respectful and inclusi
 
 ### Creating Agent Spec Files
 
-The Open Agent Spec (OA) uses YAML files to define agent configurations. Here's how to create your own:
+The Open Agent Spec (OA) uses YAML files to define agent configurations. Use the **canonical field `open_agent_spec`** for the spec version (see README for the full schema). Here's how to create your own:
 
 #### Basic Structure
 ```yaml
@@ -93,6 +93,10 @@ intelligence:
    - Ensure all required fields are present
    - Check that values are of correct types
 
+#### Adding a new template
+
+Add a new YAML spec under `oas_cli/templates/` (e.g. `my-template.yaml`). For `oas init --template minimal`-style usage, the CLI loads from that directory; for named templates you may need to extend the CLI’s template resolution (see `resolve_spec_path` in `oas_cli/main.py`). Document the template in the README “Built-in Templates” section.
+
 ### Reporting Bugs
 
 - Check if the bug has already been reported in the Issues section
@@ -114,7 +118,7 @@ intelligence:
 1. Fork the repository
 2. Create a new branch (`git checkout -b feature/amazing-feature`)
 3. Make your changes
-4. Run tests (`pytest`)
+4. Run tests: `pytest tests/` (see [Testing](#testing) below)
 5. Commit your changes (`git commit -m 'Add amazing feature'`)
 6. Push to the branch (`git push origin feature/amazing-feature`)
 7. Open a Pull Request
@@ -144,10 +148,10 @@ pip install -e ".[dev]"
 
 ### Testing
 
-- Write tests for new features
-- Ensure all tests pass
-- Maintain or improve test coverage
-- Run tests with: `pytest`
+- Run all tests: `pytest tests/`
+- Write tests for new features; ensure all tests pass; maintain or improve test coverage.
+- **Pytest marks:** If you add a new test category, register the mark in `pytest.ini` (and optionally in `pyproject.toml` under `[tool.pytest.ini_options]` markers) so `pytest -m <mark>` works without "Unknown pytest.mark" warnings. Existing marks: `contract`, `cortex`, `multi_engine`, `generator`, `integration`, `slow`.
+- **Spec version field:** Use `open_agent_spec` (not `spec_version`) in YAML specs; this is the canonical field name used by the schema and code.
 
 ### Documentation
 
