@@ -115,7 +115,12 @@ class Handler(BaseHTTPRequestHandler):
                     iter(spec_data.get("tasks", {}) or {"greet": {}})
                 )
                 model_name = spec_data.get("intelligence", {}).get("model", "gpt-4")
-                simple_agent = f'''import openai
+                prompts = spec_data.get("prompts", {}) or {}
+                system_text = str(prompts.get("system", "")).strip()
+                # For the default demo, the user template is just "{{ name }}",
+                # so we map it to a simple f-string.
+                simple_agent = f'''import json
+from openai import OpenAI
 from pydantic import BaseModel
 
 
@@ -123,13 +128,26 @@ class GreetOutput(BaseModel):
     response: str
 
 
+client = OpenAI()
+
+
 def {first_task_name}(name: str):
-    prompt = f"You are a friendly agent. Say Hello {{name}}!"
-    result = openai.ChatCompletion.create(
+    system_prompt = """{system_text}"""
+    user_prompt = f"{{name}}"
+    response = client.chat.completions.create(
         model="{model_name}",
-        messages=[{{"role": "user", "content": prompt}}]
+        messages=[
+            {{"role": "system", "content": system_prompt}},
+            {{"role": "user", "content": user_prompt}},
+        ],
     )
-    return GreetOutput(response=result["choices"][0]["message"]["content"])
+    raw = response.choices[0].message.content
+    try:
+        data = json.loads(raw)
+        value = data.get("response", raw)
+    except json.JSONDecodeError:
+        value = raw
+    return GreetOutput(response=value)
 '''
                 result["agentPy"] = simple_agent
                 readme = output_dir / "README.md"
