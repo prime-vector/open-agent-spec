@@ -59,8 +59,9 @@ Website/
 ## Extending
 
 - **Validation**: Edit `lib/spec/schema.ts` (and/or `validate.ts`) to match the canonical Open Agent Spec schema.
-- **Codegen**: The playground uses the **real** Open Agent Spec Python generator when available:
-  - **Generate Agent** (Python): `POST /api/generate` with `{ yaml }` runs `Website/scripts/invoke_generator.py`, which calls `oas_cli` to produce full `agent.py`, README, requirements, prompts, etc. Requires the repo root to have Python and `pip install -e .` (or `open-agent-spec`). If the API is unavailable (e.g. deployed without Python), the UI falls back to the in-browser scaffold.
-  - Set `PYTHON_PATH` (e.g. to a venv’s `python`) when running the dev server if your default `python3` is not the right one.
+- **Codegen**:
+  - In **production on Vercel**, the playground uses a **Python Vercel Function**: `POST /api/generate` with `{ yaml }` proxies to `api/cli_generate.py`, which imports `open-agent-spec` from PyPI and produces full `agent.py`, README, requirements, prompts, etc. If that function fails, the UI falls back to the in-browser scaffold.
+  - In **local dev**, `npm run dev` does not run the Python function; `/api/generate` will return a fallback error and the UI will use the in-browser scaffold by design. To exercise the real generator locally, run with `vercel dev` so the Python function is available.
 - **Try with OpenAI**: **Try with OpenAI** runs the first task once via `POST /api/run-demo` with optional `apiKey`. Rate limit: **1 run per IP per calendar day**. Leave the key blank for a mock result. For production, replace the in-memory rate limit with Redis or Vercel KV.
 - **Runtime**: **Run Agent** uses the mock runtime (no LLM). Replace or extend `lib/runtime/mockRuntime.ts` for real inference.
+
