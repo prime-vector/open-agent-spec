@@ -20,8 +20,9 @@ _REPO_ROOT = _WEBSITE_DIR.parent
 if str(_REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(_REPO_ROOT))
 
-from oas_cli.core import validate_spec_file
-from oas_cli.generators import (
+# Import after path setup so oas_cli from repo root is found (E402: intentional)
+from oas_cli.core import validate_spec_file  # noqa: E402
+from oas_cli.generators import (  # noqa: E402
     generate_agent_code,
     generate_env_example,
     generate_prompt_template,
@@ -32,7 +33,6 @@ from oas_cli.generators import (
 
 def main() -> int:
     logging.basicConfig(level=logging.WARNING)
-    log = logging.getLogger("oas")
 
     if len(sys.argv) != 3:
         print(json.dumps({"error": "Usage: invoke_generator.py <spec_path> <output_dir>"}), file=sys.stderr)
