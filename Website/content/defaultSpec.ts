@@ -42,8 +42,4 @@ prompts:
     You are a friendly agent that greets people by name.
     Respond with: "Hello <name>!"
   user: "{{ name }}"
-
-behavioural_contract:
-  version: "0.1.2"
-  description: "Simple contract requiring a greeting response"
 `;
