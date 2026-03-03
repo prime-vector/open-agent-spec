@@ -4,8 +4,11 @@ import json
 import tempfile
 from http.server import BaseHTTPRequestHandler
 from pathlib import Path
+from typing import Any
 
-from oas_cli.core import validate_spec_file
+import yaml
+
+import oas_cli
 from oas_cli.generators import (
     generate_agent_code,
     generate_env_example,
@@ -13,6 +16,31 @@ from oas_cli.generators import (
     generate_readme,
     generate_requirements,
 )
+from oas_cli.validators import (
+    validate_spec as _validate_spec_data,
+)
+from oas_cli.validators import (
+    validate_with_json_schema,
+)
+
+
+def _validate_spec_file(spec_path: Path) -> tuple[dict[str, Any], str, str]:
+    """
+    Load and validate a spec file using the installed `open-agent-spec` package.
+
+    This mirrors the behaviour of `oas_cli.core.validate_spec_file` but avoids
+    importing the `core` module directly (older PyPI versions may not expose it).
+    """
+    try:
+        with spec_path.open(encoding="utf-8") as f:
+            spec_data = yaml.safe_load(f)
+    except (yaml.YAMLError, OSError) as err:
+        raise ValueError(f"Invalid spec path or YAML: {err}") from err
+
+    schema_path = Path(oas_cli.__file__).parent / "schemas" / "oas-schema.json"
+    validate_with_json_schema(spec_data, str(schema_path))
+    agent_name, class_name = _validate_spec_data(spec_data)
+    return spec_data, agent_name, class_name
 
 
 class Handler(BaseHTTPRequestHandler):
@@ -48,7 +76,7 @@ class Handler(BaseHTTPRequestHandler):
                 spec_path.write_text(yaml_str, encoding="utf-8")
 
                 try:
-                    spec_data, agent_name, class_name = validate_spec_file(spec_path)
+                    spec_data, agent_name, class_name = _validate_spec_file(spec_path)
                 except ValueError as e:  # validation or YAML error
                     self._send_json(422, {"error": str(e)})
                     return
@@ -92,4 +120,7 @@ class Handler(BaseHTTPRequestHandler):
         except Exception as e:  # pragma: no cover - defensive catch-all
             self._send_json(500, {"error": str(e) or "Internal server error"})
 
+
+# Vercel Python runtime expects a symbol named `handler` that is a
+# BaseHTTPRequestHandler subclass; expose the class here.
 handler = Handler
