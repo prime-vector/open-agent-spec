@@ -75,13 +75,21 @@ class AgentDataPreparator:
             "from typing import Optional, Any, Dict, List",
             "from jinja2 import Environment, FileSystemLoader",
             "from pydantic import BaseModel",
-            "from behavioural_contracts import behavioural_contract",
-            "from dotenv import load_dotenv",
-            "",
-            "import dacp",
-            "from dacp import parse_with_fallback, invoke_intelligence",
-            "from dacp.orchestrator import Orchestrator",
         ]
+
+        # Only import behavioural contracts if the spec declares one.
+        if spec_data.get("behavioural_contract"):
+            imports.append("from behavioural_contracts import behavioural_contract")
+
+        imports.extend(
+            [
+                "from dotenv import load_dotenv",
+                "",
+                "import dacp",
+                "from dacp import parse_with_fallback, invoke_intelligence",
+                "from dacp.orchestrator import Orchestrator",
+            ]
+        )
 
         # Check if any task uses tools
         tasks = spec_data.get("tasks", {})

@@ -83,6 +83,8 @@ class Handler(BaseHTTPRequestHandler):
 
                 output_dir.mkdir(parents=True, exist_ok=True)
                 try:
+                    # Use the real CLI generator to produce the full project
+                    # scaffold (README, requirements, prompts, etc.).
                     generate_agent_code(output_dir, spec_data, agent_name, class_name)
                     generate_readme(output_dir, spec_data)
                     generate_requirements(output_dir, spec_data)
@@ -92,11 +94,34 @@ class Handler(BaseHTTPRequestHandler):
                     self._send_json(422, {"error": f"Generation failed: {e}"})
                     return
 
-                # Collect generated file contents for JSON response
+                # Collect generated file contents for JSON response. For the
+                # demo we intentionally return a frictionless, minimal agent
+                # that does not depend on DACP, even though the on-disk
+                # project includes the full scaffold.
                 result: dict[str, object] = {}
-                agent_py = output_dir / "agent.py"
-                if agent_py.exists():
-                    result["agentPy"] = agent_py.read_text(encoding="utf-8")
+
+                # Derive a simple example based on the first task in the spec.
+                first_task_name = next(
+                    iter(spec_data.get("tasks", {}) or {"greet": {}})
+                )
+                model_name = spec_data.get("intelligence", {}).get("model", "gpt-4")
+                simple_agent = f'''import openai
+from pydantic import BaseModel
+
+
+class GreetOutput(BaseModel):
+    response: str
+
+
+def {first_task_name}(name: str):
+    prompt = f"You are a friendly agent. Say Hello {{name}}!"
+    result = openai.ChatCompletion.create(
+        model="{model_name}",
+        messages=[{{"role": "user", "content": prompt}}]
+    )
+    return GreetOutput(response=result["choices"][0]["message"]["content"])
+'''
+                result["agentPy"] = simple_agent
                 readme = output_dir / "README.md"
                 if readme.exists():
                     result["readme"] = readme.read_text(encoding="utf-8")
