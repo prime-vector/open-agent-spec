@@ -217,7 +217,9 @@ def _get_task_function_preamble(
     input_params = _generate_input_params(task_def)
     output_type = f"{task_name.replace('-', '_').title()}Output"
     docstring = _generate_function_docstring(task_name, task_def, output_type)
-    contract_data = _generate_contract_data(spec_data, task_def, agent_name, memory_config)
+    contract_data = _generate_contract_data(
+        spec_data, task_def, agent_name, memory_config
+    )
     return func_name, input_params, output_type, docstring, contract_data
 
 
