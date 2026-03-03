@@ -1,6 +1,6 @@
-from http.server import BaseHTTPRequestHandler
 import json
 import tempfile
+from http.server import BaseHTTPRequestHandler
 from pathlib import Path
 
 from oas_cli.core import validate_spec_file
@@ -13,7 +13,7 @@ from oas_cli.generators import (
 )
 
 
-class handler(BaseHTTPRequestHandler):
+class Handler(BaseHTTPRequestHandler):
     def _send_json(self, status: int, data: dict) -> None:
         body = json.dumps(data).encode("utf-8")
         self.send_response(status)
@@ -22,7 +22,7 @@ class handler(BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(body)
 
-    def do_POST(self) -> None:  # noqa: N802 (required by BaseHTTPRequestHandler)
+    def do_POST(self) -> None:
         try:
             length = int(self.headers.get("Content-Length") or 0)
             raw_body = self.rfile.read(length).decode("utf-8")
