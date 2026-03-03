@@ -11,6 +11,43 @@ from .code_generation import PythonCodeSerializer
 
 log = logging.getLogger("oas")
 
+# Single source of truth for the default agent prompt template (used for task prompts and agent_prompt.jinja2)
+DEFAULT_AGENT_PROMPT_TEMPLATE = """You are a professional AI agent designed to process tasks according to the Open Agent Spec.
+
+{% if memory_summary %}
+--- MEMORY CONTEXT ---
+{{ memory_summary }}
+------------------------
+{% endif %}
+
+TASK:
+Process the following task:
+
+{% for key, value in input.items() %}
+{{ key }}: {{ value }}
+{% endfor %}
+
+INSTRUCTIONS:
+1. Review the input data carefully
+2. Consider all relevant factors
+{% if memory_summary %}
+3. Take into account the provided memory context
+{% endif %}
+4. Provide a clear, actionable response
+5. Explain your reasoning in detail
+
+OUTPUT FORMAT:
+Your response should include the following fields:
+{{ output_format }}
+
+CONSTRAINTS:
+- Be clear and specific
+- Focus on actionable insights
+- Maintain professional objectivity
+{% if memory_summary and memory_config.required %}
+- Must reference and incorporate memory context
+{% endif %}"""
+
 
 def get_agent_info(spec_data: dict[str, Any]) -> dict[str, str]:
     """Get agent info from either old or new spec format."""
@@ -1422,43 +1459,7 @@ def generate_prompt_template(output: Path, spec_data: dict[str, Any]) -> None:
                 ) + prompt_content
         else:
             # Default format - use the full default template content
-            default_content = """You are a professional AI agent designed to process tasks according to the Open Agent Spec.
-
-{% if memory_summary %}
---- MEMORY CONTEXT ---
-{{ memory_summary }}
-------------------------
-{% endif %}
-
-TASK:
-Process the following task:
-
-{% for key, value in input.items() %}
-{{ key }}: {{ value }}
-{% endfor %}
-
-INSTRUCTIONS:
-1. Review the input data carefully
-2. Consider all relevant factors
-{% if memory_summary %}
-3. Take into account the provided memory context
-{% endif %}
-4. Provide a clear, actionable response
-5. Explain your reasoning in detail
-
-OUTPUT FORMAT:
-Your response should include the following fields:
-{{ output_format }}
-
-CONSTRAINTS:
-- Be clear and specific
-- Focus on actionable insights
-- Maintain professional objectivity
-{% if memory_summary and memory_config.required %}
-- Must reference and incorporate memory context
-{% endif %}"""
-
-            prompt_content = default_content
+            prompt_content = DEFAULT_AGENT_PROMPT_TEMPLATE
 
         # Always append the JSON schema instruction and example
         prompt_content += (
@@ -1473,43 +1474,7 @@ CONSTRAINTS:
     if default_template.exists():
         log.warning("agent_prompt.jinja2 already exists and will be overwritten")
 
-    default_content = """You are a professional AI agent designed to process tasks according to the Open Agent Spec.
-
-{% if memory_summary %}
---- MEMORY CONTEXT ---
-{{ memory_summary }}
-------------------------
-{% endif %}
-
-TASK:
-Process the following task:
-
-{% for key, value in input.items() %}
-{{ key }}: {{ value }}
-{% endfor %}
-
-INSTRUCTIONS:
-1. Review the input data carefully
-2. Consider all relevant factors
-{% if memory_summary %}
-3. Take into account the provided memory context
-{% endif %}
-4. Provide a clear, actionable response
-5. Explain your reasoning in detail
-
-OUTPUT FORMAT:
-Your response should include the following fields:
-{{ output_format }}
-
-CONSTRAINTS:
-- Be clear and specific
-- Focus on actionable insights
-- Maintain professional objectivity
-{% if memory_summary and memory_config.required %}
-- Must reference and incorporate memory context
-{% endif %}"""
-
-    default_template.write_text(default_content)
+    default_template.write_text(DEFAULT_AGENT_PROMPT_TEMPLATE)
     log.info("Created default prompt template: agent_prompt.jinja2")
 
 

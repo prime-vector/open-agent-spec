@@ -29,6 +29,7 @@ export function OutputTab({
     { label: "Engine", value: result.engine },
     { label: "Task", value: result.taskName },
     { label: "Duration", value: `${result.durationMs}ms` },
+    result.mock && { label: "Mode", value: "Mock (no API key or rate limit)" },
   ].filter(Boolean) as { label: string; value: string }[];
 
   return (

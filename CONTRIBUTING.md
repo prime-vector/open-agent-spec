@@ -14,11 +14,16 @@ The Open Agent Spec (OA) uses YAML files to define agent configurations. Use the
 
 #### Basic Structure
 ```yaml
-info:
+open_agent_spec: "1.0.8"
+
+agent:
   name: my-agent
   description: A fantastic agent that changes the world
+  role: chat
 
 intelligence:
+  type: llm
+  engine: openai
   endpoint: https://api.openai.com/v1
   model: gpt-4
   config:
@@ -28,13 +33,17 @@ intelligence:
 
 #### Required Fields
 
-1. `info` section:
-   - `name`: A unique identifier for your agent (will be converted to snake_case for Python)
-   - `description`: A clear description of what your agent does
+1. **`open_agent_spec`**: Version of the OA specification (string, e.g. `"1.0.8"`).
 
-2. `intelligence` section:
+2. **`agent`** section:
+   - `name`: A unique identifier for your agent (kebab-case; will be converted to snake_case for Python)
+   - `description`: A clear description of what your agent does
+   - `role`: Optional; one of analyst, reviewer, chat, retriever, planner, executor
+
+3. **`intelligence`** section:
+   - `engine`: LLM provider (e.g. openai, anthropic, grok, local, custom)
    - `endpoint`: The API endpoint for your LLM provider
-   - `model`: The specific model to use (e.g., "gpt-4", "gpt-3.5-turbo")
+   - `model`: The specific model to use (e.g. "gpt-4", "gpt-3.5-turbo")
    - `config`: Model-specific configuration
      - `temperature`: Controls randomness (0.0 to 1.0)
      - `max_tokens`: Maximum length of the response
@@ -43,11 +52,16 @@ intelligence:
 
 1. Trading Agent:
 ```yaml
-info:
+open_agent_spec: "1.0.8"
+
+agent:
   name: market-analyzer
   description: An agent that analyzes market signals and provides trading recommendations
+  role: analyst
 
 intelligence:
+  type: llm
+  engine: openai
   endpoint: https://api.openai.com/v1
   model: gpt-4
   config:
@@ -57,11 +71,16 @@ intelligence:
 
 2. Content Generator:
 ```yaml
-info:
+open_agent_spec: "1.0.8"
+
+agent:
   name: content-creator
   description: An agent that generates creative content based on prompts
+  role: chat
 
 intelligence:
+  type: llm
+  engine: openai
   endpoint: https://api.openai.com/v1
   model: gpt-4
   config:
@@ -95,7 +114,7 @@ intelligence:
 
 #### Adding a new template
 
-Add a new YAML spec under `oas_cli/templates/` (e.g. `my-template.yaml`). For `oas init --template minimal`-style usage, the CLI loads from that directory; for named templates you may need to extend the CLI’s template resolution (see `resolve_spec_path` in `oas_cli/main.py`). Document the template in the README “Built-in Templates” section.
+Add a new YAML spec under `oas_cli/templates/` (e.g. `my-template.yaml`). For `oas init --template minimal`-style usage, the CLI loads from that directory; For custom YAML use `oas init --spec path/to/your.yaml`. Overriding the template directory (e.g. via an env var) is not currently supported. Document the template in the README “Built-in Templates” section.
 
 ### Reporting Bugs
 
