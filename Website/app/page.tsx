@@ -99,7 +99,7 @@ export default function PlaygroundPage() {
             Declarative standard for defining AI agents
           </p>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center justify-end gap-2 sm:gap-3">
           <select
             value={targetLang}
             onChange={(e) => setTargetLang(e.target.value as TargetLanguage)}
@@ -120,7 +120,7 @@ export default function PlaygroundPage() {
             type="button"
             onClick={() => setOpenAIModalOpen(true)}
             disabled={!spec}
-            className="rounded border border-[var(--accent)] bg-transparent px-4 py-2 text-sm font-medium text-[var(--accent)] transition hover:bg-[var(--accent)] hover:text-white disabled:opacity-50"
+            className="hidden rounded border border-[var(--accent)] bg-transparent px-4 py-2 text-sm font-medium text-[var(--accent)] transition hover:bg-[var(--accent)] hover:text-white disabled:opacity-50 sm:inline-flex"
             aria-label="Try with OpenAI (rate limited)"
           >
             Try with OpenAI
