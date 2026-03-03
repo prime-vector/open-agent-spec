@@ -89,3 +89,8 @@ class Handler(BaseHTTPRequestHandler):
                 self._send_json(200, result)
         except Exception as e:  # pragma: no cover - defensive catch-all
             self._send_json(500, {"error": str(e) or "Internal server error"})
+
+
+# Vercel Python runtime looks for a symbol named `handler` that is a
+# BaseHTTPRequestHandler subclass, so expose the class instance here.
+handler = Handler
