@@ -5,7 +5,7 @@ import logging
 import tempfile
 from importlib.metadata import version as _get_version
 from pathlib import Path
-from typing import Dict, Any, Tuple, Optional
+from typing import Any
 
 import typer
 from rich.console import Console
@@ -13,7 +13,8 @@ from rich.logging import RichHandler
 from rich.panel import Panel
 
 from .banner import ASCII_TITLE
-from .core import generate_files as core_generate_files, validate_spec_file
+from .core import generate_files as core_generate_files
+from .core import validate_spec_file
 
 app = typer.Typer(help="Open Agent Spec (OA) CLI")
 console = Console()
@@ -65,7 +66,7 @@ def main(
 
 def load_and_validate_spec(
     spec_path: Path, log: logging.Logger
-) -> Tuple[Dict[str, Any], str, str]:
+) -> tuple[dict[str, Any], str, str]:
     """Load and validate a spec file, returning the data and derived names."""
     log.info(f"Reading spec from: {spec_path}")
     try:
@@ -79,8 +80,8 @@ def load_and_validate_spec(
 
 
 def resolve_spec_path(
-    spec: Optional[Path], template: Optional[str], log: logging.Logger
-) -> Tuple[Path, Optional[Path]]:
+    spec: Path | None, template: str | None, log: logging.Logger
+) -> tuple[Path, Path | None]:
     """Return (spec_path, temp_file_to_delete). Second is non-None only when using minimal template."""
     if spec is not None:
         return spec, None
@@ -103,7 +104,7 @@ def resolve_spec_path(
 
 def generate_files(
     output: Path,
-    spec_data: Dict[str, Any],
+    spec_data: dict[str, Any],
     agent_name: str,
     class_name: str,
     log: logging.Logger,
@@ -121,9 +122,9 @@ def version():
 
 @app.command()
 def init(
-    spec: Optional[Path] = typer.Option(None, help="Path to Open Agent Spec YAML file"),
+    spec: Path | None = typer.Option(None, help="Path to Open Agent Spec YAML file"),
     output: Path = typer.Option(..., help="Directory to scaffold the agent into"),
-    template: Optional[str] = typer.Option(
+    template: str | None = typer.Option(
         None, help="Template name to use (e.g., 'minimal')"
     ),
     verbose: bool = typer.Option(

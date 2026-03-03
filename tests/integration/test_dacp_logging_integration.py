@@ -11,10 +11,11 @@ This test demonstrates the full DACP logging integration working end-to-end:
 """
 
 import os
+import subprocess
 import sys
 import tempfile
-import subprocess
 from pathlib import Path
+
 import pytest
 
 

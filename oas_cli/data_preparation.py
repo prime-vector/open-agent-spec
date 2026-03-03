@@ -4,9 +4,9 @@
 """Data preparation utilities for code generation."""
 
 import logging
-from typing import Any, Dict, List
-from .code_generation import PythonCodeSerializer, TemplateVariableParser
+from typing import Any
 
+from .code_generation import PythonCodeSerializer, TemplateVariableParser
 
 log = logging.getLogger(__name__)
 
@@ -19,8 +19,8 @@ class AgentDataPreparator:
         self.variable_parser = TemplateVariableParser()
 
     def prepare_all_data(
-        self, spec_data: Dict[str, Any], agent_name: str, class_name: str
-    ) -> Dict[str, Any]:
+        self, spec_data: dict[str, Any], agent_name: str, class_name: str
+    ) -> dict[str, Any]:
         """Prepare all data needed for agent generation."""
         config = self._prepare_config(spec_data)
         memory_config = self._prepare_memory_config(spec_data)
@@ -46,7 +46,7 @@ class AgentDataPreparator:
             "example_task_code": self._prepare_example_task_code(spec_data),
         }
 
-    def _prepare_config(self, spec_data: Dict[str, Any]) -> Dict[str, Any]:
+    def _prepare_config(self, spec_data: dict[str, Any]) -> dict[str, Any]:
         """Prepare basic configuration."""
         intelligence = spec_data.get("intelligence", {})
         return {
@@ -56,7 +56,7 @@ class AgentDataPreparator:
             "max_tokens": intelligence.get("config", {}).get("max_tokens", 1000),
         }
 
-    def _prepare_memory_config(self, spec_data: Dict[str, Any]) -> Dict[str, Any]:
+    def _prepare_memory_config(self, spec_data: dict[str, Any]) -> dict[str, Any]:
         """Prepare memory configuration."""
         from .generators import (
             get_memory_config,
@@ -64,7 +64,7 @@ class AgentDataPreparator:
 
         return get_memory_config(spec_data)
 
-    def _prepare_imports(self, spec_data: Dict[str, Any]) -> List[str]:
+    def _prepare_imports(self, spec_data: dict[str, Any]) -> list[str]:
         """Prepare import statements."""
         # Base imports
         imports = [
@@ -104,7 +104,7 @@ class AgentDataPreparator:
 
         return imports
 
-    def _prepare_models(self, spec_data: Dict[str, Any]) -> List[str]:
+    def _prepare_models(self, spec_data: dict[str, Any]) -> list[str]:
         """Prepare Pydantic model definitions."""
         from .generators import (
             _generate_pydantic_model,
@@ -123,11 +123,11 @@ class AgentDataPreparator:
 
     def _prepare_task_functions(
         self,
-        spec_data: Dict[str, Any],
+        spec_data: dict[str, Any],
         agent_name: str,
-        memory_config: Dict[str, Any],
-        config: Dict[str, Any],
-    ) -> List[str]:
+        memory_config: dict[str, Any],
+        config: dict[str, Any],
+    ) -> list[str]:
         """Prepare task function code."""
         from .generators import (
             _generate_task_function,
@@ -144,7 +144,7 @@ class AgentDataPreparator:
 
         return task_functions
 
-    def _prepare_class_methods(self, spec_data: Dict[str, Any]) -> List[str]:
+    def _prepare_class_methods(self, spec_data: dict[str, Any]) -> list[str]:
         """Prepare agent class methods."""
         from .generators import (
             _generate_input_params,
@@ -183,7 +183,7 @@ class AgentDataPreparator:
 
         return class_methods
 
-    def _prepare_memory_methods(self, spec_data: Dict[str, Any]) -> List[str]:
+    def _prepare_memory_methods(self, spec_data: dict[str, Any]) -> list[str]:
         """Prepare memory-related methods if memory is enabled."""
         memory_config = self._prepare_memory_config(spec_data)
 
@@ -205,7 +205,7 @@ class AgentDataPreparator:
 '''
         ]
 
-    def _prepare_embedded_config(self, spec_data: Dict[str, Any]) -> str:
+    def _prepare_embedded_config(self, spec_data: dict[str, Any]) -> str:
         """Prepare embedded configuration using proper serialization."""
         from .generators import (
             get_logging_config,
@@ -324,7 +324,7 @@ class AgentDataPreparator:
 '''
 
     def _prepare_custom_router_loader(
-        self, spec_data: Dict[str, Any], config: Dict[str, Any]
+        self, spec_data: dict[str, Any], config: dict[str, Any]
     ) -> str:
         """Prepare custom router loader if needed."""
         engine = spec_data.get("intelligence", {}).get("engine", "openai")
@@ -346,7 +346,7 @@ def load_custom_llm_router(endpoint, model, config):
 '''
 
     def _prepare_custom_router_init(
-        self, spec_data: Dict[str, Any], config: Dict[str, Any]
+        self, spec_data: dict[str, Any], config: dict[str, Any]
     ) -> str:
         """Prepare custom router initialization if needed."""
         engine = spec_data.get("intelligence", {}).get("engine", "openai")
@@ -357,7 +357,7 @@ def load_custom_llm_router(endpoint, model, config):
 
         return f'self.router = load_custom_llm_router("{config["endpoint"]}", "{config["model"]}", {{}})  # {custom_module}'
 
-    def _prepare_example_task_code(self, spec_data: Dict[str, Any]) -> str:
+    def _prepare_example_task_code(self, spec_data: dict[str, Any]) -> str:
         """Prepare example task execution code."""
         tasks = spec_data.get("tasks", {})
         if not tasks:
@@ -382,7 +382,7 @@ def load_custom_llm_router(endpoint, model, config):
             )
 
     def _generate_example_for_task(
-        self, task_name: str, task_def: Dict[str, Any]
+        self, task_name: str, task_def: dict[str, Any]
     ) -> str:
         """Generate example code for a specific task."""
         from .generators import (

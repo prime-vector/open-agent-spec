@@ -387,6 +387,13 @@ oas init --spec oas_cli/templates/grok-security-analyzer.yaml --output grok-anal
 
 See [SECURITY_TEMPLATES.md](oas_cli/templates/SECURITY_TEMPLATES.md) for detailed documentation and usage examples.
 
+### Template and configuration
+
+- **Bundled templates:** YAML specs (e.g. `minimal-agent.yaml`) and Jinja2 code-gen templates (e.g. `agent.py.j2`) live under `oas_cli/templates/`. The CLI loads these from the installed package.
+- **Custom YAML:** Use `oas init --spec path/to/your.yaml --output ...` to use your own spec; no override needed.
+- **Overriding bundled templates:** Overriding the template directory (e.g. via an env var) is not implemented. To use custom Jinja2 code-gen templates you would need to modify the package or wait for a future `OAS_TEMPLATE_DIR` (or similar) option.
+- **Default prompt text:** The default prompt used for generated `agent_prompt.jinja2` and for task prompts is defined once in `oas_cli/generators.py` as `DEFAULT_AGENT_PROMPT_TEMPLATE`.
+
 ## Development
 
 ### Setup

@@ -10,15 +10,20 @@ By participating in this project, you agree to maintain a respectful and inclusi
 
 ### Creating Agent Spec Files
 
-The Open Agent Spec (OA) uses YAML files to define agent configurations. Here's how to create your own:
+The Open Agent Spec (OA) uses YAML files to define agent configurations. Use the **canonical field `open_agent_spec`** for the spec version (see README for the full schema). Here's how to create your own:
 
 #### Basic Structure
 ```yaml
-info:
+open_agent_spec: "1.0.8"
+
+agent:
   name: my-agent
   description: A fantastic agent that changes the world
+  role: chat
 
 intelligence:
+  type: llm
+  engine: openai
   endpoint: https://api.openai.com/v1
   model: gpt-4
   config:
@@ -28,13 +33,17 @@ intelligence:
 
 #### Required Fields
 
-1. `info` section:
-   - `name`: A unique identifier for your agent (will be converted to snake_case for Python)
-   - `description`: A clear description of what your agent does
+1. **`open_agent_spec`**: Version of the OA specification (string, e.g. `"1.0.8"`).
 
-2. `intelligence` section:
+2. **`agent`** section:
+   - `name`: A unique identifier for your agent (kebab-case; will be converted to snake_case for Python)
+   - `description`: A clear description of what your agent does
+   - `role`: Optional; one of analyst, reviewer, chat, retriever, planner, executor
+
+3. **`intelligence`** section:
+   - `engine`: LLM provider (e.g. openai, anthropic, grok, local, custom)
    - `endpoint`: The API endpoint for your LLM provider
-   - `model`: The specific model to use (e.g., "gpt-4", "gpt-3.5-turbo")
+   - `model`: The specific model to use (e.g. "gpt-4", "gpt-3.5-turbo")
    - `config`: Model-specific configuration
      - `temperature`: Controls randomness (0.0 to 1.0)
      - `max_tokens`: Maximum length of the response
@@ -43,11 +52,16 @@ intelligence:
 
 1. Trading Agent:
 ```yaml
-info:
+open_agent_spec: "1.0.8"
+
+agent:
   name: market-analyzer
   description: An agent that analyzes market signals and provides trading recommendations
+  role: analyst
 
 intelligence:
+  type: llm
+  engine: openai
   endpoint: https://api.openai.com/v1
   model: gpt-4
   config:
@@ -57,11 +71,16 @@ intelligence:
 
 2. Content Generator:
 ```yaml
-info:
+open_agent_spec: "1.0.8"
+
+agent:
   name: content-creator
   description: An agent that generates creative content based on prompts
+  role: chat
 
 intelligence:
+  type: llm
+  engine: openai
   endpoint: https://api.openai.com/v1
   model: gpt-4
   config:
@@ -93,6 +112,10 @@ intelligence:
    - Ensure all required fields are present
    - Check that values are of correct types
 
+#### Adding a new template
+
+Add a new YAML spec under `oas_cli/templates/` (e.g. `my-template.yaml`). For `oas init --template minimal`-style usage, the CLI loads from that directory; For custom YAML use `oas init --spec path/to/your.yaml`. Overriding the template directory (e.g. via an env var) is not currently supported. Document the template in the README “Built-in Templates” section.
+
 ### Reporting Bugs
 
 - Check if the bug has already been reported in the Issues section
@@ -114,7 +137,7 @@ intelligence:
 1. Fork the repository
 2. Create a new branch (`git checkout -b feature/amazing-feature`)
 3. Make your changes
-4. Run tests (`pytest`)
+4. Run tests: `pytest tests/` (see [Testing](#testing) below)
 5. Commit your changes (`git commit -m 'Add amazing feature'`)
 6. Push to the branch (`git push origin feature/amazing-feature`)
 7. Open a Pull Request
@@ -144,10 +167,10 @@ pip install -e ".[dev]"
 
 ### Testing
 
-- Write tests for new features
-- Ensure all tests pass
-- Maintain or improve test coverage
-- Run tests with: `pytest`
+- Run all tests: `pytest tests/`
+- Write tests for new features; ensure all tests pass; maintain or improve test coverage.
+- **Pytest marks:** If you add a new test category, register the mark in `pytest.ini` (and optionally in `pyproject.toml` under `[tool.pytest.ini_options]` markers) so `pytest -m <mark>` works without "Unknown pytest.mark" warnings. Existing marks: `contract`, `cortex`, `multi_engine`, `generator`, `integration`, `slow`.
+- **Spec version field:** Use `open_agent_spec` (not `spec_version`) in YAML specs; this is the canonical field name used by the schema and code.
 
 ### Documentation
 

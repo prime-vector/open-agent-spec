@@ -1,9 +1,9 @@
 """Test multi-engine compatibility and consistency."""
 
-import pytest
-from unittest.mock import patch, MagicMock
 import json
-from typing import List
+from unittest.mock import MagicMock, patch
+
+import pytest
 from pydantic import BaseModel, ValidationError
 
 pytestmark = pytest.mark.multi_engine
@@ -13,7 +13,7 @@ class MockAnalyzeThreatOutput(BaseModel):
     """Mock output model for testing."""
 
     risk_assessment: str
-    recommendations: List[str]
+    recommendations: list[str]
     confidence_level: float
 
 
@@ -227,7 +227,7 @@ class TestEngineCompatibility:
             assert field in parsed
 
         # Verify data types
-        assert isinstance(parsed["confidence_score"], (int, float))
+        assert isinstance(parsed["confidence_score"], int | float)
         assert isinstance(parsed["recommended_actions"], list)
         assert len(parsed["recommended_actions"]) > 0
 
@@ -334,12 +334,12 @@ class TestContractEnforcement:
 
     def test_confidence_bounds_enforcement(self):
         """Test confidence level bounds are enforced."""
+
         from pydantic import BaseModel, Field
-        from typing import List
 
         class BoundedOutput(BaseModel):
             risk_assessment: str
-            recommendations: List[str]
+            recommendations: list[str]
             confidence_level: float = Field(ge=0.0, le=1.0)
 
         # Valid confidence levels

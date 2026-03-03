@@ -16,13 +16,12 @@ Public API for use from scripts and other tools:
 """
 
 from pathlib import Path
-from typing import Any, Dict, Tuple
+from typing import Any
 
-from .core import generate
-from .core import validate_spec_file
+from .core import generate, validate_spec_file
 
 
-def validate_spec(spec_path: Path) -> Tuple[Dict[str, Any], str, str]:
+def validate_spec(spec_path: Path) -> tuple[dict[str, Any], str, str]:
     """
     Load and validate a spec file.
 

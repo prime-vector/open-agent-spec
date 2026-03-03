@@ -38,4 +38,6 @@ export interface ExecutionResult {
   engine: string;
   durationMs: number;
   error?: string;
+  /** True when run-demo returned without calling OpenAI (e.g. no key or mock). */
+  mock?: boolean;
 }

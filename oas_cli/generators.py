@@ -5,14 +5,51 @@
 
 import logging
 from pathlib import Path
-from typing import Any, Dict, List
+from typing import Any
 
 from .code_generation import PythonCodeSerializer
 
 log = logging.getLogger("oas")
 
+# Single source of truth for the default agent prompt template (used for task prompts and agent_prompt.jinja2)
+DEFAULT_AGENT_PROMPT_TEMPLATE = """You are a professional AI agent designed to process tasks according to the Open Agent Spec.
 
-def get_agent_info(spec_data: Dict[str, Any]) -> Dict[str, str]:
+{% if memory_summary %}
+--- MEMORY CONTEXT ---
+{{ memory_summary }}
+------------------------
+{% endif %}
+
+TASK:
+Process the following task:
+
+{% for key, value in input.items() %}
+{{ key }}: {{ value }}
+{% endfor %}
+
+INSTRUCTIONS:
+1. Review the input data carefully
+2. Consider all relevant factors
+{% if memory_summary %}
+3. Take into account the provided memory context
+{% endif %}
+4. Provide a clear, actionable response
+5. Explain your reasoning in detail
+
+OUTPUT FORMAT:
+Your response should include the following fields:
+{{ output_format }}
+
+CONSTRAINTS:
+- Be clear and specific
+- Focus on actionable insights
+- Maintain professional objectivity
+{% if memory_summary and memory_config.required %}
+- Must reference and incorporate memory context
+{% endif %}"""
+
+
+def get_agent_info(spec_data: dict[str, Any]) -> dict[str, str]:
     """Get agent info from either old or new spec format."""
     # Try new format first
     agent = spec_data.get("agent", {})
@@ -27,7 +64,7 @@ def get_agent_info(spec_data: Dict[str, Any]) -> Dict[str, str]:
     return {"name": info.get("name", ""), "description": info.get("description", "")}
 
 
-def get_memory_config(spec_data: Dict[str, Any]) -> Dict[str, Any]:
+def get_memory_config(spec_data: dict[str, Any]) -> dict[str, Any]:
     """Get memory configuration from spec."""
     memory = spec_data.get("memory", {})
     return {
@@ -39,7 +76,7 @@ def get_memory_config(spec_data: Dict[str, Any]) -> Dict[str, Any]:
     }
 
 
-def get_logging_config(spec_data: Dict[str, Any]) -> Dict[str, Any]:
+def get_logging_config(spec_data: dict[str, Any]) -> dict[str, Any]:
     """Get logging configuration from spec."""
     logging_config = spec_data.get("logging", {})
     return {
@@ -59,7 +96,7 @@ def to_pascal_case(name: str) -> str:
     return "".join(word.capitalize() for word in name.split("_"))
 
 
-def _generate_input_params(task_def: Dict[str, Any]) -> List[str]:
+def _generate_input_params(task_def: dict[str, Any]) -> list[str]:
     """Generate input parameters for a task function."""
     input_params = []
 
@@ -106,7 +143,7 @@ def _generate_input_params(task_def: Dict[str, Any]) -> List[str]:
 
 
 def _generate_function_docstring(
-    task_name: str, task_def: Dict[str, Any], output_type: str
+    task_name: str, task_def: dict[str, Any], output_type: str
 ) -> str:
     """Generate docstring for a task function."""
     return f'''"""Process {task_name} task.
@@ -121,11 +158,11 @@ def _generate_function_docstring(
 
 
 def _generate_contract_data(
-    spec_data: Dict[str, Any],
-    task_def: Dict[str, Any],
+    spec_data: dict[str, Any],
+    task_def: dict[str, Any],
     agent_name: str,
-    memory_config: Dict[str, Any],
-) -> Dict[str, Any]:
+    memory_config: dict[str, Any],
+) -> dict[str, Any]:
     """Generate behavioural contract data from spec."""
     behavioural_section = spec_data.get("behavioural_contract", {})
 
@@ -157,8 +194,33 @@ def _generate_contract_data(
     return contract_data
 
 
+def _format_contract_for_decorator(contract_data: dict[str, Any]) -> str:
+    """Format contract data dict as the argument list for @behavioural_contract(...)."""
+    return ",\n    ".join(
+        f"{k}={PythonCodeSerializer.format_value(v)}" for k, v in contract_data.items()
+    )
+
+
+def _get_task_function_preamble(
+    task_name: str,
+    task_def: dict[str, Any],
+    spec_data: dict[str, Any],
+    agent_name: str,
+    memory_config: dict[str, Any],
+) -> tuple[str, list[str], str, str, dict[str, Any]]:
+    """Return (func_name, input_params, output_type, docstring, contract_data) for task generators."""
+    func_name = task_name.replace("-", "_")
+    input_params = _generate_input_params(task_def)
+    output_type = f"{task_name.replace('-', '_').title()}Output"
+    docstring = _generate_function_docstring(task_name, task_def, output_type)
+    contract_data = _generate_contract_data(
+        spec_data, task_def, agent_name, memory_config
+    )
+    return func_name, input_params, output_type, docstring, contract_data
+
+
 def _generate_pydantic_model(
-    name: str, schema: Dict[str, Any], is_root: bool = True
+    name: str, schema: dict[str, Any], is_root: bool = True
 ) -> str:
     """Generate a Pydantic model from a JSON schema.
 
@@ -225,7 +287,7 @@ def _generate_pydantic_model(
 
 
 def _get_pydantic_type(
-    schema: Dict[str, Any], parent_name: str, field_name: str
+    schema: dict[str, Any], parent_name: str, field_name: str
 ) -> str:
     """Convert JSON schema type to Pydantic type."""
     schema_type = schema.get("type")
@@ -253,7 +315,7 @@ def _get_pydantic_type(
         return "Any"
 
 
-def generate_models(output: Path, spec_data: Dict[str, Any]) -> None:
+def generate_models(output: Path, spec_data: dict[str, Any]) -> None:
     """Generate models.py file with Pydantic models for task outputs."""
     if (output / "models.py").exists():
         log.warning("models.py already exists and will be overwritten")
@@ -282,7 +344,7 @@ def generate_models(output: Path, spec_data: Dict[str, Any]) -> None:
     log.info("models.py created")
 
 
-def _generate_llm_output_parser(task_name: str, output_schema: Dict[str, Any]) -> str:
+def _generate_llm_output_parser(task_name: str, output_schema: dict[str, Any]) -> str:
     """Generate a function for parsing LLM output using DACP's parse_with_fallback."""
     model_name = f"{task_name.replace('-', '_').title()}Output"
     parser_name = f"parse_{task_name.replace('-', '_')}_output"
@@ -388,7 +450,7 @@ def _generate_llm_output_parser(task_name: str, output_schema: Dict[str, Any]) -
 """
 
 
-def _generate_human_readable_output(schema: Dict[str, Any], indent: int = 0) -> str:
+def _generate_human_readable_output(schema: dict[str, Any], indent: int = 0) -> str:
     """Generate a human-readable description of the output schema.
 
     Args:
@@ -438,7 +500,7 @@ def _generate_human_readable_output(schema: Dict[str, Any], indent: int = 0) -> 
     return "\n".join(lines)
 
 
-def _get_human_readable_type(schema: Dict[str, Any]) -> str:
+def _get_human_readable_type(schema: dict[str, Any]) -> str:
     """Convert JSON schema type to human-readable type."""
     schema_type = schema.get("type")
 
@@ -464,8 +526,8 @@ def _get_human_readable_type(schema: Dict[str, Any]) -> str:
 
 
 def _generate_json_example(
-    field_name: str, field_schema: Dict[str, Any], indent: int = 0, comma: str = ""
-) -> List[str]:
+    field_name: str, field_schema: dict[str, Any], indent: int = 0, comma: str = ""
+) -> list[str]:
     """Generate a structured JSON example for a field based on its schema.
 
     Args:
@@ -551,82 +613,56 @@ def _generate_json_example(
     return lines
 
 
-def _generate_multi_step_task_function(
-    task_name: str,
-    task_def: Dict[str, Any],
-    spec_data: Dict[str, Any],
-    agent_name: str,
-    memory_config: Dict[str, Any],
-) -> str:
-    """Generate a multi-step task function that orchestrates other tasks."""
-    func_name = task_name.replace("-", "_")
-    input_params = _generate_input_params(task_def)
-    output_type = f"{task_name.replace('-', '_').title()}Output"
-    docstring = _generate_function_docstring(task_name, task_def, output_type)
-    contract_data = _generate_contract_data(
-        spec_data, task_def, agent_name, memory_config
-    )
-
-    # Get the steps from the task definition
-    steps = task_def.get("steps", [])
-
-    # Generate step execution code
+def _build_multi_step_execution_code(steps: list[dict[str, Any]]) -> str:
+    """Build the step execution code block for a multi-step task (e.g. step_0_result = ...)."""
     step_code = []
-    step_results: List[str] = []
-
+    step_results: list[str] = []
     for i, step in enumerate(steps):
         step_task = step["task"]
         input_map = step.get("input_map", {})
-
-        # Convert input mapping to Python code
         step_inputs = []
         for param, value in input_map.items():
-            # Handle Jinja2-style templating {{variable}}
             if isinstance(value, str) and "{{" in value and "}}" in value:
-                # Extract variable name from {{variable}}
                 var_name = value.replace("{{", "").replace("}}", "").strip()
-                # Handle nested references like input.name -> extract just 'name'
                 if "." in var_name:
                     parts = var_name.split(".")
                     if parts[0] == "input":
-                        # This is an input parameter
                         var_name = parts[-1]
                         step_inputs.append(f"{param}={var_name}")
                     elif parts[0] == "steps" and len(parts) >= 3:
-                        # This is a reference to a previous step result
                         step_index = int(parts[1])
                         field_name = parts[2]
-                        if step_index < i:  # Only reference previous steps
+                        if step_index < i:
                             step_var = step_results[step_index]
                             step_inputs.append(
                                 f"{param}={step_var}.{field_name} if hasattr({step_var}, '{field_name}') else {step_var}.get('{field_name}', '')"
                             )
                         else:
-                            # Invalid reference to future step
                             step_inputs.append(f'{param}=""')
+                    else:
+                        step_inputs.append(f"{param}={var_name}")
                 else:
-                    # Simple variable name without dots
                     step_inputs.append(f"{param}={var_name}")
             else:
-                # Literal value
                 step_inputs.append(f'{param}="{value}"')
-
         step_input_str = ", ".join(step_inputs)
         step_var = f"step_{i}_result"
         step_results.append(step_var)
-
         step_code.append(
             f"""    # Execute step {i + 1}: {step_task}
     {step_var} = {step_task.replace("-", "_")}({step_input_str})"""
         )
+    return "\n".join(step_code)
 
-    # Generate output construction with generic mapping from step results to output schema
-    output_schema = task_def.get("output", {})
+
+def _build_multi_step_output_construction(
+    steps: list[dict[str, Any]], output_schema: dict[str, Any]
+) -> str:
+    """Build the output construction from step results (prop=next((v for v in [...]), None))."""
+    step_results = [f"step_{i}_result" for i in range(len(steps))]
     output_properties = output_schema.get("properties", {})
-
     output_construction = []
     for prop_name in output_properties:
-        # Collect candidates: getattr then dict.get for each step; use first that is not None (preserves False, 0, "")
         candidates = []
         for sv in step_results:
             candidates.append(f"getattr({sv}, '{prop_name}', None)")
@@ -637,13 +673,29 @@ def _generate_multi_step_task_function(
         output_construction.append(
             f"        {prop_name}=next((v for v in [{candidates_str}] if v is not None), None)"
         )
+    return ",\n".join(output_construction)
 
-    output_construction_str = ",\n".join(output_construction)
 
-    # Format the contract data for the decorator (single shared implementation)
-    contract_str = ",\n    ".join(
-        f"{k}={PythonCodeSerializer.format_value(v)}" for k, v in contract_data.items()
+def _generate_multi_step_task_function(
+    task_name: str,
+    task_def: dict[str, Any],
+    spec_data: dict[str, Any],
+    agent_name: str,
+    memory_config: dict[str, Any],
+) -> str:
+    """Generate a multi-step task function that orchestrates other tasks."""
+    func_name, input_params, output_type, docstring, contract_data = (
+        _get_task_function_preamble(
+            task_name, task_def, spec_data, agent_name, memory_config
+        )
     )
+    steps = task_def.get("steps", [])
+
+    step_code = _build_multi_step_execution_code(steps)
+    output_construction_str = _build_multi_step_output_construction(
+        steps, task_def.get("output", {})
+    )
+    contract_str = _format_contract_for_decorator(contract_data)
 
     return f"""
 @behavioural_contract(
@@ -652,7 +704,7 @@ def _generate_multi_step_task_function(
 def {func_name}({", ".join(input_params)}) -> {output_type}:
     {docstring}
     # Execute multi-step task: {task_name}
-{chr(10).join(step_code)}
+{step_code}
 
     # Construct output from step results
     return {output_type}(
@@ -663,7 +715,7 @@ def {func_name}({", ".join(input_params)}) -> {output_type}:
 
 # Legacy functions (deprecated - use template-based generation instead)
 def _generate_intelligence_config(
-    spec_data: Dict[str, Any], config: Dict[str, Any]
+    spec_data: dict[str, Any], config: dict[str, Any]
 ) -> str:
     """Generate intelligence configuration for DACP invoke_intelligence.
 
@@ -690,7 +742,7 @@ def _generate_intelligence_config(
     return serializer.dict_to_python_code(intelligence_config)
 
 
-def _generate_embedded_config(spec_data: Dict[str, Any]) -> str:
+def _generate_embedded_config(spec_data: dict[str, Any]) -> str:
     """Generate embedded YAML configuration as Python dict.
 
     Deprecated: Use AgentDataPreparator._prepare_embedded_config() instead.
@@ -712,49 +764,28 @@ def _generate_setup_logging_method() -> str:
     return preparator._prepare_setup_logging_method()
 
 
-def _generate_tool_task_function(
-    task_name: str,
-    task_def: Dict[str, Any],
-    spec_data: Dict[str, Any],
-    agent_name: str,
-    memory_config: Dict[str, Any],
-    config: Dict[str, Any],
-) -> str:
-    """Generate a task function that uses a DACP tool."""
-    func_name = task_name.replace("-", "_")
-    input_params = _generate_input_params(task_def)
-    output_type = f"{task_name.replace('-', '_').title()}Output"
-    docstring = _generate_function_docstring(task_name, task_def, output_type)
-    contract_data = _generate_contract_data(
-        spec_data, task_def, agent_name, memory_config
-    )
-
-    # Get tool information
+def _build_tool_args_and_description(
+    task_def: dict[str, Any],
+) -> tuple[str, list[str], str, dict[str, str]]:
+    """Build tool_args lines, tool description, and param mapping for a tool task. Returns (tool_id, tool_args_lines, tool_description_with_params, tool_param_mapping)."""
     tool_id = task_def["tool"]
     tool_params = task_def.get("tool_params", {})
-
-    # Map tool parameters to DACP parameter names
-    tool_param_mapping = {}
-    tool_args_lines = []
+    tool_param_mapping: dict[str, str] = {}
+    tool_args_lines: list[str] = []
 
     if tool_params:
-        # Use explicit tool_params mapping if provided
         for param_name, param_info in tool_params.items():
             if isinstance(param_info, dict):
-                # Parameter mapping specified
                 dacp_param = param_info.get("dacp_param", param_name)
                 tool_param_mapping[param_name] = dacp_param
                 tool_args_lines.append(f'        "{dacp_param}": {param_name}')
             else:
-                # Direct mapping
                 tool_param_mapping[param_name] = param_name
                 tool_args_lines.append(f'        "{param_name}": {param_name}')
     else:
-        # Auto-map input parameters to tool parameters based on common patterns
         input_props = task_def.get("input", {}).get("properties", {})
         for param_name in input_props.keys():
             if tool_id == "file_writer":
-                # Map file_writer specific parameters
                 if param_name == "file_path":
                     tool_param_mapping[param_name] = "path"
                     tool_args_lines.append(f'        "path": {param_name}')
@@ -762,15 +793,12 @@ def _generate_tool_task_function(
                     tool_param_mapping[param_name] = "content"
                     tool_args_lines.append(f'        "content": {param_name}')
                 else:
-                    # Default mapping
                     tool_param_mapping[param_name] = param_name
                     tool_args_lines.append(f'        "{param_name}": {param_name}')
             else:
-                # Default mapping for other tools
                 tool_param_mapping[param_name] = param_name
                 tool_args_lines.append(f'        "{param_name}": {param_name}')
 
-    # Create tool description
     tool_description = f"Tool: {tool_id}"
     if tool_params:
         param_descriptions = []
@@ -781,13 +809,56 @@ def _generate_tool_task_function(
             else:
                 param_descriptions.append(f"- {param_name}")
         tool_description += "\nParameters:\n" + "\n".join(param_descriptions)
+    return tool_id, tool_args_lines, tool_description, tool_param_mapping
 
-    tool_description_with_params = tool_description
 
-    # Format the contract data for the decorator (single shared implementation)
-    contract_str = ",\n    ".join(
-        f"{k}={PythonCodeSerializer.format_value(v)}" for k, v in contract_data.items()
+def _build_memory_config_python_code(memory_config: dict[str, Any]) -> str:
+    """Build the memory_config dict literal as Python code for generated task functions."""
+    return f"""{{
+        "enabled": {memory_config["enabled"]!r},
+        "format": "{memory_config["format"]}",
+        "usage": "{memory_config["usage"]}",
+        "required": {memory_config["required"]!r},
+        "description": "{memory_config["description"]}"
+    }}"""
+
+
+def _build_single_step_llm_client_code(
+    spec_data: dict[str, Any], config: dict[str, Any], input_dict: dict[str, str]
+) -> str:
+    """Build the LLM client code block (DACP or custom router) for a single-step task."""
+    engine = spec_data.get("intelligence", {}).get("engine", "openai")
+    custom_module = spec_data.get("intelligence", {}).get("module", None)
+    if engine == "custom" and custom_module:
+        return f"""# Create and use custom LLM router
+    router = load_custom_llm_router("{config["endpoint"]}", "{config["model"]}", {{}})
+    result = router.run(prompt, **input_dict)"""
+    intelligence_config_str = _generate_intelligence_config(spec_data, config)
+    return f"""# Configure intelligence for DACP
+    intelligence_config = {intelligence_config_str}
+
+    # Call the LLM using DACP
+    result = invoke_intelligence(prompt, intelligence_config)"""
+
+
+def _generate_tool_task_function(
+    task_name: str,
+    task_def: dict[str, Any],
+    spec_data: dict[str, Any],
+    agent_name: str,
+    memory_config: dict[str, Any],
+    config: dict[str, Any],
+) -> str:
+    """Generate a task function that uses a DACP tool."""
+    func_name, input_params, output_type, docstring, contract_data = (
+        _get_task_function_preamble(
+            task_name, task_def, spec_data, agent_name, memory_config
+        )
     )
+    tool_id, tool_args_lines, tool_description_with_params, tool_param_mapping = (
+        _build_tool_args_and_description(task_def)
+    )
+    contract_str = _format_contract_for_decorator(contract_data)
 
     return f"""
 from dacp import invoke_intelligence, execute_tool
@@ -909,11 +980,11 @@ Remember to respond with valid JSON.'''
 
 def _generate_task_function(
     task_name: str,
-    task_def: Dict[str, Any],
-    spec_data: Dict[str, Any],
+    task_def: dict[str, Any],
+    spec_data: dict[str, Any],
     agent_name: str,
-    memory_config: Dict[str, Any],
-    config: Dict[str, Any],
+    memory_config: dict[str, Any],
+    config: dict[str, Any],
 ) -> str:
     """Generate a single task function."""
     # Check if this task uses a tool
@@ -929,12 +1000,10 @@ def _generate_task_function(
         )
 
     # Regular single-step task generation (existing logic)
-    func_name = task_name.replace("-", "_")
-    input_params = _generate_input_params(task_def)
-    output_type = f"{task_name.replace('-', '_').title()}Output"
-    docstring = _generate_function_docstring(task_name, task_def, output_type)
-    contract_data = _generate_contract_data(
-        spec_data, task_def, agent_name, memory_config
+    func_name, input_params, output_type, docstring, contract_data = (
+        _get_task_function_preamble(
+            task_name, task_def, spec_data, agent_name, memory_config
+        )
     )
 
     # Create input dict with actual parameter values
@@ -947,52 +1016,17 @@ def _generate_task_function(
     # Add LLM output parser if this is an LLM-based agent
     llm_parser = ""
     parser_function_name = ""
-    if config.get("model"):  # If model is specified, this is an LLM agent
+    if config.get("model"):
         llm_parser = _generate_llm_output_parser(task_name, task_def.get("output", {}))
         parser_function_name = f"parse_{task_name.replace('-', '_')}_output"
 
-    # Determine client usage based on engine
-    engine = spec_data.get("intelligence", {}).get("engine", "openai")
-    custom_module = spec_data.get("intelligence", {}).get("module", None)
+    client_code = _build_single_step_llm_client_code(spec_data, config, input_dict)
 
-    # Use DACP for LLM communication or custom router
-    if engine == "custom" and custom_module:
-        client_code = f"""# Create and use custom LLM router
-    router = load_custom_llm_router("{config["endpoint"]}", "{config["model"]}", {{}})
-    result = router.run(prompt, **input_dict)"""
-    else:
-        intelligence_config_str = _generate_intelligence_config(spec_data, config)
-        client_code = f"""# Configure intelligence for DACP
-    intelligence_config = {intelligence_config_str}
-
-    # Call the LLM using DACP
-    result = invoke_intelligence(prompt, intelligence_config)"""
-
-    # Generate prompt rendering with actual parameter values
-    prompt_render_params = []
-    for param in input_params:
-        if param != "memory_summary: str = ''":
-            param_name = param.split(":")[0]
-            prompt_render_params.append(f"{param_name}={param_name}")
-
-    # Define memory configuration with proper Python boolean values
-    memory_config_str = f"""{{
-        "enabled": {repr(memory_config["enabled"])},
-        "format": "{memory_config["format"]}",
-        "usage": "{memory_config["usage"]}",
-        "required": {repr(memory_config["required"])},
-        "description": "{memory_config["description"]}"
-    }}"""
+    memory_config_str = _build_memory_config_python_code(memory_config)
     memory_summary_str = "memory_summary if memory_config['enabled'] else ''"
-
-    # Generate human-readable output description
     output_description = _generate_human_readable_output(task_def.get("output", {}))
     output_description_str = f'"""\n{output_description}\n"""'
-
-    # Format the contract data for the decorator (single shared implementation)
-    contract_str = ",\n    ".join(
-        f"{k}={PythonCodeSerializer.format_value(v)}" for k, v in contract_data.items()
-    )
+    contract_str = _format_contract_for_decorator(contract_data)
 
     return f"""
 {llm_parser}
@@ -1037,7 +1071,7 @@ def {func_name}({", ".join(input_params)}) -> {output_type}:
 
 
 def generate_agent_code(
-    output: Path, spec_data: Dict[str, Any], agent_name: str, class_name: str
+    output: Path, spec_data: dict[str, Any], agent_name: str, class_name: str
 ) -> None:
     """Generate the agent.py file using template-based approach."""
     if (output / "agent.py").exists():
@@ -1049,8 +1083,8 @@ def generate_agent_code(
         return
 
     # Use the new data preparation and template-based generation
-    from .data_preparation import AgentDataPreparator
     from .code_generation import CodeGenerator
+    from .data_preparation import AgentDataPreparator
 
     try:
         # Prepare all data using the structured approach
@@ -1151,7 +1185,7 @@ def map_type_to_python(t):
     }.get(t, "Any")
 
 
-def _generate_task_docs(tasks: Dict[str, Any]) -> List[str]:
+def _generate_task_docs(tasks: dict[str, Any]) -> list[str]:
     """Generate documentation for tasks."""
     task_docs = []
     for task_name in tasks.keys():
@@ -1173,7 +1207,7 @@ def _generate_task_docs(tasks: Dict[str, Any]) -> List[str]:
     return task_docs
 
 
-def _generate_memory_docs(memory_config: Dict[str, Any]) -> List[str]:
+def _generate_memory_docs(memory_config: dict[str, Any]) -> list[str]:
     """Generate documentation for memory configuration."""
     memory_docs = []
     if memory_config["enabled"]:
@@ -1189,7 +1223,7 @@ def _generate_memory_docs(memory_config: Dict[str, Any]) -> List[str]:
     return memory_docs
 
 
-def _generate_behavioural_docs(behavioural_contract: Dict[str, Any]) -> List[str]:
+def _generate_behavioural_docs(behavioural_contract: dict[str, Any]) -> list[str]:
     """Generate documentation for behavioural contract."""
     behavioural_docs = []
     behavioural_docs.append("## Behavioural Contract\n\n")
@@ -1216,7 +1250,7 @@ def _generate_behavioural_docs(behavioural_contract: Dict[str, Any]) -> List[str
     return behavioural_docs
 
 
-def _generate_example_usage(agent_info: Dict[str, str], tasks: Dict[str, Any]) -> str:
+def _generate_example_usage(agent_info: dict[str, str], tasks: dict[str, Any]) -> str:
     """Generate example usage code."""
     first_task_name = next(iter(tasks.keys()), "")
     if not first_task_name:
@@ -1236,7 +1270,7 @@ if task_name:
 ```"""
 
 
-def generate_readme(output: Path, spec_data: Dict[str, Any]) -> None:
+def generate_readme(output: Path, spec_data: dict[str, Any]) -> None:
     """Generate the README.md file."""
     if (output / "README.md").exists():
         log.warning("README.md already exists and will be overwritten")
@@ -1280,7 +1314,7 @@ python agent.py
     log.info("README.md created")
 
 
-def generate_requirements(output: Path, spec_data: Dict[str, Any]) -> None:
+def generate_requirements(output: Path, spec_data: dict[str, Any]) -> None:
     """Generate the requirements.txt file."""
     if (output / "requirements.txt").exists():
         log.warning("requirements.txt already exists and will be overwritten")
@@ -1322,7 +1356,7 @@ def generate_requirements(output: Path, spec_data: Dict[str, Any]) -> None:
     log.info("requirements.txt created")
 
 
-def generate_env_example(output: Path, spec_data: Dict[str, Any]) -> None:
+def generate_env_example(output: Path, spec_data: dict[str, Any]) -> None:
     """Generate the .env.example file."""
     if (output / ".env.example").exists():
         log.warning(".env.example already exists and will be overwritten")
@@ -1348,7 +1382,7 @@ def generate_env_example(output: Path, spec_data: Dict[str, Any]) -> None:
     log.info(".env.example created")
 
 
-def generate_prompt_template(output: Path, spec_data: Dict[str, Any]) -> None:
+def generate_prompt_template(output: Path, spec_data: dict[str, Any]) -> None:
     """Generate the prompt template file."""
     prompts_dir = output / "prompts"
     prompts_dir.mkdir(exist_ok=True)
@@ -1425,43 +1459,7 @@ def generate_prompt_template(output: Path, spec_data: Dict[str, Any]) -> None:
                 ) + prompt_content
         else:
             # Default format - use the full default template content
-            default_content = """You are a professional AI agent designed to process tasks according to the Open Agent Spec.
-
-{% if memory_summary %}
---- MEMORY CONTEXT ---
-{{ memory_summary }}
-------------------------
-{% endif %}
-
-TASK:
-Process the following task:
-
-{% for key, value in input.items() %}
-{{ key }}: {{ value }}
-{% endfor %}
-
-INSTRUCTIONS:
-1. Review the input data carefully
-2. Consider all relevant factors
-{% if memory_summary %}
-3. Take into account the provided memory context
-{% endif %}
-4. Provide a clear, actionable response
-5. Explain your reasoning in detail
-
-OUTPUT FORMAT:
-Your response should include the following fields:
-{{ output_format }}
-
-CONSTRAINTS:
-- Be clear and specific
-- Focus on actionable insights
-- Maintain professional objectivity
-{% if memory_summary and memory_config.required %}
-- Must reference and incorporate memory context
-{% endif %}"""
-
-            prompt_content = default_content
+            prompt_content = DEFAULT_AGENT_PROMPT_TEMPLATE
 
         # Always append the JSON schema instruction and example
         prompt_content += (
@@ -1476,48 +1474,12 @@ CONSTRAINTS:
     if default_template.exists():
         log.warning("agent_prompt.jinja2 already exists and will be overwritten")
 
-    default_content = """You are a professional AI agent designed to process tasks according to the Open Agent Spec.
-
-{% if memory_summary %}
---- MEMORY CONTEXT ---
-{{ memory_summary }}
-------------------------
-{% endif %}
-
-TASK:
-Process the following task:
-
-{% for key, value in input.items() %}
-{{ key }}: {{ value }}
-{% endfor %}
-
-INSTRUCTIONS:
-1. Review the input data carefully
-2. Consider all relevant factors
-{% if memory_summary %}
-3. Take into account the provided memory context
-{% endif %}
-4. Provide a clear, actionable response
-5. Explain your reasoning in detail
-
-OUTPUT FORMAT:
-Your response should include the following fields:
-{{ output_format }}
-
-CONSTRAINTS:
-- Be clear and specific
-- Focus on actionable insights
-- Maintain professional objectivity
-{% if memory_summary and memory_config.required %}
-- Must reference and incorporate memory context
-{% endif %}"""
-
-    default_template.write_text(default_content)
+    default_template.write_text(DEFAULT_AGENT_PROMPT_TEMPLATE)
     log.info("Created default prompt template: agent_prompt.jinja2")
 
 
 def _generate_agent_code_legacy(
-    output: Path, spec_data: Dict[str, Any], agent_name: str, class_name: str
+    output: Path, spec_data: dict[str, Any], agent_name: str, class_name: str
 ) -> None:
     """Legacy agent code generation method (fallback only).
 

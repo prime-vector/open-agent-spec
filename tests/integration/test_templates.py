@@ -5,11 +5,12 @@ This script tests all templates locally without requiring GitHub secrets.
 """
 
 import os
-import sys
-import subprocess
 import shutil
+import subprocess
+import sys
 import tempfile
 from pathlib import Path
+
 import pytest
 
 

@@ -59,5 +59,8 @@ Website/
 ## Extending
 
 - **Validation**: Edit `lib/spec/schema.ts` (and/or `validate.ts`) to match the canonical Open Agent Spec schema.
-- **Codegen**: Adjust `lib/codegen/generate.ts` to match the real CLI output (or call a backend).
-- **Runtime**: Replace or extend `lib/runtime/mockRuntime.ts` with a real inference engine or proxy.
+- **Codegen**: The playground uses the **real** Open Agent Spec Python generator when available:
+  - **Generate Agent** (Python): `POST /api/generate` with `{ yaml }` runs `Website/scripts/invoke_generator.py`, which calls `oas_cli` to produce full `agent.py`, README, requirements, prompts, etc. Requires the repo root to have Python and `pip install -e .` (or `open-agent-spec`). If the API is unavailable (e.g. deployed without Python), the UI falls back to the in-browser scaffold.
+  - Set `PYTHON_PATH` (e.g. to a venv’s `python`) when running the dev server if your default `python3` is not the right one.
+- **Try with OpenAI**: **Try with OpenAI** runs the first task once via `POST /api/run-demo` with optional `apiKey`. Rate limit: **1 run per IP per calendar day**. Leave the key blank for a mock result. For production, replace the in-memory rate limit with Redis or Vercel KV.
+- **Runtime**: **Run Agent** uses the mock runtime (no LLM). Replace or extend `lib/runtime/mockRuntime.ts` for real inference.

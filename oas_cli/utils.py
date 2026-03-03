@@ -4,10 +4,10 @@
 """Utility functions for Open Agent Spec."""
 
 import json
-from typing import Dict, Any
+from typing import Any
 
 
-def parse_response(result: str, output_schema: Dict[str, Any]) -> Dict[str, Any]:
+def parse_response(result: str, output_schema: dict[str, Any]) -> dict[str, Any]:
     """Parse the response into the expected output format.
 
     Args:

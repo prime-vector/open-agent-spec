@@ -3,7 +3,6 @@
 
 """Validation functions for Open Agent Spec."""
 
-from typing import Tuple
 import json
 import logging
 
@@ -176,7 +175,7 @@ def _validate_prompts(spec_data: dict) -> None:
         raise ValueError("prompts.user must be a string")
 
 
-def _generate_names(agent: dict) -> Tuple[str, str]:
+def _generate_names(agent: dict) -> tuple[str, str]:
     """Generate agent name and class name from agent info."""
     agent_name = agent["name"].replace("-", "_")
     base_class_name = agent_name.title().replace("_", "")
@@ -207,10 +206,10 @@ def validate_with_json_schema(spec_data: dict, schema_path: str) -> None:
     try:
         validate(instance=spec_data, schema=schema)
     except (ValidationError, SchemaError) as e:
-        raise ValueError(f"Spec validation failed: {str(e)}")
+        raise ValueError(f"Spec validation failed: {e!s}")
 
 
-def validate_spec(spec_data: dict) -> Tuple[str, str]:
+def validate_spec(spec_data: dict) -> tuple[str, str]:
     """Validate the Open Agent Spec structure and return agent name and class name.
 
     Args:
