@@ -1,3 +1,5 @@
+import { NextRequest } from "next/server";
+
 /**
  * POST /api/generate
  * Body: { yaml: string }
@@ -6,6 +8,48 @@
  * When that function is unavailable (e.g. local dev without Vercel), it falls back
  * to the in-browser scaffold in the client.
  */
+
+// Simple per-IP daily rate limit to prevent abuse of the generator.
+// For production with many instances, back this with Redis / Vercel KV.
+const rateLimitMap = new Map<string, { date: string; count: number }>();
+const MAX_GENERATE_PER_IP_PER_DAY = 100;
+
+function getToday(): string {
+  return new Date().toISOString().slice(0, 10);
+}
+
+function getClientIp(request: NextRequest): string {
+  const forwarded = request.headers.get("x-forwarded-for");
+  if (forwarded) return forwarded.split(",")[0]!.trim();
+  const real = request.headers.get("x-real-ip");
+  if (real) return real;
+  return "unknown";
+}
+
+function isRateLimited(ip: string): boolean {
+  const today = getToday();
+  const entry = rateLimitMap.get(ip);
+  if (!entry) return false;
+  if (entry.date !== today) return false;
+  return entry.count >= MAX_GENERATE_PER_IP_PER_DAY;
+}
+
+function recordGenerate(ip: string): void {
+  const today = getToday();
+  const entry = rateLimitMap.get(ip);
+  if (!entry || entry.date !== today) {
+    rateLimitMap.set(ip, { date: today, count: 1 });
+    return;
+  }
+  entry.count += 1;
+  if (rateLimitMap.size > 10000) {
+    const toDelete: string[] = [];
+    rateLimitMap.forEach((v, k) => {
+      if (v.date !== today) toDelete.push(k);
+    });
+    toDelete.forEach((k) => rateLimitMap.delete(k));
+  }
+}
 
 export interface GenerateResponse {
   agentPy?: string;
@@ -17,7 +61,20 @@ export interface GenerateResponse {
   fallback?: boolean;
 }
 
-export async function POST(request: Request): Promise<Response> {
+export async function POST(request: NextRequest): Promise<Response> {
+  const ip = getClientIp(request);
+
+  if (isRateLimited(ip)) {
+    return Response.json(
+      {
+        error:
+          "Generate limit reached (100 per IP per day). Please try again tomorrow or run the CLI locally.",
+        fallback: true,
+      },
+      { status: 429 }
+    );
+  }
+
   try {
     const body = await request.json();
     const yaml = typeof body?.yaml === "string" ? body.yaml : "";
@@ -83,6 +140,7 @@ export async function POST(request: Request): Promise<Response> {
       );
     }
 
+    recordGenerate(ip);
     return Response.json(data);
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
