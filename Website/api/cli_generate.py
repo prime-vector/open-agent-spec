@@ -37,6 +37,16 @@ def _validate_spec_file(spec_path: Path) -> tuple[dict[str, Any], str, str]:
     except (yaml.YAMLError, OSError) as err:
         raise ValueError(f"Invalid spec path or YAML: {err}") from err
 
+    # Older/open-source validators currently expect a behavioural_contract block
+    # and enforce that behavioural_contract.version is a string. For the web
+    # demo we want a contract-free spec, so we inject a minimal default only
+    # for validation/generation here (not shown in the YAML).
+    if "behavioural_contract" not in spec_data:
+        spec_data["behavioural_contract"] = {
+            "version": "0.1.2",
+            "description": "",
+        }
+
     schema_path = Path(oas_cli.__file__).parent / "schemas" / "oas-schema.json"
     validate_with_json_schema(spec_data, str(schema_path))
     agent_name, class_name = _validate_spec_data(spec_data)
