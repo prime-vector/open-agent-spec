@@ -89,4 +89,3 @@ class Handler(BaseHTTPRequestHandler):
                 self._send_json(200, result)
         except Exception as e:  # pragma: no cover - defensive catch-all
             self._send_json(500, {"error": str(e) or "Internal server error"})
-
