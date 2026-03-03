@@ -164,7 +164,11 @@ def _generate_contract_data(
     memory_config: dict[str, Any],
 ) -> dict[str, Any]:
     """Generate behavioural contract data from spec."""
-    behavioural_section = spec_data.get("behavioural_contract", {})
+    behavioural_section = spec_data.get("behavioural_contract")
+
+    # If no behavioural_contract section is declared, do not attach a contract.
+    if not behavioural_section:
+        return {}
 
     # Use the task's description for the contract
     contract_data = {
@@ -213,9 +217,7 @@ def _get_task_function_preamble(
     input_params = _generate_input_params(task_def)
     output_type = f"{task_name.replace('-', '_').title()}Output"
     docstring = _generate_function_docstring(task_name, task_def, output_type)
-    contract_data = _generate_contract_data(
-        spec_data, task_def, agent_name, memory_config
-    )
+    contract_data = _generate_contract_data(spec_data, task_def, agent_name, memory_config)
     return func_name, input_params, output_type, docstring, contract_data
 
 
@@ -695,13 +697,13 @@ def _generate_multi_step_task_function(
     output_construction_str = _build_multi_step_output_construction(
         steps, task_def.get("output", {})
     )
-    contract_str = _format_contract_for_decorator(contract_data)
+    decorator = ""
+    if contract_data:
+        contract_str = _format_contract_for_decorator(contract_data)
+        decorator = f"@behavioural_contract(\n    {contract_str}\n)\n"
 
     return f"""
-@behavioural_contract(
-    {contract_str}
-)
-def {func_name}({", ".join(input_params)}) -> {output_type}:
+{decorator}def {func_name}({", ".join(input_params)}) -> {output_type}:
     {docstring}
     # Execute multi-step task: {task_name}
 {step_code}
@@ -858,16 +860,16 @@ def _generate_tool_task_function(
     tool_id, tool_args_lines, tool_description_with_params, tool_param_mapping = (
         _build_tool_args_and_description(task_def)
     )
-    contract_str = _format_contract_for_decorator(contract_data)
+    decorator = ""
+    if contract_data:
+        contract_str = _format_contract_for_decorator(contract_data)
+        decorator = f"@behavioural_contract(\n    {contract_str}\n)\n"
 
     return f"""
 from dacp import invoke_intelligence, execute_tool
 from dacp.protocol import parse_agent_response, is_tool_request, get_tool_request, wrap_tool_result, get_final_response, is_final_response
 
-@behavioural_contract(
-    {contract_str}
-)
-def {func_name}({", ".join(input_params)}) -> {output_type}:
+{decorator}def {func_name}({", ".join(input_params)}) -> {output_type}:
     {docstring}
     # Prepare tool arguments
     tool_args = {{
@@ -1026,15 +1028,15 @@ def _generate_task_function(
     memory_summary_str = "memory_summary if memory_config['enabled'] else ''"
     output_description = _generate_human_readable_output(task_def.get("output", {}))
     output_description_str = f'"""\n{output_description}\n"""'
-    contract_str = _format_contract_for_decorator(contract_data)
+    decorator = ""
+    if contract_data:
+        contract_str = _format_contract_for_decorator(contract_data)
+        decorator = f"@behavioural_contract(\n    {contract_str}\n)\n"
 
     return f"""
 {llm_parser}
 
-@behavioural_contract(
-    {contract_str}
-)
-def {func_name}({", ".join(input_params)}) -> {output_type}:
+{decorator}def {func_name}({", ".join(input_params)}) -> {output_type}:
     {docstring}
     # Define memory configuration
     memory_config = {memory_config_str}
