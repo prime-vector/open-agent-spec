@@ -6,6 +6,7 @@ Reads spec from spec_path, runs oas_cli generation, then prints JSON to stdout w
 keys: agentPy, readme, requirementsTxt, envExample, prompts (object of filename -> content).
 Exits 0 on success, 1 on validation/generation error (stderr has message; stdout is empty or error JSON).
 """
+
 from __future__ import annotations
 
 import json
@@ -35,14 +36,21 @@ def main() -> int:
     logging.basicConfig(level=logging.WARNING)
 
     if len(sys.argv) != 3:
-        print(json.dumps({"error": "Usage: invoke_generator.py <spec_path> <output_dir>"}), file=sys.stderr)
+        print(
+            json.dumps(
+                {"error": "Usage: invoke_generator.py <spec_path> <output_dir>"}
+            ),
+            file=sys.stderr,
+        )
         return 1
 
     spec_path = Path(sys.argv[1])
     output_dir = Path(sys.argv[2])
 
     if not spec_path.is_file():
-        print(json.dumps({"error": f"Spec file not found: {spec_path}"}), file=sys.stderr)
+        print(
+            json.dumps({"error": f"Spec file not found: {spec_path}"}), file=sys.stderr
+        )
         return 1
 
     try:
