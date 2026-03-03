@@ -53,6 +53,8 @@ ${methods}
     .join("\n\n");
   return `// Generated from Open Agent Spec — ${agentName}
 // Engine: ${engine} / ${model}
+// NOTE: This TypeScript scaffold is illustrative only. The Python generator
+// (via the open-agent-spec CLI) is the canonical, production-ready output.
 
 export class ${className} {
   private engine = "${engine}";
