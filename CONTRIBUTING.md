@@ -146,8 +146,8 @@ Add a new YAML spec under `oas_cli/templates/` (e.g. `my-template.yaml`). For `o
 
 ```bash
 # Clone the repository
-git clone https://github.com/aswhitehouse/oas-cli.git
-cd oas-cli
+git clone https://github.com/prime-vector/open-agent-spec.git
+cd open-agent-spec
 
 # Create and activate virtual environment
 python -m venv venv

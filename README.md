@@ -10,6 +10,12 @@
 
 # Open Agent Spec (OA) CLI
 
+[![PyPI version](https://img.shields.io/pypi/v/open-agent-spec)](https://pypi.org/project/open-agent-spec/)
+[![CI](https://github.com/prime-vector/open-agent-spec/actions/workflows/ci.yml/badge.svg)](https://github.com/prime-vector/open-agent-spec/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
+[![GitHub stars](https://img.shields.io/github/stars/prime-vector/open-agent-spec?style=social)](https://github.com/prime-vector/open-agent-spec)
+
 A command-line tool for generating AI agent projects based on Open Agent Spec YAML files. The OA CLI supports multiple LLM engines including OpenAI, Anthropic, local models, and custom LLM routers.
 
 ## Installation
@@ -45,7 +51,7 @@ oas init --spec path/to/spec.yaml --output path/to/output --verbose
 The spec file should be in YAML format with the following structure. Each section is explained in detail below:
 
 ```yaml
-open_agent_spec: "1.0.7"  # OA specification version (canonical field)
+open_agent_spec: "1.0.9"  # OA specification version (canonical field)
 
 agent:
   name: "hello-world-agent"           # Unique identifier for the agent
@@ -399,7 +405,7 @@ See [SECURITY_TEMPLATES.md](oas_cli/templates/SECURITY_TEMPLATES.md) for detaile
 ### Setup
 ```bash
 # Clone the repository
-git clone https://github.com/aswhitehouse/open-agent-spec.git
+git clone https://github.com/prime-vector/open-agent-spec.git
 cd open-agent-spec
 
 # Install development dependencies
@@ -472,10 +478,6 @@ The GitHub Actions workflow will automatically:
 
 Your package will be available on PyPI within a few minutes.
 
-
-## Package Installation
-
-[![PyPI version](https://img.shields.io/pypi/v/open-agent-spec)](https://pypi.org/project/open-agent-spec/)
 
 ## License
 
