@@ -3,7 +3,7 @@ open_agent_spec: "1.0.8"
 agent:
   name: research-assistant
   description: A small research assistant that summarizes a topic with key points
-  role: research
+  role: analyst
 
 intelligence:
   type: llm
@@ -44,3 +44,4 @@ prompts:
     You are a concise research assistant. Given a topic, provide a brief
     summary and 3–5 key points. Be accurate and neutral.
   user: "{{ topic }}"
+

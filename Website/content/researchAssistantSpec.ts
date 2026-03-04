@@ -4,7 +4,7 @@ export const RESEARCH_ASSISTANT_SPEC_YAML = `open_agent_spec: "1.0.8"
 agent:
   name: research-assistant
   description: A small research assistant that summarizes a topic with key points
-  role: research
+  role: analyst
 
 intelligence:
   type: llm
@@ -46,3 +46,4 @@ prompts:
     summary and 3–5 key points. Be accurate and neutral.
   user: "{{ topic }}"
 `;
+
