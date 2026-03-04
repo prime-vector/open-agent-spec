@@ -1,0 +1,48 @@
+// Research assistant example. Keep in sync with researchAssistantSpec.yaml.
+export const RESEARCH_ASSISTANT_SPEC_YAML = `open_agent_spec: "1.0.8"
+
+agent:
+  name: research-assistant
+  description: A small research assistant that summarizes a topic with key points
+  role: research
+
+intelligence:
+  type: llm
+  engine: openai
+  model: gpt-4
+  config:
+    temperature: 0.5
+    max_tokens: 400
+
+tasks:
+  research:
+    description: Summarize a topic and return key points
+    timeout: 60
+    input:
+      type: object
+      properties:
+        topic:
+          type: string
+          description: The topic to research and summarize
+          minLength: 1
+          maxLength: 500
+      required: [topic]
+    output:
+      type: object
+      properties:
+        summary:
+          type: string
+          description: A short summary of the topic
+        key_points:
+          type: array
+          items:
+            type: string
+          description: Bullet points or key takeaways
+      required: [summary, key_points]
+
+prompts:
+  system: >
+    You are a concise research assistant. Given a topic, provide a brief
+    summary and 3–5 key points. Be accurate and neutral.
+  user: "{{ topic }}"
+`;

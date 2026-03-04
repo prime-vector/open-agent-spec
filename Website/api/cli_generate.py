@@ -24,6 +24,101 @@ from oas_cli.validators import (
 )
 
 
+def _build_demo_snippet(spec_data: dict[str, Any]) -> str:
+    """Build a minimal, spec-driven Python snippet for the first task."""
+    tasks = spec_data.get("tasks") or {}
+    first_task_name = next(iter(tasks), "greet")
+    task = tasks.get(first_task_name, {})
+    model_name = (spec_data.get("intelligence") or {}).get("model", "gpt-4")
+    prompts = spec_data.get("prompts") or {}
+    system_text = str(prompts.get("system", "")).strip()
+    user_tpl = str(prompts.get("user", "{{ name }}")).strip()
+
+    # Input: param names from task.input
+    input_props = (task.get("input") or {}).get("properties") or {}
+    input_required = (task.get("input") or {}).get("required") or list(
+        input_props.keys()
+    )
+    param_names = (
+        [k for k in input_required if k in input_props]
+        or list(input_props.keys())
+        or ["name"]
+    )
+    param_decls = ", ".join(f"{p}: str" for p in param_names)
+    # User prompt: replace {{ name }} / {{ topic }} etc. with f-string placeholders
+    user_content = user_tpl
+    for p in param_names:
+        user_content = user_content.replace("{{ " + p + " }}", "{" + p + "}")
+    user_prompt_line = f'user_prompt = f"{user_content}"'
+
+    # Output: Pydantic model from task.output
+    output_props = (task.get("output") or {}).get("properties") or {
+        "response": {"type": "string"}
+    }
+    output_required = (task.get("output") or {}).get("required") or list(
+        output_props.keys()
+    )
+    class_name = first_task_name.replace("-", " ").title().replace(" ", "") + "Output"
+    lines = []
+    for key in output_required or output_props:
+        if key not in output_props:
+            continue
+        prop = output_props[key]
+        if isinstance(prop, dict) and prop.get("type") == "array":
+            lines.append(f"    {key}: list[str]")
+        else:
+            lines.append(f"    {key}: str")
+    model_fields = "\n".join(lines) if lines else "    response: str"
+
+    # Return: one keyword per output field
+    return_kwargs = []
+    for key in output_required or output_props:
+        if key not in output_props:
+            continue
+        prop = output_props.get(key) or {}
+        if isinstance(prop, dict) and prop.get("type") == "array":
+            return_kwargs.append(f'{key}=data.get("{key}", [])')
+        else:
+            return_kwargs.append(f'{key}=data.get("{key}", raw)')
+    return_stmt = (
+        f"return {class_name}({', '.join(return_kwargs)})"
+        if return_kwargs
+        else 'return {class_name}(response=data.get("response", raw))'
+    )
+
+    snippet = f'''# Generated from Open Agent Spec — prompts and output schema from YAML
+import json
+from openai import OpenAI
+from pydantic import BaseModel
+
+
+class {class_name}(BaseModel):
+{model_fields}
+
+
+client = OpenAI()
+
+
+def {first_task_name}({param_decls}):
+    system_prompt = """{system_text}"""
+    {user_prompt_line}
+    response = client.chat.completions.create(
+        model="{model_name}",
+        messages=[
+            {{"role": "system", "content": system_prompt}},
+            {{"role": "user", "content": user_prompt}},
+        ],
+    )
+    raw = response.choices[0].message.content or ""
+    try:
+        data = json.loads(raw)
+    except json.JSONDecodeError:
+        data = {{}}
+    {return_stmt}
+'''
+    return snippet
+
+
 def _validate_spec_file(spec_path: Path) -> tuple[dict[str, Any], str, str]:
     """
     Load and validate a spec file using the installed `open-agent-spec` package.
@@ -108,48 +203,8 @@ class Handler(BaseHTTPRequestHandler):
                 # demo we intentionally return a frictionless, minimal agent
                 # that does not depend on DACP, even though the on-disk
                 # project includes the full scaffold.
-                result: dict[str, object] = {}
-
-                # Derive a simple example based on the first task in the spec.
-                first_task_name = next(
-                    iter(spec_data.get("tasks", {}) or {"greet": {}})
-                )
-                model_name = spec_data.get("intelligence", {}).get("model", "gpt-4")
-                prompts = spec_data.get("prompts", {}) or {}
-                system_text = str(prompts.get("system", "")).strip()
-                # For the default demo, the user template is just "{{ name }}",
-                # so we map it to a simple f-string.
-                simple_agent = f'''import json
-from openai import OpenAI
-from pydantic import BaseModel
-
-
-class GreetOutput(BaseModel):
-    response: str
-
-
-client = OpenAI()
-
-
-def {first_task_name}(name: str):
-    system_prompt = """{system_text}"""
-    user_prompt = f"{{name}}"
-    response = client.chat.completions.create(
-        model="{model_name}",
-        messages=[
-            {{"role": "system", "content": system_prompt}},
-            {{"role": "user", "content": user_prompt}},
-        ],
-    )
-    raw = response.choices[0].message.content
-    try:
-        data = json.loads(raw)
-        value = data.get("response", raw)
-    except json.JSONDecodeError:
-        value = raw
-    return GreetOutput(response=value)
-'''
-                result["agentPy"] = simple_agent
+                result = {}
+                result["agentPy"] = _build_demo_snippet(spec_data)
                 readme = output_dir / "README.md"
                 if readme.exists():
                     result["readme"] = readme.read_text(encoding="utf-8")
