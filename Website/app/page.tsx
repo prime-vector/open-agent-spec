@@ -15,10 +15,13 @@ import { generateScaffold, type TargetLanguage } from "../lib/codegen/generate";
 import { runFirstTaskWithSampleInput } from "../lib/runtime/mockRuntime";
 import type { OpenAgentSpec } from "../lib/spec/types";
 import type { ExecutionResult } from "../lib/runtime/types";
-import { DEFAULT_SPEC_YAML } from "../content/defaultSpec";
+import { EXAMPLES, DEFAULT_EXAMPLE_ID } from "../content/examples";
 
 export default function PlaygroundPage() {
-  const [yaml, setYaml] = useState(DEFAULT_SPEC_YAML);
+  const [selectedExampleId, setSelectedExampleId] = useState(DEFAULT_EXAMPLE_ID);
+  const [yaml, setYaml] = useState(
+    () => EXAMPLES.find((e) => e.id === DEFAULT_EXAMPLE_ID)?.yaml ?? ""
+  );
   const [parseError, setParseError] = useState<string | null>(null);
   const [validationErrors, setValidationErrors] = useState<{ path: string; message: string }[]>([]);
   const [spec, setSpec] = useState<OpenAgentSpec | null>(null);
@@ -88,6 +91,18 @@ export default function PlaygroundPage() {
 
   const isValid = validationErrors.length === 0 && !parseError && spec !== null;
 
+  const handleExampleChange = useCallback(
+    (e: React.ChangeEvent<HTMLSelectElement>) => {
+      const id = e.target.value;
+      const example = EXAMPLES.find((ex) => ex.id === id);
+      if (example) {
+        setSelectedExampleId(example.id);
+        setYaml(example.yaml);
+      }
+    },
+    []
+  );
+
   return (
     <div className="flex h-screen flex-col">
       <header className="border-border flex shrink-0 items-center justify-between border-b bg-surface-muted px-4 py-3">
@@ -100,6 +115,18 @@ export default function PlaygroundPage() {
           </p>
         </div>
         <div className="flex flex-wrap items-center justify-end gap-2 sm:gap-3">
+          <select
+            value={selectedExampleId}
+            onChange={handleExampleChange}
+            className="rounded border border-[var(--border)] bg-surface px-3 py-2 text-sm text-[var(--text)] focus:border-[var(--accent)] focus:outline-none"
+            aria-label="Example spec"
+          >
+            {EXAMPLES.map((ex) => (
+              <option key={ex.id} value={ex.id}>
+                {ex.label}
+              </option>
+            ))}
+          </select>
           <select
             value={targetLang}
             onChange={(e) => setTargetLang(e.target.value as TargetLanguage)}

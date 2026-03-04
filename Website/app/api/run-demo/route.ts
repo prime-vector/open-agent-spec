@@ -149,6 +149,7 @@ export async function POST(request: NextRequest): Promise<Response> {
       if (!(key in input)) {
         if (key === "name") input[key] = "Playground";
         else if (key === "message") input[key] = "Hello from the playground";
+        else if (key === "topic") input[key] = "Renewable energy trends in 2024";
         else input[key] = "sample";
       }
     }
@@ -159,11 +160,21 @@ export async function POST(request: NextRequest): Promise<Response> {
     // If no API key: return mock result (no rate limit consumed)
     if (!apiKey) {
       const promptPreview = buildPrompt(prompts, firstTask, input);
+      const outputProps = task.output?.properties ?? {};
+      const hasSummary = "summary" in outputProps;
+      const hasKeyPoints = "key_points" in outputProps;
+      const mockOutput: Record<string, unknown> =
+        hasSummary && hasKeyPoints
+          ? {
+              summary: "Mock summary (add your OpenAI key to run for real).",
+              key_points: [],
+            }
+          : { response: `Hello, ${input.name ?? "there"}! (mock — add your OpenAI key to run for real)` };
       return Response.json({
         success: true,
         taskName: firstTask,
         input,
-        output: { response: `Hello, ${input.name ?? "there"}! (mock — add your OpenAI key to run for real)` },
+        output: mockOutput,
         logs: [
           {
             kind: "info",
