@@ -3,6 +3,9 @@
  * Body: { yaml: string, apiKey?: string, input?: Record<string, unknown> }
  * Runs the first task with a real OpenAI call (when apiKey provided).
  * Rate limit: 1 successful run per IP per calendar day.
+ *
+ * To temporarily disable the rate limit (e.g. for recording a demo), set
+ * DISABLE_DEMO_RATE_LIMIT=1 in the environment. Remove it when done.
  */
 
 import { NextRequest } from "next/server";
@@ -12,6 +15,10 @@ import yaml from "js-yaml";
 // For production with multiple instances use Redis or Vercel KV
 const rateLimitMap = new Map<string, { date: string; count: number }>();
 const MAX_RUNS_PER_IP_PER_DAY = 1;
+
+const RATE_LIMIT_DISABLED =
+  process.env.DISABLE_DEMO_RATE_LIMIT === "1" ||
+  process.env.DISABLE_DEMO_RATE_LIMIT === "true";
 
 function getClientIp(request: NextRequest): string {
   const forwarded = request.headers.get("x-forwarded-for");
@@ -95,7 +102,7 @@ function buildPrompt(
 export async function POST(request: NextRequest): Promise<Response> {
   const ip = getClientIp(request);
 
-  if (isRateLimited(ip)) {
+  if (!RATE_LIMIT_DISABLED && isRateLimited(ip)) {
     return Response.json(
       {
         error:
@@ -259,7 +266,7 @@ export async function POST(request: NextRequest): Promise<Response> {
       output = { response: content || "(no structured output)" };
     }
 
-    recordRun(ip);
+    if (!RATE_LIMIT_DISABLED) recordRun(ip);
 
     return Response.json({
       success: true,
