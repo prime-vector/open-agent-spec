@@ -65,21 +65,21 @@ def test_dacp_logging_integration_full_flow():
             assert file_path.exists(), f"Missing file: {file}"
             print(f"   ✅ {file}")
 
-        # Step 3: Check agent.py contains DACP integration
-        print("\n3️⃣ Verifying DACP integration in generated code...")
+        # Step 3: Check agent.py contains runtime-based integration
+        print("\n3️⃣ Verifying runtime integration in generated code...")
 
         agent_code = (agent_dir / "agent.py").read_text()
-        dacp_checks = [
-            "import dacp",
-            "class HelloWorldAgent(dacp.Agent):",
+        runtime_checks = [
+            "from oas_cli.runtime import AgentBase",
+            "class HelloWorldAgent(AgentBase):",
             "def setup_logging(self):",
-            "dacp.setup_dacp_logging(",
+            "setup_logging_from_config(",
             "self.config = {",
             '"logging": {',
         ]
 
-        for check in dacp_checks:
-            assert check in agent_code, f"Missing DACP integration: {check}"
+        for check in runtime_checks:
+            assert check in agent_code, f"Missing runtime integration: {check}"
             print(f"   ✅ {check}")
 
         # Step 4: Install dependencies
@@ -111,7 +111,7 @@ import os
 
 # Import the generated agent
 from agent import HelloWorldAgent
-from dacp.orchestrator import Orchestrator
+from oas_cli.runtime import Orchestrator
 
 def mock_invoke_intelligence(prompt, config):
     \"\"\"Mock intelligence function that returns a realistic response.\"\"\"
@@ -127,7 +127,7 @@ def test_agent_with_logging():
     print("=" * 60)
 
     # Mock the intelligence call to avoid needing API keys
-    # Since the agent imports 'from dacp import invoke_intelligence',
+    # Since the agent imports 'invoke_intelligence' from the runtime,
     # we need to patch it in the agent module
     with patch('agent.invoke_intelligence', side_effect=mock_invoke_intelligence):
         print("\\n1. Creating orchestrator...")

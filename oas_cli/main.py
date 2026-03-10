@@ -6,6 +6,7 @@ import tempfile
 from importlib.metadata import version as _get_version
 from pathlib import Path
 from typing import Any
+import json
 
 import typer
 from rich.console import Console
@@ -15,6 +16,7 @@ from rich.panel import Panel
 from .banner import ASCII_TITLE
 from .core import generate_files as core_generate_files
 from .core import validate_spec_file
+from .runner import run_task_from_file
 
 app = typer.Typer(help="Open Agent Spec (OA) CLI")
 console = Console()
@@ -234,6 +236,57 @@ def update(
 
     console.print("\n[bold green]✅ Agent project updated![/] ✨")
     log.info("Note: If you're using version control, make sure to commit your changes.")
+
+
+@app.command()
+def run(
+    spec: Path = typer.Option(..., help="Path to Open Agent Spec YAML file"),
+    task: str | None = typer.Option(
+        None, "--task", "-t", help="Optional task name to run (defaults to first non-multi-step task)"
+    ),
+    input: str | None = typer.Option(
+        None,
+        "--input",
+        "-i",
+        help="Optional JSON object with input fields for the task",
+    ),
+    verbose: bool = typer.Option(
+        False, "--verbose", "-v", help="Enable verbose logging"
+    ),
+):
+    """Run a single task directly from an Open Agent Spec file.
+
+    This treats the spec as infra-as-code: no code generation step is required.
+    """
+    log = setup_logging(verbose)
+    if verbose:
+        log.setLevel(logging.DEBUG)
+
+    console.print(
+        Panel(
+            ASCII_TITLE,
+            title="[bold cyan]OA CLI[/]",
+            subtitle="[green]Open Agent Spec Runner[/]",
+        )
+    )
+
+    try:
+        input_data: dict[str, Any] | None = None
+        if input:
+            try:
+                parsed = json.loads(input)
+            except json.JSONDecodeError as e:
+                raise typer.BadParameter(f"Invalid JSON for --input: {e}") from e
+            if not isinstance(parsed, dict):
+                raise typer.BadParameter("--input JSON must be an object")
+            input_data = parsed
+
+        result = run_task_from_file(spec, task_name=task, input_data=input_data)
+        console.print_json(data=result)
+    except Exception as err:  # noqa: BLE001
+        log.error(str(err))
+        typer.echo(str(err), err=True)
+        raise typer.Exit(1)
 
 
 if __name__ == "__main__":

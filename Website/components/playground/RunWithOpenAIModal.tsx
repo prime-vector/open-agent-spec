@@ -68,7 +68,7 @@ export function RunWithOpenAIModal({
           Try with OpenAI
         </h2>
         <p className="mb-4 text-sm text-[var(--pane-text-muted)]">
-          Run the first task once with a real model. Rate limit: 1 run per IP per day. Leave the key
+          Run the first task directly from this spec with a real model. Rate limit: 1 run per IP per day. Leave the key
           blank to see a mock result.
         </p>
         <label className="mb-2 block text-sm font-medium" htmlFor="run-openai-key">

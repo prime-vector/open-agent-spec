@@ -85,9 +85,7 @@ class AgentDataPreparator:
             [
                 "from dotenv import load_dotenv",
                 "",
-                "import dacp",
-                "from dacp import parse_with_fallback, invoke_intelligence",
-                "from dacp.orchestrator import Orchestrator",
+                "from oas_cli.runtime import AgentBase, Orchestrator, parse_with_fallback, invoke_intelligence, setup_logging_from_config",
             ]
         )
 
@@ -98,8 +96,10 @@ class AgentDataPreparator:
         if uses_tools:
             imports.extend(
                 [
-                    "from dacp import execute_tool",
-                    "from dacp.protocol import parse_agent_response, is_tool_request, get_tool_request, wrap_tool_result, get_final_response, is_final_response",
+                    # Tool execution and protocol helpers are still provided by the
+                    # runtime module so that generated code does not depend on DACP
+                    # directly.
+                    "from oas_cli.runtime import execute_tool, parse_agent_response, is_tool_request, get_tool_request, wrap_tool_result, get_final_response, is_final_response",
                 ]
             )
 
@@ -257,39 +257,9 @@ class AgentDataPreparator:
         """Prepare setup_logging method."""
         return '''
     def setup_logging(self):
-        """Configure DACP logging from YAML configuration."""
+        """Configure logging from embedded YAML configuration."""
         logging_config = self.config.get('logging', {})
-
-        if not logging_config.get('enabled', True):
-            return
-
-        # Process environment variable overrides
-        env_overrides = logging_config.get('env_overrides', {})
-
-        level = logging_config.get('level', 'INFO')
-        if 'level' in env_overrides:
-            level = os.getenv(env_overrides['level'], level)
-
-        format_style = logging_config.get('format_style', 'emoji')
-        if 'format_style' in env_overrides:
-            format_style = os.getenv(env_overrides['format_style'], format_style)
-
-        log_file = logging_config.get('log_file')
-        if 'log_file' in env_overrides:
-            log_file = os.getenv(env_overrides['log_file'], log_file)
-
-        # Create log directory if needed
-        if log_file:
-            from pathlib import Path
-            Path(log_file).parent.mkdir(parents=True, exist_ok=True)
-
-        # Configure DACP logging
-        dacp.setup_dacp_logging(
-            level=level,
-            format_style=format_style,
-            include_timestamp=logging_config.get('include_timestamp', True),
-            log_file=log_file
-        )
+        setup_logging_from_config(logging_config)
 '''
 
     def _prepare_handle_message_method(self) -> str:

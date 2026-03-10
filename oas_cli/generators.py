@@ -1612,8 +1612,7 @@ def _generate_agent_code_legacy(
         "from behavioural_contracts import behavioural_contract",
         "from jinja2 import Environment, FileSystemLoader",
         "from pydantic import BaseModel",
-        "from dacp.orchestrator import Orchestrator",
-        "import dacp",
+        "from oas_cli.runtime import AgentBase, Orchestrator, parse_with_fallback, invoke_intelligence, setup_logging_from_config",
     ]
 
     # Generate the complete agent code using legacy f-string approach
@@ -1630,7 +1629,7 @@ ROLE = "{agent_name.title()}"
 
 {chr(10).join(task_functions)}
 
-class {class_name}(dacp.Agent):
+class {class_name}(AgentBase):
     def __init__(self, agent_id: str, orchestrator: Orchestrator):
         super().__init__()
         self.agent_id = agent_id
@@ -1652,7 +1651,6 @@ class {class_name}(dacp.Agent):
 {chr(10).join(memory_methods)}
 
 def main():
-    from dacp.orchestrator import Orchestrator
     orchestrator = Orchestrator()
     agent = {class_name}("example-agent-id", orchestrator)
 {example_task_code}
