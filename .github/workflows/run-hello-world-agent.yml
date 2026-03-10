@@ -23,7 +23,7 @@ jobs:
 
       - name: Run hello-world agent from spec
         run: |
-          oas run .agents/hello-world-agent.yaml \
+          oas run --spec .agents/hello-world-agent.yaml \
             --task greet \
             --input '{"name": "GitHub Actions"}'
 

@@ -41,7 +41,9 @@ Open [http://localhost:3000](http://localhost:3000).
 Website/
 ├── app/                    # Next App Router
 │   ├── layout.tsx
-│   ├── page.tsx            # Playground page
+│   ├── page.tsx            # Marketing / overview homepage
+│   ├── examples/           # Interactive playground (spec editor + results)
+│   │   └── page.tsx
 │   └── globals.css
 ├── components/
 │   ├── layout/             # SplitScreen, ResultTabs
