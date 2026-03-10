@@ -1,279 +1,357 @@
-"use client";
+import Image from "next/image";
+import Link from "next/link";
+import Logo from "../OAS-Logo.webp";
 
-import React, { useCallback, useState, useEffect } from "react";
-import { SplitScreen } from "../components/layout/SplitScreen";
-import { ResultTabs, type ResultTabId } from "../components/layout/ResultTabs";
-import { YamlEditor } from "../components/editor/YamlEditor";
-import { GenerateButton } from "../components/playground/GenerateButton";
-import { RunButton } from "../components/playground/RunButton";
-import { GeneratedCodeTab } from "../components/output/GeneratedCodeTab";
-import { LogsTab } from "../components/output/LogsTab";
-import { OutputTab } from "../components/output/OutputTab";
-import { parseAndValidateSpec } from "../lib/spec/parse";
-import { generateScaffold, type TargetLanguage } from "../lib/codegen/generate";
-import { runFirstTaskWithSampleInput } from "../lib/runtime/mockRuntime";
-import type { OpenAgentSpec } from "../lib/spec/types";
-import type { ExecutionResult } from "../lib/runtime/types";
-import { EXAMPLES, DEFAULT_EXAMPLE_ID } from "../content/examples";
-
-export default function PlaygroundPage() {
-  const [selectedExampleId, setSelectedExampleId] = useState(DEFAULT_EXAMPLE_ID);
-  const [yaml, setYaml] = useState(
-    () => EXAMPLES.find((e) => e.id === DEFAULT_EXAMPLE_ID)?.yaml ?? ""
-  );
-  const [parseError, setParseError] = useState<string | null>(null);
-  const [validationErrors, setValidationErrors] = useState<{ path: string; message: string }[]>([]);
-  const [spec, setSpec] = useState<OpenAgentSpec | null>(null);
-  const [generatedCode, setGeneratedCode] = useState<string | null>(null);
-  const [generatedFiles, setGeneratedFiles] = useState<Record<string, string> | null>(null);
-  const [targetLang, setTargetLang] = useState<TargetLanguage>("python");
-  const [activeTab, setActiveTab] = useState<ResultTabId>("code");
-  const [executionResult, setExecutionResult] = useState<ExecutionResult | null>(null);
-  const [generateLoading, setGenerateLoading] = useState(false);
-  const [generateError, setGenerateError] = useState<string | null>(null);
-  const [runLoading, setRunLoading] = useState(false);
-  const [runError, setRunError] = useState<string | null>(null);
-  const [useOpenAI, setUseOpenAI] = useState(false);
-  const [apiKey, setApiKey] = useState("");
-
-  const handleGenerate = useCallback(async () => {
-    if (!spec) return;
-    setGenerateError(null);
-    if (targetLang === "python") {
-      setGenerateLoading(true);
-      try {
-        const res = await fetch("/api/generate", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ yaml }),
-        });
-        const data = await res.json();
-        if (res.ok && data.agentPy) {
-          setGeneratedCode(data.agentPy);
-          setGeneratedFiles({
-            readme: data.readme,
-            requirementsTxt: data.requirementsTxt,
-            envExample: data.envExample,
-          });
-          setActiveTab("code");
-          return;
-        }
-        if (data.fallback && data.error) {
-          setGenerateError(data.error);
-        }
-      } catch (e) {
-        setGenerateError(e instanceof Error ? e.message : "Generate request failed");
-      } finally {
-        setGenerateLoading(false);
-      }
-    }
-    setGeneratedFiles(null);
-    setGeneratedCode(generateScaffold(spec, targetLang));
-    setActiveTab("code");
-  }, [spec, targetLang, yaml]);
-
-  const handleRun = useCallback(() => {
-    if (!spec) return;
-    const result = runFirstTaskWithSampleInput(spec);
-    setExecutionResult(result ?? null);
-    setActiveTab(result ? "output" : "logs");
-  }, [spec]);
-
-  const handleRunFromSpec = useCallback(async () => {
-    if (!spec) return;
-    setRunError(null);
-    setRunLoading(true);
-    try {
-      const res = await fetch("/api/run-demo", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          yaml,
-          apiKey: useOpenAI ? apiKey.trim() || undefined : undefined,
-        }),
-      });
-      const data = await res.json();
-      if (!res.ok) {
-        if (data.rateLimited) {
-          setRunError(data.error ?? "Rate limit reached.");
-        } else {
-          setRunError(data.error ?? `Request failed (${res.status})`);
-        }
-        return;
-      }
-      setExecutionResult(data as ExecutionResult);
-      setActiveTab("output");
-    } catch (e) {
-      setRunError(e instanceof Error ? e.message : "Request failed");
-    } finally {
-      setRunLoading(false);
-    }
-  }, [apiKey, useOpenAI, spec, yaml]);
-
-  useEffect(() => {
-    const result = parseAndValidateSpec(yaml);
-    setParseError(result.parseError ?? null);
-    setValidationErrors(result.errors);
-    setSpec(result.spec ?? null);
-  }, [yaml]);
-
-  const isValid = validationErrors.length === 0 && !parseError && spec !== null;
-
-  const handleExampleChange = useCallback(
-    (e: React.ChangeEvent<HTMLSelectElement>) => {
-      const id = e.target.value;
-      const example = EXAMPLES.find((ex) => ex.id === id);
-      if (example) {
-        setSelectedExampleId(example.id);
-        setYaml(example.yaml);
-      }
-    },
-    []
-  );
-
+export default function HomePage() {
   return (
-    <div className="flex h-screen flex-col">
-      <header className="border-border flex shrink-0 items-center justify-between border-b bg-surface-muted px-4 py-3">
-        <div>
-          <h1 className="text-lg font-semibold tracking-tight">
-            Open Agent Spec
-          </h1>
-          <p className="text-xs text-[var(--text-muted)]">
-            Declarative standard for defining AI agents
-          </p>
+    <main className="relative flex min-h-screen bg-surface overflow-hidden">
+      {/* Subtle OA watermark in the background */}
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute -top-24 -left-8 sm:-top-32 sm:-left-4"
+      >
+        <span className="select-none text-[260px] font-serif font-semibold tracking-[0.25em] text-white/5 sm:text-[320px] md:text-[380px] lg:text-[420px]">
+          OA
+        </span>
+      </div>
+      {/* Left navigation / sections */}
+      <aside className="hidden w-52 border-r border-[var(--border)] bg-surface-muted px-4 py-6 text-xs text-[var(--text-muted)] sm:block">
+        <div className="mb-4 text-[10px] font-semibold uppercase tracking-wide text-[var(--text)]">
+          Open Agent Spec
         </div>
-        <div className="flex flex-col items-end gap-1 sm:flex-row sm:items-center sm:gap-3">
-          <select
-            value={selectedExampleId}
-            onChange={handleExampleChange}
-            className="rounded border border-[var(--border)] bg-surface px-3 py-2 text-sm text-[var(--text)] focus:border-[var(--accent)] focus:outline-none"
-            aria-label="Example spec"
-          >
-            {EXAMPLES.map((ex) => (
-              <option key={ex.id} value={ex.id}>
-                {ex.label}
-              </option>
-            ))}
-          </select>
-          <select
-            value={targetLang}
-            onChange={(e) => setTargetLang(e.target.value as TargetLanguage)}
-            className="rounded border border-[var(--border)] bg-surface px-3 py-2 text-sm text-[var(--text)] focus:border-[var(--accent)] focus:outline-none"
-            aria-label="Code generation language"
-          >
-            <option value="python">Python</option>
-            <option value="typescript">TypeScript</option>
-          </select>
-          <GenerateButton
-            onClick={handleGenerate}
-            isValid={isValid}
-            disabled={(!spec && validationErrors.length > 0) || generateLoading}
-            loading={generateLoading}
-          />
-          <button
-            type="button"
-            onClick={handleRunFromSpec}
-            disabled={!spec || runLoading}
-            className="rounded bg-[var(--accent)] px-4 py-2 text-sm font-medium text-white transition hover:opacity-90 disabled:opacity-50"
-            aria-label="Run first task directly from spec"
-          >
-            {runLoading ? "Running…" : "Run From Spec"}
-          </button>
-          <div className="flex flex-col items-end gap-1 text-right text-[10px] text-[var(--text-muted)] sm:ml-2">
-            <div className="flex items-center justify-end gap-2">
-              <button
-                type="button"
-                onClick={() => setUseOpenAI((v) => !v)}
-                className={`rounded-full border px-3 py-1 text-[10px] font-semibold transition ${
-                  useOpenAI
-                    ? "border-emerald-600 bg-emerald-600 text-white shadow-sm hover:bg-emerald-500"
-                    : "border-emerald-600 bg-transparent text-emerald-600 hover:bg-emerald-600 hover:text-white"
-                }`}
-                aria-pressed={useOpenAI}
-                aria-label="Toggle real OpenAI vs mock demo"
-              >
-                {useOpenAI ? "Real OpenAI (API key required)" : "Demo mode (no API key)"}
-              </button>
-            </div>
-            {useOpenAI && (
-              <input
-                type="password"
-                placeholder="sk-..."
-                value={apiKey}
-                onChange={(e) => setApiKey(e.target.value)}
-                className="mt-1 w-full max-w-xs rounded border px-2 py-1 text-[11px] focus:border-[var(--accent)] focus:outline-none"
-                style={{
-                  borderColor: "var(--border)",
-                  background: "var(--surface)",
-                  color: "var(--text)",
-                }}
-                aria-label="OpenAI API key"
-              />
-            )}
-            {runError && (
-              <div className="mt-1 max-w-xs text-[10px] text-red-500" role="alert">
-                {runError}
-              </div>
-            )}
-          </div>
-        </div>
-      </header>
+        <nav className="space-y-1">
+          <a href="#overview" className="block rounded px-2 py-1 hover:bg-surface">
+            Overview
+          </a>
+          <a href="#problem" className="block rounded px-2 py-1 hover:bg-surface">
+            The Problem
+          </a>
+          <a href="#modes" className="block rounded px-2 py-1 hover:bg-surface">
+            Two Modes
+          </a>
+          <a href="#how-it-works" className="block rounded px-2 py-1 hover:bg-surface">
+            How It Works
+          </a>
+          <a href="#repo-native" className="block rounded px-2 py-1 hover:bg-surface">
+            Repo-native Agents
+          </a>
+          <a href="#ci" className="block rounded px-2 py-1 hover:bg-surface">
+            CI & Sub-agents
+          </a>
+          <a href="#not" className="block rounded px-2 py-1 hover:bg-surface">
+            What OA Is Not
+          </a>
+          <a href="#why" className="block rounded px-2 py-1 hover:bg-surface">
+            Why OA
+          </a>
+        </nav>
+      </aside>
 
-      {generateError && (
-        <div className="shrink-0 border-b border-amber-500/30 bg-amber-500/5 px-4 py-2 text-sm text-amber-600 dark:text-amber-400">
-          {generateError} — showing in-browser scaffold.
-        </div>
-      )}
-
-      {(parseError || validationErrors.length > 0) && (
-        <div className="border-border shrink-0 border-b bg-red-500/5 px-4 py-2 font-mono text-sm text-red-400">
-          {parseError && <div>Parse: {parseError}</div>}
-          {validationErrors.map((e, i) => (
-            <div key={i}>
-              {e.path}: {e.message}
-            </div>
-          ))}
-        </div>
-      )}
-
-      <main className="min-h-0 flex-1">
-        <SplitScreen
-          left={
-            <div className="flex h-full flex-col">
-              <div className="border-b border-[var(--border)] bg-surface-muted px-3 py-2 text-xs text-[var(--text-muted)]">
-                <span className="font-semibold">Spec as source of truth.</span>{" "}
-                Edit the Open Agent Spec YAML here, then either{" "}
-                <span className="font-semibold">generate code</span> or{" "}
-                <span className="font-semibold">run the first task directly from this spec</span>.
-              </div>
-              <div className="min-h-0 flex-1">
-                <YamlEditor value={yaml} onChange={setYaml} height="100%" />
-              </div>
-            </div>
-          }
-          right={
-            <ResultTabs active={activeTab} onSelect={setActiveTab}>
-              {activeTab === "code" && (
-                <GeneratedCodeTab
-                  code={generatedCode}
-                  language={targetLang}
-                  generatedFiles={generatedFiles ?? undefined}
-                  emptyMessage={generateLoading ? "Generating…" : "Generate agent to see scaffold."
-                  }
+      {/* Main content */}
+      <div className="flex-1 px-4 py-8 sm:px-8">
+        <section
+          id="overview"
+          className="mx-auto mb-8 max-w-5xl rounded-xl bg-gradient-to-r from-[#0f172a] via-[#020617] to-[#111827] px-5 py-6 text-left text-sm text-slate-100 sm:px-8 sm:py-8"
+        >
+          <div className="flex flex-col items-start gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-center gap-3">
+              <div className="h-10 w-10 overflow-hidden rounded bg-white/5 p-1">
+                <Image
+                  src={Logo}
+                  alt="Open Agent Spec logo"
+                  className="h-full w-full object-contain"
+                  priority
                 />
-              )}
-              {activeTab === "logs" && (
-                <LogsTab logs={executionResult?.logs ?? []} />
-              )}
-              {activeTab === "output" && (
-                <OutputTab result={executionResult} />
-              )}
-            </ResultTabs>
-          }
-          leftLabel="Spec (YAML)"
-          rightLabel="Results"
-        />
-      </main>
-    </div>
+              </div>
+              <div>
+                <h1
+                  className="bg-gradient-to-r from-[#e2e8f0] via-[#cbd5f5] to-[#a5b4fc] bg-clip-text text-4xl font-semibold tracking-tight text-transparent sm:text-5xl md:text-6xl font-serif"
+                >
+                  OPEN AGENT SPEC
+                </h1>
+                <p
+                  className="mt-3 bg-gradient-to-r from-[#cbd5f5] via-[#a5b4fc] to-[#7dd3fc] bg-clip-text text-lg font-medium text-transparent sm:text-2xl font-serif"
+                >
+                  AI Agents as Code
+                </p>
+              </div>
+            </div>
+            <div className="flex flex-wrap items-center gap-2 text-[10px]">
+              <span className="rounded-full border border-slate-600 bg-slate-900/60 px-3 py-1">
+                Open source · MIT licensed
+              </span>
+              <span className="rounded-full border border-slate-600 bg-slate-900/60 px-3 py-1">
+                Spec version v1.0.9
+              </span>
+            </div>
+          </div>
+          <div className="mt-6 max-w-3xl text-sm text-slate-100">
+            <p className="mb-2">
+              AI agents are fragmented across frameworks and runtimes.
+            </p>
+            <p className="text-slate-200">
+              Open Agent Spec defines them once, and runs them anywhere.
+            </p>
+          </div>
+          <div className="mt-5 flex flex-wrap items-center gap-3">
+            <Link
+              href="/examples"
+              className="rounded bg-[var(--accent)] px-5 py-2 text-xs font-medium text-white shadow-sm transition hover:opacity-90"
+            >
+              Run a demo
+            </Link>
+            <Link
+              href="https://github.com/open-agent-spec/open-agent-spec"
+              className="rounded border border-slate-600 bg-slate-900/40 px-5 py-2 text-xs font-medium text-slate-100 transition hover:border-[var(--accent)] hover:text-white"
+            >
+              View on GitHub
+            </Link>
+            <Link
+              href="https://github.com/open-agent-spec/open-agent-spec#open-agent-spec"
+              className="rounded border border-slate-600 bg-slate-900/40 px-5 py-2 text-xs font-medium text-slate-100 transition hover:border-[var(--accent)] hover:text-white"
+            >
+              Read the spec
+            </Link>
+          </div>
+        </section>
+
+        <section
+          id="problem"
+          className="mx-auto mb-8 max-w-4xl text-left text-[13px] leading-relaxed text-[var(--text-muted)] sm:text-sm"
+        >
+          <h2 className="mb-2 text-xs font-semibold uppercase tracking-wide text-[var(--text)]">
+            The Problem
+          </h2>
+          <p className="mb-2">
+            Today, AI agents are often locked inside frameworks and hidden in SaaS
+            dashboards. They&apos;re tightly coupled to specific runtimes, hard to
+            version and review, and rarely portable across engines.
+          </p>
+          <ul className="mb-2 list-disc pl-5 text-xs sm:text-[13px]">
+            <li>Locked inside frameworks</li>
+            <li>Coupled to runtimes</li>
+            <li>Hard to version and review</li>
+            <li>Not portable across engines</li>
+          </ul>
+          <p>
+            There is no standard way to define an agent declaratively. Open Agent
+            Spec solves that.
+          </p>
+        </section>
+
+        <section
+          id="repo-native"
+          className="mx-auto mt-4 flex w-full max-w-5xl flex-col gap-4 rounded-lg border border-[var(--border)] bg-surface-muted px-4 py-4 text-left text-[13px] leading-relaxed text-[var(--text-muted)] sm:flex-row sm:px-6 sm:py-5 sm:text-sm"
+        >
+          {/* Left: repo + flow diagram */}
+          <div className="flex-1 space-y-3">
+            <div className="font-semibold text-[var(--text)]">Repo-native agents</div>
+            <div className="flex gap-4">
+              <div className="rounded border border-[var(--border)] bg-surface px-3 py-2 font-mono text-[11px] leading-relaxed">
+                <div>my-service-repo/</div>
+                <div className="pl-4">.agents/</div>
+                <div className="pl-8">review.yaml</div>
+                <div className="pl-8">deploy.yaml</div>
+              </div>
+            </div>
+            <p>
+              Agents belong in your repo, not hidden in SaaS dashboards. The OA CLI
+              reads <code>.agents/*.yaml</code>, validates them, and uses engine
+              adapters to run your agents.
+            </p>
+            <div className="mt-2 rounded border border-dashed border-[var(--border)] bg-surface px-3 py-2 font-mono text-[10px] leading-relaxed">
+              <div>.agents/review.yaml</div>
+              <div className="pl-2">↓</div>
+              <div>oas run --spec .agents/review.yaml</div>
+              <div className="pl-2">↓</div>
+              <div>Engine adapter (OpenAI / Claude / Codex / custom)</div>
+              <div className="pl-2">↓</div>
+              <div>Structured output</div>
+            </div>
+          </div>
+
+          {/* Right: GitHub Actions + sub-agents */}
+          <div id="ci" className="flex-1 space-y-3">
+            <div className="font-semibold text-[var(--text)]">CI & sub-agents</div>
+            <div className="rounded border border-[var(--border)] bg-surface px-3 py-2 font-mono text-[10px]">
+              <div>- uses: open-agent-spec/run-agent@v1</div>
+              <div className="pl-4">with:</div>
+              <div className="pl-8">spec-path: .agents/review.yaml</div>
+              <div className="pl-8">task: review</div>
+              <div className="pl-8">input: pr.json</div>
+            </div>
+            <p>
+              A single spec can fan out into multiple sub-agent processes: review,
+              deploy, notify. The OA runtime routes each task to the right engine via
+              adapters, engine-agnostic by design.
+            </p>
+          </div>
+        </section>
+
+        <section
+          id="how-it-works"
+          className="mx-auto mt-6 max-w-4xl text-left text-[13px] leading-relaxed text-[var(--text-muted)] sm:text-sm"
+        >
+          <h2 className="mb-2 text-xs font-semibold uppercase tracking-wide text-[var(--text)]">
+            How It Works
+          </h2>
+          <ol className="mb-3 list-decimal pl-5 space-y-1 text-xs sm:text-[13px]">
+            <li>Define your agent in YAML using Open Agent Spec.</li>
+            <li>
+              Store it in <code>.agents/</code> in your repo.
+            </li>
+            <li>
+              Run it locally with <code>oas run --spec .agents/agent.yaml</code>.
+            </li>
+            <li>Trigger it from CI or GitHub Actions using the same spec.</li>
+          </ol>
+          <p>
+            The OA CLI handles validation, prompt rendering, and engine selection,
+            then normalises outputs to match your declared schema.
+          </p>
+        </section>
+
+        <section
+          id="modes"
+          className="mx-auto mt-6 max-w-4xl text-left text-[13px] leading-relaxed text-[var(--text-muted)] sm:text-sm"
+        >
+          <h2 className="mb-2 text-xs font-semibold uppercase tracking-wide text-[var(--text)]">
+            Two Ways to Use Open Agent Spec
+          </h2>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="rounded border border-[var(--border)] bg-surface-muted px-3 py-3">
+              <h3 className="mb-1 text-xs font-semibold uppercase tracking-wide text-[var(--text)]">
+                Run Agents Directly
+              </h3>
+              <p className="mb-2 text-[13px]">
+                Execute specs without generating code. Ideal for CI, automation, and
+                repo-native execution.
+              </p>
+              <ul className="mb-2 list-disc pl-5 text-xs">
+                <li>Runtime-driven, infra-style, declarative execution.</li>
+                <li>Engine-agnostic routing via adapters.</li>
+              </ul>
+              <pre className="mt-2 rounded border border-[var(--border)] bg-surface px-3 py-2 font-mono text-[10px]">
+oas run --spec .agents/review.yaml \
+  --task review \
+  --input pr.json
+              </pre>
+              <p className="mt-2 text-[11px]">
+                Spec → OA CLI → Engine Adapter → Structured output. No code generation
+                required.
+              </p>
+            </div>
+
+            <div className="rounded border border-[var(--border)] bg-surface-muted px-3 py-3">
+              <h3 className="mb-1 text-xs font-semibold uppercase tracking-wide text-[var(--text)]">
+                Generate Agent Code
+              </h3>
+              <p className="mb-2 text-[13px]">
+                Scaffold working agents from specs when you want code you own and can
+                customise.
+              </p>
+              <ul className="mb-2 list-disc pl-5 text-xs">
+                <li>Framework integration and app embedding.</li>
+                <li>Full customization and traditional developer workflow.</li>
+              </ul>
+              <pre className="mt-2 rounded border border-[var(--border)] bg-surface px-3 py-2 font-mono text-[10px]">
+oas init --spec .agents/review.yaml --output ./agents/review
+              </pre>
+              <p className="mt-2 text-[11px]">
+                Spec → Code → You own it. Use the generated agent in any framework or
+                runtime.
+              </p>
+            </div>
+          </div>
+        </section>
+
+        <section
+          id="not"
+          className="mx-auto mt-6 max-w-4xl text-left text-[13px] leading-relaxed text-[var(--text-muted)] sm:text-sm"
+        >
+          <h2 className="mb-2 text-xs font-semibold uppercase tracking-wide text-[var(--text)]">
+            What Open Agent Spec Is Not
+          </h2>
+          <ul className="mb-3 list-disc pl-5 space-y-1">
+            <li>Not a framework.</li>
+            <li>Not an orchestration engine.</li>
+            <li>Not tied to any model provider.</li>
+          </ul>
+          <p>
+            It&apos;s a declarative standard for describing agents, a thin, portable
+            layer that can sit on top of any runtime.
+          </p>
+        </section>
+
+        <section className="mx-auto mt-6 max-w-4xl text-left text-[13px] leading-relaxed text-[var(--text-muted)] sm:text-sm">
+          <h2 className="mb-2 text-xs font-semibold uppercase tracking-wide text-[var(--text)]">
+            Agent as Infrastructure
+          </h2>
+          <p className="mb-2">
+            Just as Terraform defines infrastructure, Open Agent Spec defines AI
+            agents. Specs are version-controlled, reviewable, and portable across
+            runtimes.
+          </p>
+          <div className="flex flex-wrap items-center gap-3 text-[10px]">
+            <span className="rounded-full border border-[var(--border)] bg-surface-muted px-3 py-1">
+              Open source · MIT licensed
+            </span>
+            <span className="rounded-full border border-[var(--border)] bg-surface-muted px-3 py-1">
+              Current spec: v1.0.9
+            </span>
+            <span className="rounded-full border border-[var(--border)] bg-surface-muted px-3 py-1">
+              Used in internal automation pipelines
+            </span>
+          </div>
+        </section>
+
+        <section
+          id="why"
+          className="mx-auto mt-8 mb-6 max-w-4xl text-left text-[13px] leading-relaxed text-[var(--text-muted)] sm:text-sm"
+        >
+          <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-[var(--text)]">
+            Why Open Agent Spec
+          </div>
+          <div className="grid gap-3 sm:grid-cols-2 md:grid-cols-4">
+            <div className="rounded border border-[var(--border)] bg-surface-muted px-3 py-2">
+              <div className="text-xs font-semibold uppercase tracking-wide">
+                Framework-agnostic
+              </div>
+              <p className="mt-1 text-xs">
+                Specs describe agents, not the web stack or runtime framework.
+              </p>
+            </div>
+            <div className="rounded border border-[var(--border)] bg-surface-muted px-3 py-2">
+              <div className="text-xs font-semibold uppercase tracking-wide">
+                Engine-agnostic
+              </div>
+              <p className="mt-1 text-xs">
+                Engine-agnostic by design. Integrates with OpenAI, Claude, Codex and
+                custom runtimes via adapters.
+              </p>
+            </div>
+            <div className="rounded border border-[var(--border)] bg-surface-muted px-3 py-2">
+              <div className="text-xs font-semibold uppercase tracking-wide">
+                Repo-native
+              </div>
+              <p className="mt-1 text-xs">
+                Agents live in <code>.agents/</code>, versioned and reviewed like
+                code.
+              </p>
+            </div>
+            <div className="rounded border border-[var(--border)] bg-surface-muted px-3 py-2">
+              <div className="text-xs font-semibold uppercase tracking-wide">
+                CI-friendly
+              </div>
+              <p className="mt-1 text-xs">
+                One spec for local runs, CI pipelines, and reusable GitHub Actions.
+              </p>
+            </div>
+          </div>
+        </section>
+      </div>
+    </main>
   );
 }
+
+
