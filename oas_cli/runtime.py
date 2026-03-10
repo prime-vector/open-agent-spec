@@ -33,6 +33,8 @@ from dacp.protocol import (
     wrap_tool_result as _wrap_tool_result,
 )
 
+from .adapters import codex_adapter
+
 # Re-exported types for generated agents
 AgentBase = dacp.Agent
 Orchestrator = _DacpOrchestrator
@@ -48,9 +50,13 @@ is_final_response = _is_final_response
 def invoke_intelligence(prompt: str, config: dict[str, Any]) -> Any:
     """Invoke the configured intelligence provider.
 
-    Today this simply delegates to DACP's invoke_intelligence. In future this
-    function may dispatch directly to different providers based on config.
+    The engine is chosen based on config["engine"]:
+    - "codex": routed to the Codex CLI adapter
+    - anything else: delegated to DACP's invoke_intelligence (OpenAI, etc.)
     """
+    engine = (config.get("engine") or "").lower()
+    if engine == "codex":
+        return codex_adapter.invoke(prompt, config)
     return dacp.invoke_intelligence(prompt, config)
 
 
