@@ -256,6 +256,12 @@ def run(
     verbose: bool = typer.Option(
         False, "--verbose", "-v", help="Enable verbose logging"
     ),
+    quiet: bool = typer.Option(
+        False,
+        "--quiet",
+        "-q",
+        help="Quiet mode: suppress banners and rich formatting, print raw JSON only",
+    ),
 ):
     """Run a single task directly from an Open Agent Spec file.
 
@@ -265,13 +271,16 @@ def run(
     if verbose:
         log.setLevel(logging.DEBUG)
 
-    console.print(
-        Panel(
-            ASCII_TITLE,
-            title="[bold cyan]OA CLI[/]",
-            subtitle="[green]Open Agent Spec Runner[/]",
+    # In quiet mode we skip the banner and rich console noise to make the
+    # output friendlier for scripts/CI that expect pure JSON.
+    if not quiet:
+        console.print(
+            Panel(
+                ASCII_TITLE,
+                title="[bold cyan]OA CLI[/]",
+                subtitle="[green]Open Agent Spec Runner[/]",
+            )
         )
-    )
 
     try:
         input_data: dict[str, Any] | None = None
@@ -285,7 +294,12 @@ def run(
             input_data = parsed
 
         result = run_task_from_file(spec, task_name=task, input_data=input_data)
-        console.print_json(data=result)
+        if quiet:
+            # Emit a single JSON object with no Rich styling so tools like jq
+            # or GitHub Actions steps can consume it directly.
+            typer.echo(json.dumps(result))
+        else:
+            console.print_json(data=result)
     except Exception as err:
         log.error(str(err))
         typer.echo(str(err), err=True)

@@ -28,4 +28,5 @@ jobs:
           oas run --spec .agents/hello-world-agent.yaml \
             --task greet \
             --input '{"name": "GitHub Actions"}'
+            --quiet
 
