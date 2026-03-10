@@ -35,6 +35,12 @@ export function OutputTab({
 
   return (
     <div className="h-full overflow-auto p-4">
+      {result.mode === "spec-run" && !result.mock && (
+        <div className="mb-3 rounded border border-[var(--accent)] bg-[var(--accent)]/5 px-3 py-2 text-xs text-[var(--accent)]">
+          <span className="font-semibold">Direct from spec.</span>{" "}
+          This result was executed directly from the Open Agent Spec YAML (no generated agent code).
+        </div>
+      )}
       <div className="mb-4 flex flex-wrap gap-2">
         {indicators.map(({ label, value }) => (
           <span
