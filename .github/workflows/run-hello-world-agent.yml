@@ -22,6 +22,8 @@ jobs:
           pip install .
 
       - name: Run hello-world agent from spec
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
         run: |
           oas run --spec .agents/hello-world-agent.yaml \
             --task greet \
