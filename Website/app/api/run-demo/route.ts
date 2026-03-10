@@ -170,13 +170,23 @@ export async function POST(request: NextRequest): Promise<Response> {
       const outputProps = task.output?.properties ?? {};
       const hasSummary = "summary" in outputProps;
       const hasKeyPoints = "key_points" in outputProps;
-      const mockOutput: Record<string, unknown> =
-        hasSummary && hasKeyPoints
-          ? {
-              summary: "Mock summary (add your OpenAI key to run for real).",
-              key_points: [],
-            }
-          : { response: `Hello, ${input.name ?? "there"}! (mock — add your OpenAI key to run for real)` };
+
+      let mockOutput: Record<string, unknown>;
+      if (engine === "codex") {
+        mockOutput = {
+          response:
+            "Example shape for Codex only, demo environment only supports direct OpenAI LLM calls for now.",
+        };
+      } else if (hasSummary && hasKeyPoints) {
+        mockOutput = {
+          summary: "Mock summary (add your OpenAI key to run for real).",
+          key_points: [],
+        };
+      } else {
+        mockOutput = {
+          response: `Hello, ${input.name ?? "there"}! (mock — add your OpenAI key to run for real)`,
+        };
+      }
       return Response.json({
         success: true,
         taskName: firstTask,

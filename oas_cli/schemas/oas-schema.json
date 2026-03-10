@@ -63,9 +63,10 @@
               "grok",
               "cortex",
               "local",
-              "custom"
+              "custom",
+              "codex"
             ],
-            "description": "LLM engine provider (e.g., openai, anthropic, grok, cortex, local, custom)"
+            "description": "LLM engine provider (e.g., openai, anthropic, grok, cortex, local, custom, codex)"
           },
           "model": {
             "type": "string",
