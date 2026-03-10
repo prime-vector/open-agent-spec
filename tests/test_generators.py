@@ -96,7 +96,9 @@ def test_generate_agent_code(temp_dir, sample_spec):
     assert "from behavioural_contracts import behavioural_contract" in content
     # Generated agents should depend only on the Open Agent Spec runtime layer.
     assert "from oas_cli.runtime import AgentBase" in content
-    assert "class TestAgent(AgentBase):" in content  # Check for runtime-based inheritance
+    assert (
+        "class TestAgent(AgentBase):" in content
+    )  # Check for runtime-based inheritance
     assert "def analyze(" in content
     assert "memory_summary: str = ''" in content  # Check for memory parameter
     assert "def setup_logging(self):" in content  # Check for logging setup method
@@ -107,7 +109,9 @@ def test_generate_agent_code(temp_dir, sample_spec):
     try:
         generate_agent_code(temp_dir2, sample_spec, "custom_agent", "CustomAgent")
         content2 = (temp_dir2 / "agent.py").read_text()
-        assert "class CustomAgent(AgentBase):" in content2  # Check for runtime-based inheritance
+        assert (
+            "class CustomAgent(AgentBase):" in content2
+        )  # Check for runtime-based inheritance
     finally:
         shutil.rmtree(temp_dir2)
 

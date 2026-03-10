@@ -15,13 +15,16 @@ log = logging.getLogger(__name__)
 
 ROLE = "Hello_World_Agent"
 
+
 # Generate output models
 class GreetOutput(BaseModel):
     """The greeting response"""
+
     response: str
 
 
 # Task functions
+
 
 def parse_greet_output(response) -> GreetOutput:
     """Parse LLM response into GreetOutput using DACP's enhanced parser.
@@ -43,22 +46,20 @@ def parse_greet_output(response) -> GreetOutput:
         try:
             response = json.loads(response)
         except json.JSONDecodeError as e:
-            raise ValueError(f'Failed to parse JSON response: {e}')
+            raise ValueError(f"Failed to parse JSON response: {e}")
 
     # Use DACP's enhanced JSON parser with fallback support
     try:
         defaults = {}
         result = parse_with_fallback(
-            response=response,
-            model_class=GreetOutput,
-            **defaults
+            response=response, model_class=GreetOutput, **defaults
         )
         return result
     except Exception as e:
-        raise ValueError(f'Error parsing response with DACP parser: {e}')
+        raise ValueError(f"Error parsing response with DACP parser: {e}")
 
 
-def greet(name: str, memory_summary: str = '') -> GreetOutput:
+def greet(name: str, memory_summary: str = "") -> GreetOutput:
     """Process greet task.
 
     Args:
@@ -74,7 +75,7 @@ def greet(name: str, memory_summary: str = '') -> GreetOutput:
         "format": "string",
         "usage": "prompt-append",
         "required": False,
-        "description": ""
+        "description": "",
     }
 
     # Define output format description
@@ -93,32 +94,29 @@ def greet(name: str, memory_summary: str = '') -> GreetOutput:
         template = env.get_template("agent_prompt.jinja2")
 
     # Create input dictionary for template
-    input_dict = {
-        "name": name
-    }
+    input_dict = {"name": name}
 
     # Render the prompt with all necessary context - pass variables directly for template access
     prompt = template.render(
         input=input_dict,
-        memory_summary=memory_summary if memory_config['enabled'] else '',
+        memory_summary=memory_summary if memory_config["enabled"] else "",
         output_format=output_format,
         memory_config=memory_config,
-        **input_dict  # Also pass variables directly for template access
+        **input_dict,  # Also pass variables directly for template access
     )
 
     # Configure intelligence for DACP
     intelligence_config = {
-    "engine": "openai",
-    "model": "gpt-4",
-    "endpoint": "https://api.openai.com/v1",
-    "temperature": 0.7,
-    "max_tokens": 150
-}
+        "engine": "openai",
+        "model": "gpt-4",
+        "endpoint": "https://api.openai.com/v1",
+        "temperature": 0.7,
+        "max_tokens": 150,
+    }
 
     # Call the LLM using DACP
     result = invoke_intelligence(prompt, intelligence_config)
     return parse_greet_output(result)
-
 
 
 class HelloWorldAgent(dacp.Agent):
@@ -136,22 +134,18 @@ class HelloWorldAgent(dacp.Agent):
                 "format_style": "emoji",
                 "include_timestamp": True,
                 "log_file": None,
-                "env_overrides": {}
+                "env_overrides": {},
             },
             "intelligence": {
                 "engine": "openai",
                 "model": "gpt-4",
                 "endpoint": "https://api.openai.com/v1",
-                "config": {
-                    "temperature": 0.7,
-                    "max_tokens": 150
-                }
-            }
+                "config": {"temperature": 0.7, "max_tokens": 150},
+            },
         }
 
         # Setup DACP logging FIRST
         self.setup_logging()
-
 
     def handle_message(self, message: dict) -> dict:
         """
@@ -178,7 +172,7 @@ class HelloWorldAgent(dacp.Agent):
             result = method(**method_params)
 
             # Handle both Pydantic models and dictionaries
-            if hasattr(result, 'model_dump'):
+            if hasattr(result, "model_dump"):
                 return result.model_dump()
             else:
                 return result
@@ -188,50 +182,46 @@ class HelloWorldAgent(dacp.Agent):
         except Exception as e:
             return {"error": f"Error executing task {task}: {e!s}"}
 
-
-
     def setup_logging(self):
         """Configure DACP logging from YAML configuration."""
-        logging_config = self.config.get('logging', {})
+        logging_config = self.config.get("logging", {})
 
-        if not logging_config.get('enabled', True):
+        if not logging_config.get("enabled", True):
             return
 
         # Process environment variable overrides
-        env_overrides = logging_config.get('env_overrides', {})
+        env_overrides = logging_config.get("env_overrides", {})
 
-        level = logging_config.get('level', 'INFO')
-        if 'level' in env_overrides:
-            level = os.getenv(env_overrides['level'], level)
+        level = logging_config.get("level", "INFO")
+        if "level" in env_overrides:
+            level = os.getenv(env_overrides["level"], level)
 
-        format_style = logging_config.get('format_style', 'emoji')
-        if 'format_style' in env_overrides:
-            format_style = os.getenv(env_overrides['format_style'], format_style)
+        format_style = logging_config.get("format_style", "emoji")
+        if "format_style" in env_overrides:
+            format_style = os.getenv(env_overrides["format_style"], format_style)
 
-        log_file = logging_config.get('log_file')
-        if 'log_file' in env_overrides:
-            log_file = os.getenv(env_overrides['log_file'], log_file)
+        log_file = logging_config.get("log_file")
+        if "log_file" in env_overrides:
+            log_file = os.getenv(env_overrides["log_file"], log_file)
 
         # Create log directory if needed
         if log_file:
             from pathlib import Path
+
             Path(log_file).parent.mkdir(parents=True, exist_ok=True)
 
         # Configure DACP logging
         dacp.setup_dacp_logging(
             level=level,
             format_style=format_style,
-            include_timestamp=logging_config.get('include_timestamp', True),
-            log_file=log_file
+            include_timestamp=logging_config.get("include_timestamp", True),
+            log_file=log_file,
         )
-
-
 
     def greet(self, name) -> GreetOutput:
         """Process greet task."""
-        memory_summary = self.get_memory() if hasattr(self, 'get_memory') else ""
+        memory_summary = self.get_memory() if hasattr(self, "get_memory") else ""
         return greet(name, memory_summary=memory_summary)
-
 
 
 def main():
@@ -244,10 +234,11 @@ def main():
     # Example usage with greet task: greet
     result = agent.greet(name="example_name")
     # Handle both Pydantic models and dictionaries
-    if hasattr(result, 'model_dump'):
+    if hasattr(result, "model_dump"):
         print(json.dumps(result.model_dump(), indent=2))
     else:
         print(json.dumps(result, indent=2))
+
 
 if __name__ == "__main__":
     main()

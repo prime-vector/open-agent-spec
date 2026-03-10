@@ -242,7 +242,10 @@ def update(
 def run(
     spec: Path = typer.Option(..., help="Path to Open Agent Spec YAML file"),
     task: str | None = typer.Option(
-        None, "--task", "-t", help="Optional task name to run (defaults to first non-multi-step task)"
+        None,
+        "--task",
+        "-t",
+        help="Optional task name to run (defaults to first non-multi-step task)",
     ),
     input: str | None = typer.Option(
         None,

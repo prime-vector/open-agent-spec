@@ -24,7 +24,9 @@ def _load_spec(path: Path) -> dict[str, Any]:
     return data
 
 
-def _choose_task(spec_data: dict[str, Any], task_name: str | None) -> tuple[str, dict[str, Any]]:
+def _choose_task(
+    spec_data: dict[str, Any], task_name: str | None
+) -> tuple[str, dict[str, Any]]:
     tasks = spec_data.get("tasks") or {}
     if not isinstance(tasks, dict) or not tasks:
         raise ValueError("Spec has no tasks defined")
@@ -47,9 +49,13 @@ def _choose_task(spec_data: dict[str, Any], task_name: str | None) -> tuple[str,
     return first_name, tasks[first_name]
 
 
-def _build_prompt(spec_data: dict[str, Any], task_name: str, input_data: dict[str, Any]) -> str:
+def _build_prompt(
+    spec_data: dict[str, Any], task_name: str, input_data: dict[str, Any]
+) -> str:
     prompts = spec_data.get("prompts") or {}
-    task_prompts = prompts.get(task_name) if isinstance(prompts.get(task_name), dict) else {}
+    task_prompts = (
+        prompts.get(task_name) if isinstance(prompts.get(task_name), dict) else {}
+    )
 
     system = ""
     if isinstance(task_prompts, dict):
@@ -142,5 +148,3 @@ def run_task_from_file(
     """Convenience wrapper to load a spec from disk and run a task."""
     spec = _load_spec(spec_path)
     return run_task_from_spec(spec, task_name=task_name, input_data=input_data)
-
-

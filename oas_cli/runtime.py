@@ -60,7 +60,9 @@ def parse_with_fallback(response: Any, model_class: type, **defaults: Any) -> An
     Thin wrapper around DACP's parse_with_fallback so generated code does not
     import DACP directly.
     """
-    return dacp.parse_with_fallback(response=response, model_class=model_class, **defaults)
+    return dacp.parse_with_fallback(
+        response=response, model_class=model_class, **defaults
+    )
 
 
 def setup_logging_from_config(logging_config: dict[str, Any]) -> None:
@@ -117,4 +119,3 @@ __all__ = [
     "parse_with_fallback",
     "setup_logging_from_config",
 ]
-
