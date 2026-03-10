@@ -40,4 +40,6 @@ export interface ExecutionResult {
   error?: string;
   /** True when run-demo returned without calling OpenAI (e.g. no key or mock). */
   mock?: boolean;
+  /** Optional mode indicator, e.g. "spec-run" when executed directly from YAML. */
+  mode?: string;
 }
