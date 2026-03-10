@@ -7,16 +7,15 @@ evolved independently of the spec format.
 
 from __future__ import annotations
 
-from pathlib import Path
-from typing import Any, Dict, Tuple
 import asyncio
 import json
 import os
 import shlex
-import sys
+from pathlib import Path
+from typing import Any
 
 
-def _build_codex_command(prompt: str, config: Dict[str, Any]) -> Tuple[list[str], str]:
+def _build_codex_command(prompt: str, config: dict[str, Any]) -> tuple[list[str], str]:
   """Build the Codex CLI command and working directory from config."""
   sandbox = str(config.get("sandbox", "workspace-write"))
   cwd_raw = config.get("cwd") or "."
@@ -39,7 +38,7 @@ def _build_codex_command(prompt: str, config: Dict[str, Any]) -> Tuple[list[str]
   return cmd, cwd
 
 
-async def _run_codex_async(prompt: str, config: Dict[str, Any]) -> Tuple[str, int]:
+async def _run_codex_async(prompt: str, config: dict[str, Any]) -> tuple[str, int]:
   cmd, cwd = _build_codex_command(prompt, config)
   env = os.environ.copy()
   env.setdefault("TERM", "dumb")
@@ -66,7 +65,7 @@ async def _run_codex_async(prompt: str, config: Dict[str, Any]) -> Tuple[str, in
   return combined or "(no output)", proc.returncode or 0
 
 
-def invoke(prompt: str, config: Dict[str, Any]) -> Any:
+def invoke(prompt: str, config: dict[str, Any]) -> Any:
   """Invoke Codex for the given prompt and config.
 
   The adapter attempts to parse Codex output as JSON first; if that fails,

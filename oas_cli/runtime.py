@@ -12,7 +12,6 @@ import os
 from typing import Any
 
 import dacp
-from .adapters import codex_adapter
 from dacp import execute_tool as _execute_tool
 from dacp.orchestrator import Orchestrator as _DacpOrchestrator
 from dacp.protocol import (
@@ -33,6 +32,8 @@ from dacp.protocol import (
 from dacp.protocol import (
     wrap_tool_result as _wrap_tool_result,
 )
+
+from .adapters import codex_adapter
 
 # Re-exported types for generated agents
 AgentBase = dacp.Agent
