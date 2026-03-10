@@ -31,8 +31,18 @@ def _validate_agent(spec_data: dict) -> None:
 
 
 def _validate_behavioural_contract(spec_data: dict) -> None:
-    """Validate the behavioural contract section."""
-    contract = spec_data.get("behavioural_contract", {})
+    """Validate the behavioural contract section, if present.
+
+    Specs that do not use behavioural contracts should not fail validation.
+    """
+    contract = spec_data.get("behavioural_contract")
+    if contract is None:
+        # Behavioural contracts are optional; nothing to validate.
+        return
+
+    if not isinstance(contract, dict):
+        raise ValueError("behavioural_contract must be a dictionary")
+
     if not isinstance(contract.get("version"), str):
         raise ValueError("behavioural_contract.version must be a string")
     if not isinstance(contract.get("description"), str):

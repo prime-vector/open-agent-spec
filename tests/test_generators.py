@@ -94,8 +94,11 @@ def test_generate_agent_code(temp_dir, sample_spec):
 
     content = agent_file.read_text()
     assert "from behavioural_contracts import behavioural_contract" in content
-    assert "import dacp" in content  # Check for DACP import
-    assert "class TestAgent(dacp.Agent):" in content  # Check for DACP inheritance
+    # Generated agents should depend only on the Open Agent Spec runtime layer.
+    assert "from oas_cli.runtime import AgentBase" in content
+    assert (
+        "class TestAgent(AgentBase):" in content
+    )  # Check for runtime-based inheritance
     assert "def analyze(" in content
     assert "memory_summary: str = ''" in content  # Check for memory parameter
     assert "def setup_logging(self):" in content  # Check for logging setup method
@@ -107,8 +110,8 @@ def test_generate_agent_code(temp_dir, sample_spec):
         generate_agent_code(temp_dir2, sample_spec, "custom_agent", "CustomAgent")
         content2 = (temp_dir2 / "agent.py").read_text()
         assert (
-            "class CustomAgent(dacp.Agent):" in content2
-        )  # Check for DACP inheritance
+            "class CustomAgent(AgentBase):" in content2
+        )  # Check for runtime-based inheritance
     finally:
         shutil.rmtree(temp_dir2)
 
@@ -289,7 +292,9 @@ def test_generate_grok_agent_code(temp_dir):
     assert '"engine": "grok"' in content
     assert '"model": "grok-3-latest"' in content
     assert '"endpoint": "https://api.x.ai/v1"' in content
-    assert "class GrokSecurityAgent(dacp.Agent):" in content
+    # Generated agents now inherit from the Open Agent Spec runtime base,
+    # not directly from dacp.Agent.
+    assert "class GrokSecurityAgent(AgentBase):" in content
     assert "analyze_threat" in content
 
     # Check that intelligence config includes Grok settings

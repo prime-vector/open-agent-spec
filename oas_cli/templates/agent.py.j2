@@ -21,7 +21,7 @@ ROLE = "{{ agent_name.title() }}"
 {{ custom_router_loader }}
 {% endif %}
 
-class {{ class_name }}(dacp.Agent):
+class {{ class_name }}(AgentBase):
     def __init__(self, agent_id: str, orchestrator: Orchestrator):
         super().__init__()
         self.agent_id = agent_id
@@ -51,8 +51,6 @@ class {{ class_name }}(dacp.Agent):
 
 def main():
     # Example usage - in production, you would get these from your orchestrator setup
-    from dacp.orchestrator import Orchestrator
-
     orchestrator = Orchestrator()
     agent = {{ class_name }}("example-agent-id", orchestrator)
 {{ example_task_code }}

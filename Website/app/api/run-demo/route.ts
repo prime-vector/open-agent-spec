@@ -200,6 +200,7 @@ export async function POST(request: NextRequest): Promise<Response> {
         engine,
         durationMs: 0,
         mock: true,
+        mode: "spec-run",
       });
     }
 
@@ -283,6 +284,7 @@ export async function POST(request: NextRequest): Promise<Response> {
       engine,
       durationMs,
       mock: false,
+      mode: "spec-run",
     });
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);

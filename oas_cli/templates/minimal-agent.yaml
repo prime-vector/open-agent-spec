@@ -1,4 +1,4 @@
-open_agent_spec: 1.0.8
+open_agent_spec: "1.0.9"
 
 agent:
   name: hello-world-agent
@@ -13,18 +13,6 @@ intelligence:
   config:
     temperature: 0.7
     max_tokens: 150
-
-logging:
-  enabled: true
-  level: "DEBUG"
-  format_style: "emoji"
-  include_timestamp: true
-  log_file: "./logs/agent.log"
-
-  env_overrides:
-    level: "DACP_LOG_LEVEL"
-    format_style: "DACP_LOG_STYLE"
-    log_file: "DACP_LOG_FILE"
 
 tasks:
   greet:
@@ -52,15 +40,5 @@ prompts:
   system: >
     You are a friendly agent that greets people by name.
     Respond with: "Hello <name>!"
-  user: "{{name}}"
+  user: "{{ name }}"
 
-behavioural_contract:
-  version: "0.1.2"
-  description: "Simple contract requiring a greeting response"
-  role: "Friendly agent"
-  behavioural_flags:
-    conservatism: "moderate"
-    verbosity: "compact"
-  response_contract:
-    output_format:
-      required_fields: [response]
