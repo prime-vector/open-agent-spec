@@ -101,13 +101,13 @@ export default function HomePage() {
               Run a demo
             </Link>
             <Link
-              href="https://github.com/open-agent-spec/open-agent-spec"
+              href="https://github.com/prime-vector/open-agent-spec"
               className="rounded border border-slate-600 bg-slate-900/40 px-5 py-2 text-xs font-medium text-slate-100 transition hover:border-[var(--accent)] hover:text-white"
             >
               View on GitHub
             </Link>
             <Link
-              href="https://github.com/open-agent-spec/open-agent-spec#open-agent-spec"
+              href="https://github.com/prime-vector/open-agent-spec/blob/main/Website/content/defaultSpec.yaml"
               className="rounded border border-slate-600 bg-slate-900/40 px-5 py-2 text-xs font-medium text-slate-100 transition hover:border-[var(--accent)] hover:text-white"
             >
               Read the spec
