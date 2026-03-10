@@ -12,6 +12,7 @@ import os
 from typing import Any
 
 import dacp
+from .adapters import codex_adapter
 from dacp import execute_tool as _execute_tool
 from dacp.orchestrator import Orchestrator as _DacpOrchestrator
 from dacp.protocol import (
@@ -48,9 +49,13 @@ is_final_response = _is_final_response
 def invoke_intelligence(prompt: str, config: dict[str, Any]) -> Any:
     """Invoke the configured intelligence provider.
 
-    Today this simply delegates to DACP's invoke_intelligence. In future this
-    function may dispatch directly to different providers based on config.
+    The engine is chosen based on config["engine"]:
+    - "codex": routed to the Codex CLI adapter
+    - anything else: delegated to DACP's invoke_intelligence (OpenAI, etc.)
     """
+    engine = (config.get("engine") or "").lower()
+    if engine == "codex":
+        return codex_adapter.invoke(prompt, config)
     return dacp.invoke_intelligence(prompt, config)
 
 
