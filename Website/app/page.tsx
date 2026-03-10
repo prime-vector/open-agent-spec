@@ -6,7 +6,6 @@ import { ResultTabs, type ResultTabId } from "../components/layout/ResultTabs";
 import { YamlEditor } from "../components/editor/YamlEditor";
 import { GenerateButton } from "../components/playground/GenerateButton";
 import { RunButton } from "../components/playground/RunButton";
-import { RunWithOpenAIModal } from "../components/playground/RunWithOpenAIModal";
 import { GeneratedCodeTab } from "../components/output/GeneratedCodeTab";
 import { LogsTab } from "../components/output/LogsTab";
 import { OutputTab } from "../components/output/OutputTab";
@@ -32,7 +31,10 @@ export default function PlaygroundPage() {
   const [executionResult, setExecutionResult] = useState<ExecutionResult | null>(null);
   const [generateLoading, setGenerateLoading] = useState(false);
   const [generateError, setGenerateError] = useState<string | null>(null);
-  const [openAIModalOpen, setOpenAIModalOpen] = useState(false);
+  const [runLoading, setRunLoading] = useState(false);
+  const [runError, setRunError] = useState<string | null>(null);
+  const [useOpenAI, setUseOpenAI] = useState(false);
+  const [apiKey, setApiKey] = useState("");
 
   const handleGenerate = useCallback(async () => {
     if (!spec) return;
@@ -77,10 +79,36 @@ export default function PlaygroundPage() {
     setActiveTab(result ? "output" : "logs");
   }, [spec]);
 
-  const handleOpenAIRunResult = useCallback((result: unknown) => {
-    setExecutionResult(result as ExecutionResult);
-    setActiveTab("output");
-  }, []);
+  const handleRunFromSpec = useCallback(async () => {
+    if (!spec) return;
+    setRunError(null);
+    setRunLoading(true);
+    try {
+      const res = await fetch("/api/run-demo", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          yaml,
+          apiKey: useOpenAI ? apiKey.trim() || undefined : undefined,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        if (data.rateLimited) {
+          setRunError(data.error ?? "Rate limit reached.");
+        } else {
+          setRunError(data.error ?? `Request failed (${res.status})`);
+        }
+        return;
+      }
+      setExecutionResult(data as ExecutionResult);
+      setActiveTab("output");
+    } catch (e) {
+      setRunError(e instanceof Error ? e.message : "Request failed");
+    } finally {
+      setRunLoading(false);
+    }
+  }, [apiKey, useOpenAI, spec, yaml]);
 
   useEffect(() => {
     const result = parseAndValidateSpec(yaml);
@@ -114,7 +142,7 @@ export default function PlaygroundPage() {
             Declarative standard for defining AI agents
           </p>
         </div>
-        <div className="flex flex-wrap items-center justify-end gap-2 sm:gap-3">
+        <div className="flex flex-col items-end gap-1 sm:flex-row sm:items-center sm:gap-3">
           <select
             value={selectedExampleId}
             onChange={handleExampleChange}
@@ -142,16 +170,52 @@ export default function PlaygroundPage() {
             disabled={(!spec && validationErrors.length > 0) || generateLoading}
             loading={generateLoading}
           />
-          <RunButton onClick={handleRun} disabled={!spec} />
           <button
             type="button"
-            onClick={() => setOpenAIModalOpen(true)}
-            disabled={!spec}
-            className="hidden rounded border border-[var(--accent)] bg-transparent px-4 py-2 text-sm font-medium text-[var(--accent)] transition hover:bg-[var(--accent)] hover:text-white disabled:opacity-50 sm:inline-flex"
-            aria-label="Try with OpenAI (rate limited)"
+            onClick={handleRunFromSpec}
+            disabled={!spec || runLoading}
+            className="rounded bg-[var(--accent)] px-4 py-2 text-sm font-medium text-white transition hover:opacity-90 disabled:opacity-50"
+            aria-label="Run first task directly from spec"
           >
-            Try with OpenAI
+            {runLoading ? "Running…" : "Run From Spec"}
           </button>
+          <div className="flex flex-col items-end gap-1 text-right text-[10px] text-[var(--text-muted)] sm:ml-2">
+            <div className="flex items-center justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setUseOpenAI((v) => !v)}
+                className={`rounded-full border px-3 py-1 text-[10px] font-semibold transition ${
+                  useOpenAI
+                    ? "border-emerald-600 bg-emerald-600 text-white shadow-sm hover:bg-emerald-500"
+                    : "border-emerald-600 bg-transparent text-emerald-600 hover:bg-emerald-600 hover:text-white"
+                }`}
+                aria-pressed={useOpenAI}
+                aria-label="Toggle real OpenAI vs mock demo"
+              >
+                {useOpenAI ? "Real OpenAI (API key required)" : "Demo mode (no API key)"}
+              </button>
+            </div>
+            {useOpenAI && (
+              <input
+                type="password"
+                placeholder="sk-..."
+                value={apiKey}
+                onChange={(e) => setApiKey(e.target.value)}
+                className="mt-1 w-full max-w-xs rounded border px-2 py-1 text-[11px] focus:border-[var(--accent)] focus:outline-none"
+                style={{
+                  borderColor: "var(--border)",
+                  background: "var(--surface)",
+                  color: "var(--text)",
+                }}
+                aria-label="OpenAI API key"
+              />
+            )}
+            {runError && (
+              <div className="mt-1 max-w-xs text-[10px] text-red-500" role="alert">
+                {runError}
+              </div>
+            )}
+          </div>
         </div>
       </header>
 
@@ -175,11 +239,17 @@ export default function PlaygroundPage() {
       <main className="min-h-0 flex-1">
         <SplitScreen
           left={
-            <YamlEditor
-              value={yaml}
-              onChange={setYaml}
-              height="100%"
-            />
+            <div className="flex h-full flex-col">
+              <div className="border-b border-[var(--border)] bg-surface-muted px-3 py-2 text-xs text-[var(--text-muted)]">
+                <span className="font-semibold">Spec as source of truth.</span>{" "}
+                Edit the Open Agent Spec YAML here, then either{" "}
+                <span className="font-semibold">generate code</span> or{" "}
+                <span className="font-semibold">run the first task directly from this spec</span>.
+              </div>
+              <div className="min-h-0 flex-1">
+                <YamlEditor value={yaml} onChange={setYaml} height="100%" />
+              </div>
+            </div>
           }
           right={
             <ResultTabs active={activeTab} onSelect={setActiveTab}>
@@ -188,7 +258,8 @@ export default function PlaygroundPage() {
                   code={generatedCode}
                   language={targetLang}
                   generatedFiles={generatedFiles ?? undefined}
-                  emptyMessage={generateLoading ? "Generating…" : "Generate agent to see scaffold."}
+                  emptyMessage={generateLoading ? "Generating…" : "Generate agent to see scaffold."
+                  }
                 />
               )}
               {activeTab === "logs" && (
@@ -203,14 +274,6 @@ export default function PlaygroundPage() {
           rightLabel="Results"
         />
       </main>
-
-      <RunWithOpenAIModal
-        isOpen={openAIModalOpen}
-        onClose={() => setOpenAIModalOpen(false)}
-        onResult={handleOpenAIRunResult}
-        yaml={yaml}
-        disabled={!spec}
-      />
     </div>
   );
 }
