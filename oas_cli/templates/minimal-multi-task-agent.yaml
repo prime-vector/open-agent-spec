@@ -1,0 +1,95 @@
+open_agent_spec: "1.0.9"
+
+agent:
+  name: multi-task-agent
+  description: A minimal agent with a multi-step task
+  role: analyst
+
+intelligence:
+  type: llm
+  engine: openai
+  model: gpt-4
+  endpoint: https://api.openai.com/v1
+  config:
+    temperature: 0.3
+    max_tokens: 256
+
+tasks:
+  summarize:
+    description: Summarize a piece of text
+    timeout: 30
+    input:
+      type: object
+      properties:
+        text:
+          type: string
+          description: The text to summarize
+          minLength: 1
+      required: [text]
+    output:
+      type: object
+      properties:
+        summary:
+          type: string
+          description: A short summary of the text
+      required: [summary]
+
+  extract-key-points:
+    description: Extract key points from the text
+    timeout: 30
+    input:
+      type: object
+      properties:
+        text:
+          type: string
+          description: The text to analyze
+          minLength: 1
+      required: [text]
+    output:
+      type: object
+      properties:
+        key_points:
+          type: array
+          items:
+            type: string
+          description: Bullet-point key takeaways
+      required: [key_points]
+
+  summarize-with-points:
+    description: Summarize the text and also return key points
+    timeout: 60
+    multi_step: true
+    steps:
+      - task: summarize
+        input_map:
+          text: text
+      - task: extract-key-points
+        input_map:
+          text: text
+    input:
+      type: object
+      properties:
+        text:
+          type: string
+          description: The text to analyze
+          minLength: 1
+      required: [text]
+    output:
+      type: object
+      properties:
+        summary:
+          type: string
+          description: Summary of the text
+        key_points:
+          type: array
+          items:
+            type: string
+          description: Bullet-point key takeaways
+      required: [summary, key_points]
+
+prompts:
+  system: >
+    You are a precise analyst. Given some text, you can summarize it and
+    extract key bullet points. Be accurate and concise.
+  user: "{{ text }}"
+

@@ -1,0 +1,59 @@
+open_agent_spec: "1.0.9"
+
+agent:
+  name: hello-world-tool-agent
+  description: A minimal agent that can save a greeting to a file
+  role: executor
+
+intelligence:
+  type: llm
+  engine: openai
+  model: gpt-4
+  endpoint: https://api.openai.com/v1
+  config:
+    temperature: 0.2
+    max_tokens: 64
+
+tools:
+  - id: file_writer
+    description: Safely write content to a file on disk
+    type: file
+    allowed_paths:
+      - ./output
+
+tasks:
+  save-greeting:
+    description: Save a personalized greeting to a file
+    timeout: 30
+    tool: file_writer
+    input:
+      type: object
+      properties:
+        file_path:
+          type: string
+          description: Relative path to write the greeting file
+        name:
+          type: string
+          description: Name to greet
+          minLength: 1
+      required: [file_path, name]
+    output:
+      type: object
+      properties:
+        success:
+          type: boolean
+          description: Whether the file was written successfully
+        file_path:
+          type: string
+          description: The path that was written
+        bytes_written:
+          type: integer
+          description: Number of bytes written
+      required: [success, file_path, bytes_written]
+
+prompts:
+  system: >
+    You are a helpful assistant that writes friendly greetings to files using
+    a file-writing tool. Always produce a short greeting.
+  user: "Please write a greeting for {{ name }} to the file at {{ file_path }}."
+
