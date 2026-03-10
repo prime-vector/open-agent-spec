@@ -288,7 +288,9 @@ def test_generate_grok_agent_code(temp_dir):
     assert '"engine": "grok"' in content
     assert '"model": "grok-3-latest"' in content
     assert '"endpoint": "https://api.x.ai/v1"' in content
-    assert "class GrokSecurityAgent(dacp.Agent):" in content
+    # Generated agents now inherit from the Open Agent Spec runtime base,
+    # not directly from dacp.Agent.
+    assert "class GrokSecurityAgent(AgentBase):" in content
     assert "analyze_threat" in content
 
     # Check that intelligence config includes Grok settings
