@@ -1,5 +1,6 @@
 import { DEFAULT_SPEC_YAML } from "../defaultSpec";
 import { RESEARCH_ASSISTANT_SPEC_YAML } from "../researchAssistantSpec";
+import { CODEX_SPEC_YAML } from "../codexSpec";
 
 export interface ExampleSpec {
   id: string;
@@ -17,6 +18,11 @@ export const EXAMPLES: ExampleSpec[] = [
     id: "research-assistant",
     label: "Research Assistant",
     yaml: RESEARCH_ASSISTANT_SPEC_YAML,
+  },
+  {
+    id: "codex-refactor",
+    label: "Codex Repo Refactor",
+    yaml: CODEX_SPEC_YAML,
   },
 ];
 

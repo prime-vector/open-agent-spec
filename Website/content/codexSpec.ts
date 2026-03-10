@@ -1,0 +1,52 @@
+// Codex engine example spec. Keep in sync with codexSpec.yaml.
+export const CODEX_SPEC_YAML = `open_agent_spec: "1.0.9"
+
+agent:
+  name: repo-refactor-agent
+  description: An agent that refactors files in a git repository using Codex
+  role: analyst
+
+intelligence:
+  type: llm
+  engine: codex
+  model: gpt-4.1-codex
+  config:
+    mode: code
+    sandbox: workspace-write
+    cwd: .
+
+tasks:
+  refactor-file:
+    description: Refactor a single file according to a request
+    timeout: 120
+    input:
+      type: object
+      properties:
+        file_path:
+          type: string
+          description: Relative path of the file to refactor
+        instructions:
+          type: string
+          description: What to change in the file
+      required: [file_path, instructions]
+    output:
+      type: object
+      properties:
+        success:
+          type: boolean
+          description: Whether the refactor succeeded
+        diff:
+          type: string
+          description: Unified diff of the changes
+      required: [success, diff]
+
+prompts:
+  system: >
+    You are a code refactoring assistant. Apply the requested changes safely and
+    return a unified diff of modifications. Prefer minimal, focused edits.
+  user: |
+    Please refactor {{ file_path }} with the following instructions:
+
+    {{ instructions }}
+`;
+
