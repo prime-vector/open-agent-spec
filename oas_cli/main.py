@@ -1,12 +1,12 @@
 # Copyright (c) Prime Vector Australia, Andrew Whitehouse, Open Agent Stack contributors
 # Licensed under the MIT License. See LICENSE for details.
 
+import json
 import logging
 import tempfile
 from importlib.metadata import version as _get_version
 from pathlib import Path
 from typing import Any
-import json
 
 import typer
 from rich.console import Console
@@ -283,7 +283,7 @@ def run(
 
         result = run_task_from_file(spec, task_name=task, input_data=input_data)
         console.print_json(data=result)
-    except Exception as err:  # noqa: BLE001
+    except Exception as err:
         log.error(str(err))
         typer.echo(str(err), err=True)
         raise typer.Exit(1)

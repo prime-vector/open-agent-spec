@@ -8,19 +8,29 @@ only on this module so that the underlying implementation can evolve over time.
 
 from __future__ import annotations
 
-from typing import Any, Dict
 import os
+from typing import Any
 
 import dacp
-from dacp.orchestrator import Orchestrator as _DacpOrchestrator
 from dacp import execute_tool as _execute_tool
+from dacp.orchestrator import Orchestrator as _DacpOrchestrator
+from dacp.protocol import (
+    get_final_response as _get_final_response,
+)
+from dacp.protocol import (
+    get_tool_request as _get_tool_request,
+)
+from dacp.protocol import (
+    is_final_response as _is_final_response,
+)
+from dacp.protocol import (
+    is_tool_request as _is_tool_request,
+)
 from dacp.protocol import (
     parse_agent_response as _parse_agent_response,
-    is_tool_request as _is_tool_request,
-    get_tool_request as _get_tool_request,
+)
+from dacp.protocol import (
     wrap_tool_result as _wrap_tool_result,
-    get_final_response as _get_final_response,
-    is_final_response as _is_final_response,
 )
 
 # Re-exported types for generated agents
@@ -35,7 +45,7 @@ get_final_response = _get_final_response
 is_final_response = _is_final_response
 
 
-def invoke_intelligence(prompt: str, config: Dict[str, Any]) -> Any:
+def invoke_intelligence(prompt: str, config: dict[str, Any]) -> Any:
     """Invoke the configured intelligence provider.
 
     Today this simply delegates to DACP's invoke_intelligence. In future this
@@ -53,7 +63,7 @@ def parse_with_fallback(response: Any, model_class: type, **defaults: Any) -> An
     return dacp.parse_with_fallback(response=response, model_class=model_class, **defaults)
 
 
-def setup_logging_from_config(logging_config: Dict[str, Any]) -> None:
+def setup_logging_from_config(logging_config: dict[str, Any]) -> None:
     """Configure logging based on a logging config dict from the spec.
 
     This mirrors the behaviour previously in generated agents but is factored

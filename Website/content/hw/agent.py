@@ -1,15 +1,13 @@
-import os
-import logging
 import json
-from pathlib import Path
-from typing import Optional, Any, Dict, List
-from jinja2 import Environment, FileSystemLoader
-from pydantic import BaseModel
-from dotenv import load_dotenv
+import logging
+import os
 
 import dacp
-from dacp import parse_with_fallback, invoke_intelligence
+from dacp import invoke_intelligence, parse_with_fallback
 from dacp.orchestrator import Orchestrator
+from dotenv import load_dotenv
+from jinja2 import Environment, FileSystemLoader
+from pydantic import BaseModel
 
 load_dotenv()
 
@@ -89,9 +87,9 @@ def greet(name: str, memory_summary: str = '') -> GreetOutput:
     prompts_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "prompts")
     env = Environment(loader=FileSystemLoader([".", prompts_dir]))
     try:
-        template = env.get_template(f"greet.jinja2")
+        template = env.get_template("greet.jinja2")
     except FileNotFoundError:
-        log.warning(f"Task-specific prompt template not found, using default template")
+        log.warning("Task-specific prompt template not found, using default template")
         template = env.get_template("agent_prompt.jinja2")
 
     # Create input dictionary for template
@@ -186,9 +184,9 @@ class HelloWorldAgent(dacp.Agent):
                 return result
 
         except TypeError as e:
-            return {"error": f"Invalid parameters for task {task}: {str(e)}"}
+            return {"error": f"Invalid parameters for task {task}: {e!s}"}
         except Exception as e:
-            return {"error": f"Error executing task {task}: {str(e)}"}
+            return {"error": f"Error executing task {task}: {e!s}"}
 
 
 
