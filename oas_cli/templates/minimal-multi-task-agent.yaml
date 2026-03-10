@@ -1,7 +1,7 @@
 open_agent_spec: "1.0.9"
 
 agent:
-  name: multi-task-agent
+  name: hello-world-agent
   description: A minimal agent with a multi-step task
   role: analyst
 

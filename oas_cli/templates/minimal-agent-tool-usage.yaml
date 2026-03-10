@@ -1,7 +1,7 @@
 open_agent_spec: "1.0.9"
 
 agent:
-  name: hello-world-tool-agent
+  name: hello-world-agent
   description: A minimal agent that can save a greeting to a file
   role: executor
 
