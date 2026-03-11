@@ -11,7 +11,7 @@ A clear and concise description of what the bug is.
 
 ## To Reproduce
 Steps to reproduce the behaviour:
-1. Run `oas init --spec ...`
+1. Run `oa init --spec ...`
 2. With this spec file: (paste YAML or attach)
 3. See error
 

@@ -25,7 +25,7 @@ jobs:
         env:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
         run: |
-          oas run --spec .agents/hello-world-agent.yaml \
+          oa run --spec .agents/hello-world-agent.yaml \
             --task greet \
             --input '{"name": "GitHub Actions"}'
 

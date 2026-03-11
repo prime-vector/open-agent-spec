@@ -35,7 +35,7 @@ def run_command(cmd, cwd=None, check=True):
 
 
 def oas_cmd(args: str) -> str:
-    """Build oas CLI command; use python -m oas_cli so it works in CI when 'oas' is not on PATH."""
+    """Build OA CLI command; use python -m oas_cli so it works in CI when 'oa' is not on PATH."""
     return f"{sys.executable} -m oas_cli {args}"
 
 
