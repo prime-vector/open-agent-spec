@@ -1,20 +1,44 @@
 # Open Agent (OA)
 
-**Open Agent (OA) is a YAML specification for defining AI agents and generating working scaffolding.**
+Define AI agents with YAML. Generate working scaffolding instantly.
 
-Building AI agents today usually means manually wiring:
+![PyPI version](https://img.shields.io/pypi/v/open-agent-spec)
+![Python](https://img.shields.io/pypi/pyversions/open-agent-spec)
+![License](https://img.shields.io/badge/license-MIT-blue)
+
+**Open Agent (OA)** is a YAML specification for defining AI agents and generating working scaffolding.
+
+Building AI agents today often requires manually wiring together:
 
 - prompt templates  
 - LLM configuration  
 - task routing  
-- memory hooks  
-- runtime entrypoints  
+- memory structures  
+- runtime logic  
 
-OA moves these into a **declarative spec**. Define the agent once in YAML; the CLI emits a **working project scaffold** you can install, run, and extend.
+Open Agent moves these concerns into a **declarative specification**.
+
+Define an agent once in YAML and run it directly, or generate a project scaffold for customization.
+
+You can think of OA as something similar to **OpenAPI for services** or **Terraform for infrastructure**, but for **AI agents**.
 
 ---
 
-## Minimal spec
+# Quick Start
+
+Install the CLI:
+
+```bash
+pip install open-agent-spec
+```
+
+Set your LLM API key (example for OpenAI):
+
+```bash
+export OPENAI_API_KEY=your_api_key_here
+```
+
+Create an agent spec:
 
 ```yaml
 agent:
@@ -27,88 +51,99 @@ intelligence:
 
 tasks:
   greet:
-    description: Greet the user
+    description: Say hello to someone
+    input:
+      type: object
+      properties:
+        name:
+          type: string
+      required: [name]
+
+    output:
+      type: object
+      properties:
+        response:
+          type: string
+      required: [response]
+
+prompts:
+  system: >
+    You greet people by name.
+  user: "{{ name }}"
 ```
 
-Real specs add `open_agent_spec`, `input`/`output` schemas, and `endpoint` as needed. Full shape and engines: [docs/REFERENCE.md](https://github.com/prime-vector/open-agent-spec/blob/main/docs/REFERENCE.md).
-
----
-
-## Install
+Run the agent directly from the spec:
 
 ```bash
-pip install open-agent-spec
-# or
-pipx install open-agent-spec
+oas run --spec agent.yaml --task greet --input '{"name":"Alice"}' --quiet
 ```
-
-Command: **`oas`**
 
 ---
 
-## Generate an agent
+# Generate a Project Scaffold (Optional)
+
+If you want to extend the implementation, generate a project scaffold:
 
 ```bash
 oas init --spec agent.yaml --output ./agent
 ```
 
-The CLI **generates a working scaffold from the specification**—Python module, prompts, dependencies, and env template—not a dead stub.
-
-```bash
-cd agent
-cp .env.example .env
-pip install -r requirements.txt
-python agent.py
-```
-
-Bundled minimal spec:
-
-```bash
-oas init --template minimal --output ./agent
-```
-
-Run from YAML without generating a repo:
-
-```bash
-oas init aac
-oas run --spec .agents/example.yaml --task greet --input '{"name": "Ada"}' --quiet
-```
-
-Update after changing the spec:
-
-```bash
-oas update --spec agent.yaml --output ./agent
-```
+This produces a Python project you can customize.
 
 ---
 
-## Generated project structure
-
-What lands on disk today:
+# Generated Project Structure
 
 ```
 agent/
-├── agent.py           # task functions + orchestration from spec
-├── models.py          # output models when tasks define output schemas
-├── prompts/           # jinja2 templates (per task + default)
+├── agent.py
+├── models.py
+├── prompts/
 ├── requirements.txt
 ├── .env.example
 └── README.md
 ```
 
-The scaffold is a **starting point** for the agent you declared—consistent layout so you implement behavior instead of repeating boilerplate.
+---
+
+# Design Philosophy
+
+Open Agent intentionally keeps the specification **minimal**.
+
+The goal is to define agents declaratively and generate consistent project scaffolding.
+
+Tasks in an OA specification are intended to represent **atomic units of capability** for an agent, rather than complex workflows. Higher-level orchestration can be built on top of these primitives by external systems.
+
+OA does **not prescribe**:
+
+- runtime orchestration
+- governance systems
+- evaluation frameworks
+
+These concerns can be layered on top by different runtimes, frameworks, or architectures.
 
 ---
 
-## Design philosophy
+# Why OA?
 
-Open Agent keeps the specification **minimal**: agent definition + scaffolding. It does **not** prescribe runtime orchestration, governance, or evaluation. Those layers can sit on top; the spec stays agnostic so different frameworks can adopt the same YAML shape.
+Many teams building agents end up recreating the same infrastructure:
+
+- agent scaffolding
+- prompt organization
+- model configuration
+- task definitions
+
+OA provides a consistent way to **define agents once and generate a working structure automatically**.
 
 ---
 
-## Related work
+# Related Work
 
-Multiple efforts are exploring **agent specifications and interoperability**. Open Agent is focused on **developer scaffolding from a declarative YAML spec**: one file → one generated tree you can run and version. Neutral on how you orchestrate or govern agents afterward.
+Several projects are exploring ways to standardize how AI agents are defined and orchestrated.
+
+Open Agent focuses specifically on **developer-facing scaffolding from a declarative YAML specification**.
+
+The goal is to make agent architecture easier to reason about and quicker to implement.
 
 ---
 
