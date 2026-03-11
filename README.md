@@ -20,13 +20,43 @@ A command-line tool for generating AI agent projects based on Open Agent Spec YA
 
 ## Installation
 
+**pip / pipx (recommended for CLI isolation):**
+
 ```bash
 pip install open-agent-spec
+# or
+pipx install open-agent-spec
+```
+
+**Homebrew:** there is no first-party formula yet; you can expose the CLI via pipx and optionally symlink:
+
+```bash
+brew install pipx && pipx ensurepath
+pipx install open-agent-spec
+# then: oas --help
 ```
 
 ## Usage
 
-### Basic Usage
+### Agent as code (fresh repo)
+
+Scaffold a **`.agents/`** folder with an `example.yaml` you can run directly (no code generation):
+
+```bash
+cd your-repo
+oas init aac
+# creates .agents/example.yaml and .agents/README.md
+
+oas run --spec .agents/example.yaml --task greet --input '{"name": "World"}' --quiet
+```
+
+Options:
+
+- `oas init aac -C /path/to/repo` — use another directory as root
+- `oas init aac --force` — overwrite existing `.agents/example.yaml`
+- `oas init aac -q` — print only the path to `example.yaml`
+
+### Basic Usage (full code generation)
 ```bash
 # Show help
 oas --help
