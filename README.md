@@ -1,4 +1,4 @@
-# Open Agent (OA)
+# Open Agent Spec (OA)
 
 Define AI agents with YAML. Generate working scaffolding instantly.
 
@@ -6,7 +6,7 @@ Define AI agents with YAML. Generate working scaffolding instantly.
 ![Python](https://img.shields.io/pypi/pyversions/open-agent-spec)
 ![License](https://img.shields.io/badge/license-MIT-blue)
 
-**Open Agent (OA)** is a YAML specification for defining AI agents and generating working scaffolding.
+**Open Agent Spec (OA)** is a YAML specification for defining AI agents and generating working scaffolding.
 
 Building AI agents today often requires manually wiring together:
 
@@ -16,7 +16,7 @@ Building AI agents today often requires manually wiring together:
 - memory structures  
 - runtime logic  
 
-Open Agent moves these concerns into a **declarative specification**.
+Open Agent Spec moves these concerns into a **declarative specification**.
 
 Define an agent once in YAML and run it directly, or generate a project scaffold for customization.
 
@@ -28,8 +28,24 @@ You can think of OA as something similar to **OpenAPI for services** or **Terraf
 
 Install the CLI:
 
+**pip**
+
 ```bash
 pip install open-agent-spec
+```
+
+**Homebrew** (tap then install):
+
+```bash
+brew tap prime-vector/homebrew-prime-vector
+brew install open-agent-spec
+oa --version
+```
+
+**pipx** (isolated CLI):
+
+```bash
+pipx install open-agent-spec
 ```
 
 Set your LLM API key (example for OpenAI):
