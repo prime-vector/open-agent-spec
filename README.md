@@ -16,7 +16,7 @@
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
 [![GitHub stars](https://img.shields.io/github/stars/prime-vector/open-agent-spec?style=social)](https://github.com/prime-vector/open-agent-spec)
 
-A command-line tool for generating AI agent projects based on Open Agent Spec YAML files. The OA CLI supports multiple LLM engines including OpenAI, Anthropic, local models, and custom LLM routers.
+A tool for generating AI agent projects based on Open Agent Spec YAML files. The OA CLI supports multiple LLM engines including OpenAI, Anthropic, local models, and custom LLM routers.
 
 ## Installation
 

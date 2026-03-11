@@ -1,0 +1,40 @@
+open_agent_spec: "1.0.9"
+
+agent:
+  name: codex-runner-agent
+  description: Run Codex CLI non-interactively (portable runner via spec)
+  role: executor
+
+intelligence:
+  type: llm
+  engine: codex
+  model: gpt-4.1-codex
+  # Codex adapter uses intelligence.config for CLI behaviour (see oas_cli/adapters/codex_adapter.py)
+  config:
+    sandbox: workspace-write
+    cwd: .
+
+tasks:
+  exec:
+    description: Execute an instruction via Codex exec (non-interactive)
+    timeout: 600
+    input:
+      type: object
+      properties:
+        prompt:
+          type: string
+          description: Instruction passed to codex exec
+      required: [prompt]
+    output:
+      type: object
+      properties:
+        success:
+          type: boolean
+        text:
+          type: string
+      required: [success]
+
+prompts:
+  # Adapter invokes Codex with this as the exec prompt
+  system: ""
+  user: "{{ prompt }}"
