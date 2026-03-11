@@ -11,6 +11,7 @@ from oas_cli.validators import validate_spec
 
 # -- Minimal valid spec helper ----------------------------------------
 
+
 def _valid_spec(**overrides):
     """Return a minimal valid spec, with optional overrides."""
     spec = {
@@ -30,6 +31,7 @@ def _valid_spec(**overrides):
 
 
 # -- Version validation -----------------------------------------------
+
 
 class TestVersionErrors:
     def test_missing_version_shows_type_and_example(self):
@@ -51,6 +53,7 @@ class TestVersionErrors:
 
 # -- Agent validation --------------------------------------------------
 
+
 class TestAgentErrors:
     def test_missing_agent_section(self):
         spec = _valid_spec()
@@ -71,6 +74,7 @@ class TestAgentErrors:
 
 # -- Behavioural contract validation -----------------------------------
 
+
 class TestBehaviouralContractErrors:
     def test_no_contract_is_valid(self):
         """Specs without behavioural_contract should pass."""
@@ -84,12 +88,8 @@ class TestBehaviouralContractErrors:
             validate_spec(spec)
 
     def test_contract_missing_version(self):
-        spec = _valid_spec(
-            behavioural_contract={"description": "test"}
-        )
-        with pytest.raises(
-            ValueError, match=r"behavioural_contract\.version"
-        ):
+        spec = _valid_spec(behavioural_contract={"description": "test"})
+        with pytest.raises(ValueError, match=r"behavioural_contract\.version"):
             validate_spec(spec)
 
     def test_contract_wrong_type_for_flags(self):
@@ -105,6 +105,7 @@ class TestBehaviouralContractErrors:
 
 
 # -- Tools validation --------------------------------------------------
+
 
 class TestToolErrors:
     def test_tools_wrong_type(self):
@@ -136,25 +137,18 @@ class TestToolErrors:
             validate_spec(spec)
 
     def test_tool_missing_description(self):
-        spec = _valid_spec(
-            tools=[{"id": "t1", "type": "function"}]
-        )
-        with pytest.raises(
-            ValueError, match=r"tools\[0\]\.description.*missing"
-        ):
+        spec = _valid_spec(tools=[{"id": "t1", "type": "function"}])
+        with pytest.raises(ValueError, match=r"tools\[0\]\.description.*missing"):
             validate_spec(spec)
 
     def test_tool_missing_type(self):
-        spec = _valid_spec(
-            tools=[{"id": "t1", "description": "desc"}]
-        )
-        with pytest.raises(
-            ValueError, match=r"tools\[0\]\.type.*missing"
-        ):
+        spec = _valid_spec(tools=[{"id": "t1", "description": "desc"}])
+        with pytest.raises(ValueError, match=r"tools\[0\]\.type.*missing"):
             validate_spec(spec)
 
 
 # -- Task validation ---------------------------------------------------
+
 
 class TestTaskErrors:
     def test_tasks_wrong_type(self):
@@ -164,9 +158,7 @@ class TestTaskErrors:
 
     def test_task_def_wrong_type(self):
         spec = _valid_spec(tasks={"bad": "not a dict"})
-        with pytest.raises(
-            ValueError, match=r"tasks\.bad.*got str"
-        ):
+        with pytest.raises(ValueError, match=r"tasks\.bad.*got str"):
             validate_spec(spec)
 
     def test_nonexistent_tool_lists_available(self):
@@ -201,27 +193,18 @@ class TestTaskErrors:
         assert "Available" in msg or "available" in msg
 
     def test_missing_input_shows_type(self):
-        spec = _valid_spec(
-            tasks={"t1": {"output": {"r": {"type": "string"}}}}
-        )
-        with pytest.raises(
-            ValueError, match=r"tasks\.t1\.input.*missing"
-        ):
+        spec = _valid_spec(tasks={"t1": {"output": {"r": {"type": "string"}}}})
+        with pytest.raises(ValueError, match=r"tasks\.t1\.input.*missing"):
             validate_spec(spec)
 
     def test_missing_output_shows_type(self):
-        spec = _valid_spec(
-            tasks={
-                "t1": {"input": {"q": {"type": "string"}}}
-            }
-        )
-        with pytest.raises(
-            ValueError, match=r"tasks\.t1\.output.*missing"
-        ):
+        spec = _valid_spec(tasks={"t1": {"input": {"q": {"type": "string"}}}})
+        with pytest.raises(ValueError, match=r"tasks\.t1\.output.*missing"):
             validate_spec(spec)
 
 
 # -- Multi-step task validation ----------------------------------------
+
 
 class TestMultiStepTaskErrors:
     def test_missing_steps(self):
@@ -276,11 +259,10 @@ class TestMultiStepTaskErrors:
 
 # -- Error format consistency -----------------------------------------
 
+
 class TestErrorFormat:
     def test_field_path_included(self):
-        spec = _valid_spec(
-            agent={"name": 123, "role": "test"}
-        )
+        spec = _valid_spec(agent={"name": 123, "role": "test"})
         with pytest.raises(ValueError) as exc_info:
             validate_spec(spec)
         assert "agent.name" in str(exc_info.value)

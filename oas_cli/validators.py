@@ -69,13 +69,21 @@ def _validate_behavioural_contract(spec_data: dict) -> None:
         )
 
     if not isinstance(contract.get("version"), str):
-        actual_type = type(contract.get("version")).__name__ if "version" in contract else "missing"
+        actual_type = (
+            type(contract.get("version")).__name__
+            if "version" in contract
+            else "missing"
+        )
         raise ValueError(
             f"Field 'behavioural_contract.version' must be a string, got {actual_type}. "
             f'Example: behavioural_contract:\n  version: "1.0"'
         )
     if not isinstance(contract.get("description"), str):
-        actual_type = type(contract.get("description")).__name__ if "description" in contract else "missing"
+        actual_type = (
+            type(contract.get("description")).__name__
+            if "description" in contract
+            else "missing"
+        )
         raise ValueError(
             f"Field 'behavioural_contract.description' must be a string, got {actual_type}. "
             f"Provide a description of the agent's behavior."
@@ -132,11 +140,7 @@ def _validate_tools(spec_data: dict) -> None:
             )
 
         if not isinstance(tool.get("id"), str):
-            actual_type = (
-                type(tool.get("id")).__name__
-                if "id" in tool
-                else "missing"
-            )
+            actual_type = type(tool.get("id")).__name__ if "id" in tool else "missing"
             raise ValueError(
                 f"tools[{i}].id must be a string, got {actual_type}. "
                 'Provide a unique identifier, e.g., id: "web_search"'
@@ -156,9 +160,7 @@ def _validate_tools(spec_data: dict) -> None:
 
         if not isinstance(tool.get("type"), str):
             actual_type = (
-                type(tool.get("type")).__name__
-                if "type" in tool
-                else "missing"
+                type(tool.get("type")).__name__ if "type" in tool else "missing"
             )
             raise ValueError(
                 f"tools[{i}].type must be a string, got {actual_type}. "
@@ -205,14 +207,11 @@ def _validate_tasks(spec_data: dict) -> None:
             if not isinstance(tool_id, str):
                 actual_type = type(tool_id).__name__
                 raise ValueError(
-                    f"tasks.{task_name}.tool must be a string, "
-                    f"got {actual_type}."
+                    f"tasks.{task_name}.tool must be a string, got {actual_type}."
                 )
             if tool_id not in tool_ids:
                 available = (
-                    ", ".join(f"'{tid}'" for tid in tool_ids)
-                    if tool_ids
-                    else "none"
+                    ", ".join(f"'{tid}'" for tid in tool_ids) if tool_ids else "none"
                 )
                 raise ValueError(
                     f"tasks.{task_name} references non-existent "
@@ -265,10 +264,7 @@ def _validate_tasks(spec_data: dict) -> None:
                     "    - task: step1\n    - task: step2"
                 )
             if not task_def.get("steps"):
-                raise ValueError(
-                    f"Multi-step task {task_name}.steps cannot "
-                    "be empty"
-                )
+                raise ValueError(f"Multi-step task {task_name}.steps cannot be empty")
 
             # Validate output schema for multi-step tasks
             if not isinstance(task_def.get("output"), dict):
@@ -282,22 +278,17 @@ def _validate_tasks(spec_data: dict) -> None:
                     f"a dictionary (object), got {actual_type}."
                 )
             if not task_def.get("output"):
-                raise ValueError(
-                    f"Multi-step task {task_name}.output cannot "
-                    "be empty"
-                )
+                raise ValueError(f"Multi-step task {task_name}.output cannot be empty")
 
             # Validate each step
             for i, step in enumerate(task_def["steps"]):
                 if not isinstance(step, dict):
                     raise ValueError(
-                        f"steps[{i}] in task {task_name} must be "
-                        "a dictionary (object)."
+                        f"steps[{i}] in task {task_name} must be a dictionary (object)."
                     )
                 if "task" not in step:
                     raise ValueError(
-                        f"steps[{i}] in task {task_name} must "
-                        "have a 'task' field."
+                        f"steps[{i}] in task {task_name} must have a 'task' field."
                     )
                 if not isinstance(step["task"], str):
                     actual_type = type(step["task"]).__name__
@@ -309,9 +300,7 @@ def _validate_tasks(spec_data: dict) -> None:
                 # Check that the referenced task exists
                 referenced_task = step["task"]
                 if referenced_task not in tasks:
-                    available_tasks = ", ".join(
-                        f"'{t}'" for t in tasks
-                    )
+                    available_tasks = ", ".join(f"'{t}'" for t in tasks)
                     raise ValueError(
                         f"steps[{i}] in task {task_name} "
                         f"references non-existent task "
@@ -322,9 +311,7 @@ def _validate_tasks(spec_data: dict) -> None:
                 # Validate input_map if present
                 if "input_map" in step:
                     if not isinstance(step["input_map"], dict):
-                        actual_type = (
-                            type(step["input_map"]).__name__
-                        )
+                        actual_type = type(step["input_map"]).__name__
                         raise ValueError(
                             f"steps[{i}] in task "
                             f"{task_name}.input_map must be "
