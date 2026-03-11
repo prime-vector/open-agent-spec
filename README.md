@@ -75,7 +75,7 @@ prompts:
 Run the agent directly from the spec:
 
 ```bash
-oas run --spec agent.yaml --task greet --input '{"name":"Alice"}'
+oas run --spec agent.yaml --task greet --input '{"name":"Alice"}' --quiet
 ```
 
 ---
@@ -111,6 +111,8 @@ agent/
 Open Agent intentionally keeps the specification **minimal**.
 
 The goal is to define agents declaratively and generate consistent project scaffolding.
+
+Tasks in an OA specification are intended to represent **atomic units of capability** for an agent, rather than complex workflows. Higher-level orchestration can be built on top of these primitives by external systems.
 
 OA does **not prescribe**:
 
