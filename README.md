@@ -1,10 +1,36 @@
-# Open Agent Spec CLI
+# Open Agent (OA)
 
-**Define agents in YAML. Run them with one command—or generate a full Python project.**
+**Open Agent (OA) is a YAML specification for defining AI agents and generating working scaffolding.**
 
-[![PyPI](https://img.shields.io/pypi/v/open-agent-spec)](https://pypi.org/project/open-agent-spec/)
-[![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+Building AI agents today usually means manually wiring:
+
+- prompt templates  
+- LLM configuration  
+- task routing  
+- memory hooks  
+- runtime entrypoints  
+
+OA moves these into a **declarative spec**. Define the agent once in YAML; the CLI emits a **working project scaffold** you can install, run, and extend.
+
+---
+
+## Minimal spec
+
+```yaml
+agent:
+  name: hello-world-agent
+  role: chat
+
+intelligence:
+  engine: openai
+  model: gpt-4
+
+tasks:
+  greet:
+    description: Greet the user
+```
+
+Real specs add `open_agent_spec`, `input`/`output` schemas, and `endpoint` as needed. Full shape and engines: [docs/REFERENCE.md](https://github.com/prime-vector/open-agent-spec/blob/main/docs/REFERENCE.md).
 
 ---
 
@@ -12,7 +38,7 @@
 
 ```bash
 pip install open-agent-spec
-# or (isolated CLI)
+# or
 pipx install open-agent-spec
 ```
 
@@ -20,106 +46,99 @@ Command: **`oas`**
 
 ---
 
-## Use it in 60 seconds
-
-### 1. Run a spec (no code generation)
-
-Spec lives in YAML; the CLI calls your configured model and prints JSON.
+## Generate an agent
 
 ```bash
-oas init aac
-# Creates .agents/example.yaml — edit it, then:
-
-export OPENAI_API_KEY=...   # or ANTHROPIC_API_KEY, etc.
-
-oas run --spec .agents/example.yaml --task greet --input '{"name": "Ada"}' --quiet
+oas init --spec agent.yaml --output ./agent
 ```
 
-### 2. Generate a full project
-
-Scaffolds `agent.py`, prompts, `requirements.txt`, etc.
+The CLI **generates a working scaffold from the specification**—Python module, prompts, dependencies, and env template—not a dead stub.
 
 ```bash
-oas init --spec path/to/spec.yaml --output ./my-agent
-cd my-agent
-cp .env.example .env   # add API keys
+cd agent
+cp .env.example .env
 pip install -r requirements.txt
 python agent.py
 ```
 
-Use a bundled template:
+Bundled minimal spec:
 
 ```bash
-oas init --template minimal --output ./my-agent
+oas init --template minimal --output ./agent
 ```
 
-### 3. Refresh generated code after spec changes
+Run from YAML without generating a repo:
 
 ```bash
-oas update --spec path/to/spec.yaml --output ./my-agent
+oas init aac
+oas run --spec .agents/example.yaml --task greet --input '{"name": "Ada"}' --quiet
 ```
+
+Update after changing the spec:
+
+```bash
+oas update --spec agent.yaml --output ./agent
+```
+
+---
+
+## Generated project structure
+
+What lands on disk today:
+
+```
+agent/
+├── agent.py           # task functions + orchestration from spec
+├── models.py          # output models when tasks define output schemas
+├── prompts/           # jinja2 templates (per task + default)
+├── requirements.txt
+├── .env.example
+└── README.md
+```
+
+The scaffold is a **starting point** for the agent you declared—consistent layout so you implement behavior instead of repeating boilerplate.
+
+---
+
+## Design philosophy
+
+Open Agent keeps the specification **minimal**: agent definition + scaffolding. It does **not** prescribe runtime orchestration, governance, or evaluation. Those layers can sit on top; the spec stays agnostic so different frameworks can adopt the same YAML shape.
+
+---
+
+## Related work
+
+Multiple efforts are exploring **agent specifications and interoperability**. Open Agent is focused on **developer scaffolding from a declarative YAML spec**: one file → one generated tree you can run and version. Neutral on how you orchestrate or govern agents afterward.
 
 ---
 
 ## Commands
 
-| Command | What it does |
-|--------|----------------|
-| `oas init aac` | Create `.agents/` with `example.yaml` only |
-| `oas init --spec … --output …` | Generate full agent project |
-| `oas init --template minimal --output …` | Same, using built-in minimal spec |
-| `oas run --spec … [--task …] [--input '{"k":"v"}'] [--quiet]` | Run one task from YAML |
-| `oas update --spec … --output …` | Regenerate into existing folder |
-| `oas init … --dry-run` | Validate + show what would be written |
+| Command | Purpose |
+|--------|--------|
+| `oas init --spec … --output …` | Generate project from YAML |
+| `oas init --template minimal --output …` | Same with bundled spec |
+| `oas init aac` | `.agents/` + example spec only |
+| `oas run --spec … [--task …] [--input JSON] [--quiet]` | Run task without codegen |
+| `oas update --spec … --output …` | Regenerate into existing dir |
+| `oas init … --dry-run` | Validate only |
 
 ```bash
 oas --help
-oas run --help
 ```
-
----
-
-## Spec at a glance
-
-YAML describes the agent, model, and tasks. Minimal shape:
-
-```yaml
-open_agent_spec: "1.0.9"
-
-agent:
-  name: "hello-agent"
-  description: "Says hello"
-
-intelligence:
-  engine: "openai"
-  endpoint: "https://api.openai.com/v1"
-  model: "gpt-4"
-
-tasks:
-  greet:
-    description: "Greet by name"
-    input:
-      type: "object"
-      properties:
-        name: { type: "string" }
-      required: ["name"]
-    output:
-      type: "object"
-      properties:
-        response: { type: "string" }
-      required: ["response"]
-```
-
-**Engines:** `openai`, `anthropic`, `grok`, `cortex`, `local`, `custom` — full tables and examples in the repo: [docs/REFERENCE.md](https://github.com/prime-vector/open-agent-spec/blob/main/docs/REFERENCE.md).
 
 ---
 
 ## More detail
 
-| Doc | Contents |
-|-----|----------|
-| [docs/REFERENCE.md](https://github.com/prime-vector/open-agent-spec/blob/main/docs/REFERENCE.md) | Full spec shape, engines, generated layout, templates |
-| [Repo](https://github.com/prime-vector/open-agent-spec) | Source, issues, CI |
+| Resource | Contents |
+|----------|----------|
+| [docs/REFERENCE.md](https://github.com/prime-vector/open-agent-spec/blob/main/docs/REFERENCE.md) | Full spec, engines, templates |
+| [Repository](https://github.com/prime-vector/open-agent-spec) | Source, issues, CI |
+
+[![PyPI](https://img.shields.io/pypi/v/open-agent-spec)](https://pypi.org/project/open-agent-spec/)
+[![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 ---
 
