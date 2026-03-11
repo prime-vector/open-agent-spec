@@ -1,8 +1,7 @@
 name: Publish to PyPI
 
 on:
-  release:
-    types: [published]
+  workflow_dispatch:
 
 jobs:
   publish:
@@ -22,24 +21,32 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.12'
+          python-version: "3.12"
 
       - name: Install build tools
         run: |
           python -m pip install --upgrade pip
           pip install build tomli
 
-      - name: Verify version matches tag
+      - name: Verify version matches tag (only if ref is a v* tag)
+        shell: bash
         run: |
-          TAG_VERSION=${GITHUB_REF#refs/tags/v}
-          PYPROJECT_VERSION=$(python -c "import tomli; print(tomli.load(open('pyproject.toml', 'rb'))['project']['version'])")
-          if [ "$TAG_VERSION" != "$PYPROJECT_VERSION" ]; then
-            echo "Version in pyproject.toml ($PYPROJECT_VERSION) does not match tag version ($TAG_VERSION)"
-            exit 1
+          set -euo pipefail
+          REF="${GITHUB_REF}"
+
+          if [[ "$REF" == refs/tags/v* ]]; then
+            TAG_VERSION="${REF#refs/tags/v}"
+            PYPROJECT_VERSION="$(python -c "import tomli; print(tomli.load(open('pyproject.toml', 'rb'))['project']['version'])")"
+            if [[ "$TAG_VERSION" != "$PYPROJECT_VERSION" ]]; then
+              echo "Version in pyproject.toml ($PYPROJECT_VERSION) does not match tag version ($TAG_VERSION)"
+              exit 1
+            fi
+          else
+            echo "Not running on a v* tag ($REF); skipping tag/version verification."
           fi
 
       - name: Build package
         run: python -m build
 
-      - name: Publish to PyPI
+      - name: Publish to PyPI (OIDC / Trusted Publishing)
         uses: pypa/gh-action-pypi-publish@release/v1
