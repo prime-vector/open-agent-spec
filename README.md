@@ -1,8 +1,10 @@
 # Open Agent (OA)
 
+Define AI agents with YAML. Generate working scaffolding instantly.
+
 ![PyPI version](https://img.shields.io/pypi/v/open-agent-spec)
 ![Python](https://img.shields.io/pypi/pyversions/open-agent-spec)
-![License](https://img.shields.io/badge/license-AGPL-blue)
+![License](https://img.shields.io/badge/license-MIT-blue)
 
 **Open Agent (OA)** is a YAML specification for defining AI agents and generating working scaffolding.
 
@@ -16,17 +18,27 @@ Building AI agents today often requires manually wiring together:
 
 Open Agent moves these concerns into a **declarative specification**.
 
-Define an agent once in YAML, and the CLI generates a working project scaffold.
+Define an agent once in YAML and run it directly, or generate a project scaffold for customization.
 
 You can think of OA as something similar to **OpenAPI for services** or **Terraform for infrastructure**, but for **AI agents**.
 
-The goal is to eliminate repetitive agent boilerplate so developers can focus on implementing agent behavior.
-
 ---
 
-# Example Agent Spec
+# Quick Start
 
-A minimal Open Agent specification looks like this:
+Install the CLI:
+
+```bash
+pip install open-agent-spec
+```
+
+Set your LLM API key (example for OpenAI):
+
+```bash
+export OPENAI_API_KEY=your_api_key_here
+```
+
+Create an agent spec:
 
 ```yaml
 agent:
@@ -39,48 +51,48 @@ intelligence:
 
 tasks:
   greet:
-    description: Greet the user
+    description: Say hello to someone
+    input:
+      type: object
+      properties:
+        name:
+          type: string
+      required: [name]
+
+    output:
+      type: object
+      properties:
+        response:
+          type: string
+      required: [response]
+
+prompts:
+  system: >
+    You greet people by name.
+  user: "{{ name }}"
 ```
 
-From this specification, OA generates a working Python agent scaffold.
-
----
-
-# Installation
-
-Install the CLI from PyPI:
+Run the agent directly from the spec:
 
 ```bash
-pip install open-agent-spec
+oas run --spec agent.yaml --task greet --input '{"name":"Alice"}'
 ```
 
 ---
 
-# Generate an Agent
+# Generate a Project Scaffold (Optional)
 
-Create an agent project from a YAML specification:
+If you want to extend the implementation, generate a project scaffold:
 
 ```bash
 oas init --spec agent.yaml --output ./agent
 ```
 
-This command generates a project scaffold based on the specification.
-
----
-
-# Run an Agent
-
-You can run an agent directly from the CLI:
-
-```bash
-oas run --spec .agents/example.yaml --task greet
-```
+This produces a Python project you can customize.
 
 ---
 
 # Generated Project Structure
-
-The CLI generates a clean project structure to start implementing the agent:
 
 ```
 agent/
@@ -92,15 +104,13 @@ agent/
 └── README.md
 ```
 
-This scaffold provides the foundation for implementing the agent defined in the specification.
-
 ---
 
 # Design Philosophy
 
 Open Agent intentionally keeps the specification **minimal**.
 
-The focus is on **defining agents declaratively and generating consistent project scaffolding**.
+The goal is to define agents declaratively and generate consistent project scaffolding.
 
 OA does **not prescribe**:
 
@@ -108,7 +118,7 @@ OA does **not prescribe**:
 - governance systems
 - evaluation frameworks
 
-These concerns can be layered on top by different frameworks, runtimes, or architectural patterns.
+These concerns can be layered on top by different runtimes, frameworks, or architectures.
 
 ---
 
@@ -121,7 +131,7 @@ Many teams building agents end up recreating the same infrastructure:
 - model configuration
 - task definitions
 
-OA provides a consistent way to **define agents once and generate the project structure automatically**.
+OA provides a consistent way to **define agents once and generate a working structure automatically**.
 
 ---
 
