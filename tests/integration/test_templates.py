@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Local integration test script for OA CLI templates.
+Local integration test script for Open Agent Spec (OA) CLI templates.
 This script tests all templates locally without requiring GitHub secrets.
 """
 
@@ -35,7 +35,7 @@ def run_command(cmd, cwd=None, check=True):
 
 
 def oas_cmd(args: str) -> str:
-    """Build OA CLI command; use python -m oas_cli so it works in CI when 'oa' is not on PATH."""
+    """Build Open Agent Spec (OA) CLI command; use python -m oas_cli when 'oa' is not on PATH."""
     return f"{sys.executable} -m oas_cli {args}"
 
 
@@ -197,7 +197,7 @@ print("✅ Method signature is correct")
 
 def main():
     """Run all template tests."""
-    print("OA CLI Template Integration Tests")
+    print("Open Agent Spec (OA) CLI Template Integration Tests")
     print("=" * 60)
 
     # Create test directory

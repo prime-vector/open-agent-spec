@@ -1,6 +1,6 @@
 # Changelog
 
-All notable changes to **open-agent-spec** (Open Agent CLI) will be documented in this file.
+All notable changes to **open-agent-spec** (Open Agent Spec / OA CLI) will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
@@ -21,7 +21,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **CLI command renamed `oas` → `oa`.** The console script installed by `pip install open-agent-spec` is now `oa`. Update scripts and docs accordingly. Equivalent: `python -m oas_cli …` (unchanged).
 
 ### Changed
-- README and docs updated for Open Agent (OA) positioning and `oa` commands.
+- README and docs updated for Open Agent Spec (OA) positioning and `oa` commands.
 - `pyproject.toml` build backend pinned to `hatchling>=1.26.1` so wheels/sdists no longer emit `License-File` with Metadata-Version 2.3 (avoids PyPI/twine upload errors).
 - PyPI project description and `[project.urls]` aligned with current README.
 

@@ -1,6 +1,6 @@
-# OA CLI 1.2.3 — manual test plan
+# Open Agent Spec (OA) CLI 1.2.3 — manual test plan
 
-**Purpose:** Step-by-step checks for **open-agent-spec** CLI (**`oa`** command) before sign-off.
+**Purpose:** Step-by-step checks for **open-agent-spec** / **Open Agent Spec (OA)** CLI (**`oa`** command) before sign-off.
 
 **Environment:** Python 3.10+; clean shell; optional `OPENAI_API_KEY` (or other engine key) for `oa run`.
 

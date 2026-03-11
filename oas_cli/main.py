@@ -19,7 +19,7 @@ from .core import validate_spec_file
 from .exceptions import AgentGenerationError
 from .runner import run_task_from_file
 
-app = typer.Typer(help="Open Agent (OA) CLI")
+app = typer.Typer(help="Open Agent Spec (OA) CLI")
 console = Console()
 
 

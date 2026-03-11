@@ -1,6 +1,6 @@
-# OA CLI Tests
+# Open Agent Spec (OA) CLI tests
 
-This directory contains the test suite for the OA CLI.
+This directory contains the test suite for the Open Agent Spec (OA) CLI.
 
 ## Test Structure
 
@@ -46,7 +46,7 @@ pytest tests/ -v
 
 ## Integration Tests
 
-Integration tests verify that the OA CLI can:
+Integration tests verify that the Open Agent Spec (OA) CLI can:
 - Generate agents from templates
 - Install dependencies correctly
 - Import and instantiate generated agents
