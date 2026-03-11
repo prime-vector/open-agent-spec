@@ -9,7 +9,6 @@ are valid. If that import block ever changes, keep this mapping in sync or switc
 to PEP 585 forms (dict[str, Any]) and ensure the template imports Any only.
 """
 
-from typing import Any
 
 
 def map_type_to_python(schema_type: str) -> str:

@@ -14,13 +14,13 @@ from .generation.artifacts import (
     generate_requirements,
 )
 from .generation.constants import DEFAULT_AGENT_PROMPT_TEMPLATE
+from .generation.pydantic_codegen import _generate_pydantic_model, generate_models
 from .generation.spec_config import (
     get_agent_info,
     get_logging_config,
     get_memory_config,
     to_pascal_case,
 )
-from .generation.pydantic_codegen import _generate_pydantic_model, generate_models
 from .generation.task_functions import _generate_input_params, _generate_task_function
 from .generation.types_mapping import map_type_to_python
 
@@ -62,7 +62,7 @@ def generate_agent_code(
     from .code_generation import CodeGenerator
     from .data_preparation import AgentDataPreparator
 
-    _GEN_AGENT_CODE_ERRORS = (
+    _gen_agent_code_errors = (
         OSError,
         ValueError,
         KeyError,
@@ -94,7 +94,7 @@ def generate_agent_code(
 
         agent_code = generator.generate_from_template("agent.py.j2", **template_data)
         (output / "agent.py").write_text(agent_code)
-    except _GEN_AGENT_CODE_ERRORS as e:
+    except _gen_agent_code_errors as e:
         from .exceptions import AgentGenerationError
 
         log.error("Agent code generation failed: %s", e)

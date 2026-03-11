@@ -10,7 +10,7 @@ from .artifacts import (
     generate_requirements,
 )
 from .constants import DEFAULT_AGENT_PROMPT_TEMPLATE
-from .pydantic_codegen import generate_models, _generate_pydantic_model
+from .pydantic_codegen import _generate_pydantic_model, generate_models
 from .spec_config import (
     get_agent_info,
     get_logging_config,
