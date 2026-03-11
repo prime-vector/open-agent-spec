@@ -1,10 +1,11 @@
 [build-system]
-requires = ["hatchling"]
+# hatchling >= 1.26.1 avoids License-File in metadata 2.3 (PyPI/twine reject that mix)
+requires = ["hatchling>=1.26.1"]
 build-backend = "hatchling.build"
 
 [project]
 name = "open-agent-spec"
-version = "1.0.9"
+version = "1.2.2"
 description = "YAML-first agent specs: run with `oas run` or generate a full Python project with `oas init`."
 authors = [{ name = "Andrew Whitehouse", email = "andrewswhitehouse@gmail.com" }]
 license = { text = "MIT" }
