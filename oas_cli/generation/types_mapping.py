@@ -10,7 +10,6 @@ to PEP 585 forms (dict[str, Any]) and ensure the template imports Any only.
 """
 
 
-
 def map_type_to_python(schema_type: str) -> str:
     """Map JSON schema type string to Python type hint string (used in generated code)."""
     return {

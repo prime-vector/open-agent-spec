@@ -21,7 +21,11 @@ def _schema_properties_lines(schema: dict[str, Any], heading: str) -> list[str]:
     if not isinstance(props, dict) or not props:
         return lines
     lines.append(heading)
-    required = set(schema.get("required") or []) if isinstance(schema.get("required"), list) else set()
+    required = (
+        set(schema.get("required") or [])
+        if isinstance(schema.get("required"), list)
+        else set()
+    )
     for param_name, param_def in props.items():
         if not isinstance(param_def, dict):
             lines.append(f"- {param_name}: {param_def}")
@@ -271,9 +275,9 @@ def generate_prompt_template(output: Path, spec_data: dict[str, Any]) -> None:
                 user_prompt = prompts.get("user", "")
                 prompt_content = system_prompt
                 if user_prompt:
-                    if not prompt_content.endswith("\n") and not prompt_content.endswith(
-                        " "
-                    ):
+                    if not prompt_content.endswith(
+                        "\n"
+                    ) and not prompt_content.endswith(" "):
                         prompt_content += " "
                     prompt_content += user_prompt
             else:
