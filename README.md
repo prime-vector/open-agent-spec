@@ -1,519 +1,130 @@
-```
-  _______ _______ _______ ______     _______ _______ _______ ______  _______    _______ _______ _______ _______
- |   _   |   _   |   _   |   _  \   |   _   |   _   |   _   |   _  \|       |  |   _   |   _   |   _   |   _   |
- |.  |   |.  1   |.  1___|.  |   |  |.  1   |.  |___|.  1___|.  |   |.|   | |  |   1___|.  1   |.  1___|.  1___|
- |.  |   |.  ____|.  __)_|.  |   |  |.  _   |.  |   |.  __)_|.  |   `-|.  |-'  |____   |.  ____|.  __)_|.  |___
- |:  1   |:  |   |:  1   |:  |   |  |:  |   |:  1   |:  1   |:  |   | |:  |    |:  1   |:  |   |:  1   |:  1   |
- |::.. . |::.|   |::.. . |::.|   |  |::.|:. |::.. . |::.. . |::.|   | |::.|    |::.. . |::.|   |::.. . |::.. . |
- `-------`---'   `-------`--- ---'  `--- ---`-------`-------`--- ---' `---'    `-------`---'   `-------`-------'
-```
+# Open Agent Spec CLI
 
-# Open Agent Spec (OA) CLI
+**Define agents in YAML. Run them with one command—or generate a full Python project.**
 
-[![PyPI version](https://img.shields.io/pypi/v/open-agent-spec)](https://pypi.org/project/open-agent-spec/)
-[![CI](https://github.com/prime-vector/open-agent-spec/actions/workflows/ci.yml/badge.svg)](https://github.com/prime-vector/open-agent-spec/actions/workflows/ci.yml)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![PyPI](https://img.shields.io/pypi/v/open-agent-spec)](https://pypi.org/project/open-agent-spec/)
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
-[![GitHub stars](https://img.shields.io/github/stars/prime-vector/open-agent-spec?style=social)](https://github.com/prime-vector/open-agent-spec)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-A tool for generating AI agent projects based on Open Agent Spec YAML files. The OA CLI supports multiple LLM engines including OpenAI, Anthropic, local models, and custom LLM routers.
+---
 
-## Installation
-
-**pip / pipx (recommended for CLI isolation):**
+## Install
 
 ```bash
 pip install open-agent-spec
-# or
+# or (isolated CLI)
 pipx install open-agent-spec
 ```
 
-**Homebrew:** there is no first-party formula yet; you can expose the CLI via pipx and optionally symlink:
+Command: **`oas`**
+
+---
+
+## Use it in 60 seconds
+
+### 1. Run a spec (no code generation)
+
+Spec lives in YAML; the CLI calls your configured model and prints JSON.
 
 ```bash
-brew install pipx && pipx ensurepath
-pipx install open-agent-spec
-# then: oas --help
-```
-
-## Usage
-
-### Agent as code (fresh repo)
-
-Scaffold a **`.agents/`** folder with an `example.yaml` you can run directly (no code generation):
-
-```bash
-cd your-repo
 oas init aac
-# creates .agents/example.yaml and .agents/README.md
+# Creates .agents/example.yaml — edit it, then:
 
-oas run --spec .agents/example.yaml --task greet --input '{"name": "World"}' --quiet
+export OPENAI_API_KEY=...   # or ANTHROPIC_API_KEY, etc.
+
+oas run --spec .agents/example.yaml --task greet --input '{"name": "Ada"}' --quiet
 ```
 
-Options:
+### 2. Generate a full project
 
-- `oas init aac -C /path/to/repo` — use another directory as root
-- `oas init aac --force` — overwrite existing `.agents/example.yaml`
-- `oas init aac -q` — print only the path to `example.yaml`
+Scaffolds `agent.py`, prompts, `requirements.txt`, etc.
 
-### Basic Usage (full code generation)
 ```bash
-# Show help
+oas init --spec path/to/spec.yaml --output ./my-agent
+cd my-agent
+cp .env.example .env   # add API keys
+pip install -r requirements.txt
+python agent.py
+```
+
+Use a bundled template:
+
+```bash
+oas init --template minimal --output ./my-agent
+```
+
+### 3. Refresh generated code after spec changes
+
+```bash
+oas update --spec path/to/spec.yaml --output ./my-agent
+```
+
+---
+
+## Commands
+
+| Command | What it does |
+|--------|----------------|
+| `oas init aac` | Create `.agents/` with `example.yaml` only |
+| `oas init --spec … --output …` | Generate full agent project |
+| `oas init --template minimal --output …` | Same, using built-in minimal spec |
+| `oas run --spec … [--task …] [--input '{"k":"v"}'] [--quiet]` | Run one task from YAML |
+| `oas update --spec … --output …` | Regenerate into existing folder |
+| `oas init … --dry-run` | Validate + show what would be written |
+
+```bash
 oas --help
-
-# Initialize a new agent project
-oas init --spec path/to/spec.yaml --output path/to/output
-
-# Preview what would be created without writing files
-oas init --spec path/to/spec.yaml --output path/to/output --dry-run
-
-# Create a base working agent with minimal spec
-oas init --template minimal --output path/to/output
+oas run --help
 ```
 
-### Enable Verbose Logging
-```bash
-oas init --spec path/to/spec.yaml --output path/to/output --verbose
-```
+---
 
-## Spec File Format
+## Spec at a glance
 
-The spec file should be in YAML format with the following structure. Each section is explained in detail below:
+YAML describes the agent, model, and tasks. Minimal shape:
 
 ```yaml
-open_agent_spec: "1.0.9"  # OA specification version (canonical field)
+open_agent_spec: "1.0.9"
 
 agent:
-  name: "hello-world-agent"           # Unique identifier for the agent
-  description: "A simple agent that responds with a greeting"  # Human-readable description
-  role: "chat"                        # Agent role (schema enum: analyst, reviewer, chat, retriever, planner, executor)
+  name: "hello-agent"
+  description: "Says hello"
 
-intelligence:
-  engine: "openai"                    # LLM engine: openai, anthropic, grok, local, or custom
-  endpoint: "https://api.openai.com/v1"  # API endpoint URL
-  model: "gpt-4"                      # Model name/identifier
-  config:                             # Engine-specific configuration
-    temperature: 0.7
-    max_tokens: 150
-  module: "CustomRouter.CustomRouter"  # For custom engines: module.class format
-
-tasks:
-  greet:                              # Task name (will become function name)
-    description: "Say hello to a person by name"  # Task description
-    timeout: 30                       # Task timeout in seconds
-    input:                            # Input schema (JSON Schema format)
-      type: "object"
-      properties:
-        name:
-          type: "string"
-          description: "The name of the person to greet"
-          minLength: 1
-          maxLength: 100
-      required: ["name"]
-    output:                           # Output schema (JSON Schema format)
-      type: "object"
-      properties:
-        response:
-          type: "string"
-          description: "The greeting response"
-          minLength: 1
-      required: ["response"]
-    metadata:                         # Optional task metadata
-      category: "communication"
-      priority: "normal"
-
-behavioural_contract:                 # Optional behavioural contract
-  version: "0.1.2"
-  description: "Simple contract requiring a greeting response"
-  behavioural_flags:
-    conservatism: "moderate"
-    verbosity: "compact"
-  response_contract:
-    output_format:
-      required_fields: ["response"]
-```
-
-## Intelligence Engine Options
-
-The OA CLI supports multiple LLM engines through the `intelligence.engine` field:
-
-### 1. OpenAI (`engine: "openai"`)
-Use OpenAI's API for LLM interactions.
-
-```yaml
 intelligence:
   engine: "openai"
-  endpoint: "https://api.openai.com/v1"  # OpenAI API endpoint
-  model: "gpt-4"                         # OpenAI model (gpt-4, gpt-3.5-turbo, etc.)
-  config:
-    temperature: 0.7                     # Response randomness (0.0-2.0)
-    max_tokens: 150                      # Maximum response length
+  endpoint: "https://api.openai.com/v1"
+  model: "gpt-4"
+
+tasks:
+  greet:
+    description: "Greet by name"
+    input:
+      type: "object"
+      properties:
+        name: { type: "string" }
+      required: ["name"]
+    output:
+      type: "object"
+      properties:
+        response: { type: "string" }
+      required: ["response"]
 ```
 
-**Requirements:**
-- OpenAI API key in environment variable `OPENAI_API_KEY`
-- Valid OpenAI account and API access
+**Engines:** `openai`, `anthropic`, `grok`, `cortex`, `local`, `custom` — full tables and examples in the repo: [docs/REFERENCE.md](https://github.com/prime-vector/open-agent-spec/blob/main/docs/REFERENCE.md).
 
-### 2. Anthropic (`engine: "anthropic"`)
-Use Anthropic's Claude models for LLM interactions.
+---
 
-```yaml
-intelligence:
-  engine: "anthropic"
-  endpoint: "https://api.anthropic.com"  # Anthropic API endpoint
-  model: "claude-3-sonnet-20240229"      # Claude model name
-  config:
-    temperature: 0.7
-    max_tokens: 150
-```
+## More detail
 
-**Requirements:**
-- Anthropic API key in environment variable `ANTHROPIC_API_KEY`
-- Valid Anthropic account and API access
+| Doc | Contents |
+|-----|----------|
+| [docs/REFERENCE.md](https://github.com/prime-vector/open-agent-spec/blob/main/docs/REFERENCE.md) | Full spec shape, engines, generated layout, templates |
+| [Repo](https://github.com/prime-vector/open-agent-spec) | Source, issues, CI |
 
-### 3. Grok (`engine: "grok"`)
-Use xAI's Grok models for LLM interactions via OpenAI-compatible API.
-
-```yaml
-intelligence:
-  engine: "grok"
-  endpoint: "https://api.x.ai/v1"        # xAI API endpoint
-  model: "grok-3-latest"                 # Grok model (grok-3-latest, grok-3-20241219)
-  config:
-    temperature: 0.7                     # Response randomness (0.0-2.0)
-    max_tokens: 1500                     # Maximum response length
-```
-
-**Requirements:**
-- xAI API key in environment variable `XAI_API_KEY`
-- Valid xAI account and API access
-- Uses OpenAI-compatible client library
-
-### 4. Cortex (`engine: "cortex"`)
-Use Cortex intelligence engine for advanced reasoning and multi-layered analysis.
-
-```yaml
-intelligence:
-  engine: "cortex"
-  model: "cortex-intelligence"
-  config:
-    enable_layer3: true
-    enable_onnx: false
-    openai_api_key: ${OPENAI_API_KEY}
-    claude_api_key: ${CLAUDE_API_KEY}
-    temperature: 0.2
-    max_tokens: 1500
-```
-
-**Requirements:**
-- Cortex intelligence package: `cortex-intelligence`
-- OpenAI API key in environment variable `OPENAI_API_KEY`
-- Claude API key in environment variable `CLAUDE_API_KEY`
-- Valid OpenAI and Anthropic accounts with API access
-
-**Cortex-Specific Features:**
-- **Layer 3 Intelligence:** Advanced reasoning capabilities
-- **ONNX Runtime:** Optional optimization for performance
-- **Multi-Engine Integration:** Combines OpenAI and Claude capabilities
-- **Advanced Analysis:** Deep problem breakdown and creative solution generation
-
-### 5. Local (`engine: "local"`)
-Use locally hosted LLM models (placeholder for future implementation).
-
-```yaml
-intelligence:
-  engine: "local"
-  endpoint: "http://localhost:8000"      # Local model server endpoint
-  model: "llama-2-7b"                   # Local model identifier
-  config:
-    temperature: 0.7
-    max_tokens: 150
-```
-
-**Note:** Local engine support is planned for future releases.
-
-### 5. Custom (`engine: "custom"`)
-Use custom LLM routers for specialized use cases, custom APIs, or proprietary models.
-
-```yaml
-intelligence:
-  engine: "custom"
-  endpoint: "http://localhost:1234/invoke"  # Custom endpoint
-  model: "my-custom-model"                  # Model identifier
-  config: {}                                # Custom configuration
-  module: "CustomLLMRouter.CustomLLMRouter" # Python module.class to import
-```
-
-**Custom Router Requirements:**
-- Python class with `__init__(endpoint, model, config)` method
-- `run(prompt, **kwargs)` method that returns a JSON string
-- Class must be importable from the specified module path
-
-**Example Custom Router:**
-```python
-# CustomLLMRouter.py
-import json
-
-class CustomLLMRouter:
-    def __init__(self, endpoint: str, model: str, config: dict):
-        self.endpoint = endpoint
-        self.model = model
-        self.config = config
-
-    def run(self, prompt: str, **kwargs) -> str:
-        # Your custom LLM logic here
-        # Must return a JSON string matching the task's output schema
-        return json.dumps({
-            "response": f"Custom response to: {prompt}"
-        })
-```
-
-## YAML Field Explanations
-
-### `open_agent_spec`
-- **Purpose:** Version of the OA specification being used (canonical field name; schema and code use this, not `spec_version`).
-- **Format:** String (e.g., "1.0.4")
-- **Required:** Yes
-- **Note:** Ensures compatibility with the CLI version
-
-### `agent` Section
-- **Purpose:** Defines the agent's identity and characteristics
-
-#### `agent.name`
-- **Purpose:** Unique identifier for the agent
-- **Format:** String (kebab-case recommended)
-- **Required:** Yes
-- **Example:** "hello-world-agent", "financial-analyst"
-
-#### `agent.description`
-- **Purpose:** Human-readable description of what the agent does
-- **Format:** String
-- **Required:** Yes
-- **Example:** "A friendly agent that greets people by name"
-
-#### `agent.role`
-- **Purpose:** Defines the agent's role type (must match schema enum for validation).
-- **Format:** String (enum)
-- **Required:** No (optional)
-- **Options (schema):** "analyst", "reviewer", "chat", "retriever", "planner", "executor"
-
-### `intelligence` Section
-- **Purpose:** Configures the LLM engine and model settings
-
-#### `intelligence.engine`
-- **Purpose:** Specifies which LLM engine to use
-- **Format:** String (enum)
-- **Required:** Yes
-- **Options:** "openai", "anthropic", "grok", "cortex", "local", "custom"
-
-#### `intelligence.endpoint`
-- **Purpose:** API endpoint URL for the LLM service
-- **Format:** Valid URI string
-- **Required:** Yes
-- **Examples:**
-  - OpenAI: "https://api.openai.com/v1"
-  - Anthropic: "https://api.anthropic.com"
-  - Custom: "http://localhost:1234/invoke"
-
-#### `intelligence.model`
-- **Purpose:** Model name or identifier to use
-- **Format:** String
-- **Required:** Yes
-- **Examples:** "gpt-4", "claude-3-sonnet-20240229", "my-custom-model"
-
-#### `intelligence.config`
-- **Purpose:** Engine-specific configuration parameters
-- **Format:** Object (key-value pairs)
-- **Required:** No (optional)
-- **Common fields:**
-  - `temperature`: Response randomness (0.0-2.0)
-  - `max_tokens`: Maximum response length
-  - `top_p`: Nucleus sampling parameter
-  - `frequency_penalty`: Frequency penalty for repetition
-
-#### `intelligence.module`
-- **Purpose:** For custom engines, specifies the Python module and class to import
-- **Format:** String ("module.class")
-- **Required:** Only for `engine: "custom"`
-- **Example:** "CustomLLMRouter.CustomLLMRouter"
-
-### `tasks` Section
-- **Purpose:** Defines the agent's capabilities and functions
-
-Each task becomes a function in the generated agent code. Task names should be descriptive and use kebab-case.
-
-#### Task Structure
-- **`description`:** Human-readable description of what the task does
-- **`timeout`:** Maximum time (seconds) the task can run
-- **`input`:** JSON Schema defining the task's input parameters
-- **`output`:** JSON Schema defining the task's expected output
-- **`metadata`:** Optional metadata for categorization and organization
-
-#### Input/Output Schemas
-- **Purpose:** Define the structure and validation rules for task inputs and outputs
-- **Format:** JSON Schema (JSON Schema Draft 2020-12)
-- **Features:**
-  - Type validation (string, number, boolean, object, array)
-  - Required field specification
-  - Field descriptions
-  - Min/max length for strings
-  - Min/max values for numbers
-  - Enum values
-  - Nested object structures
-
-### `behavioural_contract` Section (Optional)
-- **Purpose:** Defines behavioural constraints and response requirements
-- **Format:** Object with behavioural contract specification
-- **Required:** No (optional)
-- **Note:** This is separate from the behavioural contracts repository and focuses on specification rather than enforcement
-
-## Generated Project Structure
-
-```
-output/
-├── agent.py              # Main agent implementation with all tasks
-├── prompts/              # Jinja2 prompt templates
-│   ├── greet.jinja2      # Task-specific prompt template
-│   └── agent_prompt.jinja2  # Fallback prompt template
-├── requirements.txt      # Python dependencies
-├── .env.example         # Environment variables template
-├── README.md            # Generated documentation
-└── CustomLLMRouter.py   # Custom router (if using custom engine)
-```
-
-## Built-in Templates
-
-The OA CLI includes ready-to-use templates for common use cases:
-
-### Minimal Templates
-```bash
-# Basic single-task agent
-oas init --template minimal --output my-agent/
-
-# Multi-task agent with parallel execution
-oas init --template minimal-multi-task --output my-multi-agent/
-
-# Agent with tool usage capabilities
-oas init --template minimal-agent-tool-usage --output my-tool-agent/
-```
-
-### Security Agent Templates
-Advanced security templates demonstrating multi-engine support and behavioral contracts:
-
-```bash
-# Security threat analyzer (Claude/Anthropic powered)
-oas init --spec oas_cli/templates/security-threat-analyzer.yaml --output threat-analyzer/
-
-# Security risk assessor (Claude/Anthropic powered)
-oas init --spec oas_cli/templates/security-risk-assessor.yaml --output risk-assessor/
-
-# Security incident responder (OpenAI powered)
-oas init --spec oas_cli/templates/security-incident-responder.yaml --output incident-responder/
-
-# Grok security analyzer (xAI Grok powered)
-oas init --spec oas_cli/templates/grok-security-analyzer.yaml --output grok-analyzer/
-```
-
-**Security Templates Features:**
-- **Multi-Engine Support**: Templates for Claude/Anthropic, OpenAI, and xAI Grok
-- **Advanced Behavioral Contracts**: Security-focused validation and safety checks
-- **Real-World Use Cases**: SOC automation, threat hunting, incident response
-- **Agent-to-Agent Workflows**: Designed for DACP orchestration
-- **Production Ready**: Comprehensive logging, error handling, and compliance features
-
-See [SECURITY_TEMPLATES.md](oas_cli/templates/SECURITY_TEMPLATES.md) for detailed documentation and usage examples.
-
-### Template and configuration
-
-- **Bundled templates:** YAML specs (e.g. `minimal-agent.yaml`) and Jinja2 code-gen templates (e.g. `agent.py.j2`) live under `oas_cli/templates/`. The CLI loads these from the installed package.
-- **Custom YAML:** Use `oas init --spec path/to/your.yaml --output ...` to use your own spec; no override needed.
-- **Overriding bundled templates:** Overriding the template directory (e.g. via an env var) is not implemented. To use custom Jinja2 code-gen templates you would need to modify the package or wait for a future `OAS_TEMPLATE_DIR` (or similar) option.
-- **Default prompt text:** The default prompt used for generated `agent_prompt.jinja2` and for task prompts is defined once in `oas_cli/generators.py` as `DEFAULT_AGENT_PROMPT_TEMPLATE`.
-
-## Development
-
-### Setup
-```bash
-# Clone the repository
-git clone https://github.com/prime-vector/open-agent-spec.git
-cd open-agent-spec
-
-# Install development dependencies
-pip install -e ".[dev]"
-```
-
-### Running Tests
-```bash
-# Run all tests with basic reporting
-pytest
-
-# Run with comprehensive reporting
-pytest tests/ -v --cov=oas_cli --cov-report=html --cov-report=term
-
-# Run specific test categories
-pytest -m contract tests/                   # Behavioral contract validation
-pytest -m multi_engine tests/               # Multi-engine compatibility
-pytest -m generator tests/                  # Generator functionality tests
-
-# Generate detailed HTML report
-pytest tests/ --html=test-report.html --self-contained-html
-
-# Generate Allure report (requires allure-pytest)
-pytest tests/ --alluredir=allure-results
-allure serve allure-results
-```
-
-#### Test Reporting Features
-- **Coverage Reports**: HTML and terminal coverage reports
-- **Test Categories**: Organized by markers (contract, multi_engine, generator)
-- **Allure Reports**: Beautiful interactive test reports
-- **CI Integration**: Automatic reporting in GitHub Actions
-- **Artifact Upload**: Test results and coverage reports saved
-
-#### Test Categories
-
-- **Generator Tests**: Validate code generation, file creation, and template rendering
-- **Contract Tests**: Ensure behavioral contracts work correctly across engines
-- **Multi-Engine Tests**: Verify OpenAI and Claude/Anthropic compatibility
-- **Integration Tests**: End-to-end validation of agent generation
-
-### Building
-```bash
-python -m build
-```
-
-### Creating a Release
-
-To create a new release:
-
-1. **Update the version number** in `pyproject.toml`
-2. **Commit and push your changes**
-3. **Create and push a new tag**
-
-```bash
-# Update version in pyproject.toml, then:
-git add pyproject.toml
-git commit -m "Bump version to v1.0.8"
-git push origin main
-
-# Create and push the tag
-git tag v1.0.8
-git push origin v1.0.8
-```
-
-The GitHub Actions workflow will automatically:
-- Run all tests
-- Build the package
-- Publish to PyPI
-
-Your package will be available on PyPI within a few minutes.
-
+---
 
 ## License
 
-This project is licensed under the MIT License. You are free to use, modify, and distribute the software, including in proprietary projects, provided the copyright notice and license text are included.
+MIT — see [LICENSE](LICENSE).
 
-See [LICENSE](./LICENSE) for the full text.
-
-## Overview
-https://www.openagentstack.ai
+[Open Agent Stack](https://www.openagentstack.ai)
