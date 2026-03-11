@@ -3,6 +3,7 @@
 
 """Multi-step task function generation (step execution + output construction)."""
 
+import json
 from typing import Any
 
 from .contracts_codegen import _format_contract_for_decorator
@@ -19,8 +20,23 @@ def _step_arg_from_input_map_value(
 
     step_result_vars[k] is the variable name for step k's result (only steps k < current_step_index exist).
     Invalid or forward references yield param=\"\" to avoid generating broken code.
+    Non-string literals (int/float/bool) are emitted without quotes; dict/list are
+    serialized as JSON so the generated call stays valid Python.
     """
     if not (isinstance(value, str) and "{{" in value and "}}" in value):
+        if value is True:
+            return f"{param}=True"
+        if value is False:
+            return f"{param}=False"
+        if value is None:
+            return f"{param}=None"
+        if isinstance(value, (int, float)):
+            return f"{param}={value}"
+        if isinstance(value, (dict, list)):
+            try:
+                return f"{param}={json.dumps(value)}"
+            except (TypeError, ValueError):
+                return f'{param}=""'
         return f'{param}="{value}"'
 
     var_name = value.replace("{{", "").replace("}}", "").strip()

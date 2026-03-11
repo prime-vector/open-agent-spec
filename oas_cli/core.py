@@ -14,6 +14,7 @@ from typing import Any
 
 import yaml
 
+from .exceptions import AgentGenerationError
 from .generators import (
     generate_agent_code,
     generate_env_example,
@@ -67,6 +68,8 @@ def generate_files(
         generate_requirements(output, spec_data)
         generate_env_example(output, spec_data)
         generate_prompt_template(output, spec_data)
+    except AgentGenerationError:
+        raise
     except (OSError, ValueError, KeyError, TypeError, RuntimeError) as err:
         raise RuntimeError(f"Failed to generate agent code: {err}") from err
 
@@ -101,6 +104,8 @@ def generate(
     log = logger or logging.getLogger("oas")
     try:
         generate_files(output_dir, spec_data, agent_name, class_name, log, console=None)
+    except AgentGenerationError:
+        raise
     except (OSError, ValueError, KeyError, TypeError, RuntimeError) as err:
         log.error(f"Error during file generation: {err}")
         raise RuntimeError(f"Failed to generate agent code: {err}") from err

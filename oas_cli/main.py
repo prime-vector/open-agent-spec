@@ -16,6 +16,7 @@ from rich.panel import Panel
 from .banner import ASCII_TITLE
 from .core import generate_files as core_generate_files
 from .core import validate_spec_file
+from .exceptions import AgentGenerationError
 from .runner import run_task_from_file
 
 app = typer.Typer(help="Open Agent Spec (OA) CLI")
@@ -161,7 +162,11 @@ def _run_init_code_gen(
             log.info("- prompts/agent_prompt.jinja2")
             return
 
-        generate_files(output, spec_data, agent_name, class_name, log)
+        try:
+            generate_files(output, spec_data, agent_name, class_name, log)
+        except AgentGenerationError as e:
+            typer.echo(str(e), err=True)
+            raise typer.Exit(1) from e
     finally:
         if temp_file_to_delete is not None and temp_file_to_delete.exists():
             try:
@@ -342,7 +347,11 @@ def update(
 
     # Generate updated files
     log.info("Generating updated files...")
-    generate_files(output, spec_data, agent_name, class_name, log)
+    try:
+        generate_files(output, spec_data, agent_name, class_name, log)
+    except AgentGenerationError as e:
+        typer.echo(str(e), err=True)
+        raise typer.Exit(1) from e
 
     console.print("\n[bold green]✅ Agent project updated![/] ✨")
     log.info("Note: If you're using version control, make sure to commit your changes.")
@@ -411,7 +420,8 @@ def run(
         else:
             console.print_json(data=result)
     except Exception as err:
-        log.error(str(err))
+        if not quiet:
+            log.error(str(err))
         typer.echo(str(err), err=True)
         raise typer.Exit(1)
 

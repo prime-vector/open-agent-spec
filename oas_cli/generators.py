@@ -71,16 +71,21 @@ def generate_agent_code(
         JinjaTemplateError,
     )
 
+    _agent_template_path = Path(__file__).parent / "templates" / "agent.py.j2"
+
     try:
         preparator = AgentDataPreparator()
         template_data = preparator.prepare_all_data(spec_data, agent_name, class_name)
 
         generator = CodeGenerator()
-        _agent_template_path = Path(__file__).parent / "templates" / "agent.py.j2"
         if not _agent_template_path.is_file():
-            raise RuntimeError(
-                f"Missing packaged template: {_agent_template_path}. "
-                "Reinstall open-agent-spec or restore oas_cli/templates/agent.py.j2."
+            from .exceptions import AgentGenerationError
+
+            raise AgentGenerationError(
+                f"Missing packaged template: {_agent_template_path}\n"
+                "Next steps: reinstall the package (pip install -U open-agent-spec), "
+                "or restore oas_cli/templates/agent.py.j2 from the repo.",
+                template_path=str(_agent_template_path),
             )
         generator.ensure_template_exists(
             "agent.py.j2",
@@ -90,11 +95,17 @@ def generate_agent_code(
         agent_code = generator.generate_from_template("agent.py.j2", **template_data)
         (output / "agent.py").write_text(agent_code)
     except _GEN_AGENT_CODE_ERRORS as e:
+        from .exceptions import AgentGenerationError
+
         log.error("Agent code generation failed: %s", e)
-        raise RuntimeError(
-            "Agent code generation failed (template path only; legacy codegen "
-            "has been removed). Check the spec and template data, or reinstall "
-            "the package if templates are missing."
+        raise AgentGenerationError(
+            f"Agent code generation failed (no legacy fallback).\n"
+            f"Template: {_agent_template_path}\n"
+            "Next steps: fix the spec/YAML; if templates are missing, reinstall "
+            "open-agent-spec or restore oas_cli/templates/agent.py.j2.\n"
+            f"Underlying error: {e}",
+            template_path=str(_agent_template_path),
+            cause=e,
         ) from e
 
     log.info("agent.py created using template-based generation")

@@ -56,13 +56,38 @@ def _generate_input_params(task_def: dict[str, Any]) -> list[str]:
 
 
 def _generate_function_docstring(
-    task_name: str, task_def: dict[str, Any], output_type: str
+    task_name: str,
+    task_def: dict[str, Any],
+    output_type: str,
+    input_params: list[str] | None = None,
 ) -> str:
-    """Generate docstring for a task function."""
+    """Generate docstring for a task function.
+
+    Args section is built from ``input_params`` when provided so multi-step
+    inferred params match the signature; otherwise falls back to input.properties.
+    """
+    if input_params:
+        # Skip memory_summary default in Args (documented separately).
+        arg_lines = []
+        for p in input_params:
+            if p.strip().startswith("memory_summary"):
+                continue
+            # Already "name: type" form
+            arg_lines.append(f"        {p}")
+        args_block = "\n".join(arg_lines) if arg_lines else "        (see signature)"
+    else:
+        props = task_def.get("input", {}).get("properties", {})
+        if props:
+            args_block = "\n".join(
+                f"        {param_name}: {param_def.get('type', 'any') if isinstance(param_def, dict) else param_def}"
+                for param_name, param_def in props.items()
+            )
+        else:
+            args_block = "        (see signature)"
     return f'''"""Process {task_name} task.
 
     Args:
-{chr(10).join(f"        {param_name}: {param_type}" for param_name, param_type in task_def.get("input", {}).get("properties", {}).items())}
+{args_block}
         memory_summary: Optional memory context for the task
 
     Returns:
@@ -81,7 +106,9 @@ def _get_task_function_preamble(
     func_name = task_name.replace("-", "_")
     input_params = _generate_input_params(task_def)
     output_type = f"{task_name.replace('-', '_').title()}Output"
-    docstring = _generate_function_docstring(task_name, task_def, output_type)
+    docstring = _generate_function_docstring(
+        task_name, task_def, output_type, input_params=input_params
+    )
     contract_data = _generate_contract_data(
         spec_data, task_def, agent_name, memory_config
     )

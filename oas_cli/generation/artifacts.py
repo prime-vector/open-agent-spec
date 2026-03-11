@@ -14,23 +14,42 @@ from .spec_config import get_agent_info, get_memory_config, to_pascal_case
 log = logging.getLogger("oas")
 
 
+def _schema_properties_lines(schema: dict[str, Any], heading: str) -> list[str]:
+    """List docs lines from JSON Schema input/output (properties + required)."""
+    lines: list[str] = []
+    props = schema.get("properties") if isinstance(schema, dict) else None
+    if not isinstance(props, dict) or not props:
+        return lines
+    lines.append(heading)
+    required = set(schema.get("required") or []) if isinstance(schema.get("required"), list) else set()
+    for param_name, param_def in props.items():
+        if not isinstance(param_def, dict):
+            lines.append(f"- {param_name}: {param_def}")
+            continue
+        ptype = param_def.get("type", "any")
+        desc = param_def.get("description", "")
+        opt = " (required)" if param_name in required else ""
+        if desc:
+            lines.append(f"- {param_name}{opt}: {ptype} — {desc}")
+        else:
+            lines.append(f"- {param_name}{opt}: {ptype}")
+    lines.append("")
+    return lines
+
+
 def _generate_task_docs(tasks: dict[str, Any]) -> list[str]:
-    """Generate documentation for tasks."""
+    """Generate documentation for tasks (input/output from JSON Schema properties)."""
     task_docs = []
     for task_name in tasks.keys():
         task_def = tasks[task_name]
         task_docs.append(f"### {task_name.title()}\n")
         task_docs.append(f"{task_def.get('description', '')}\n")
-        if task_def.get("input"):
-            task_docs.append("#### Input:")
-            for param_name, param_type in task_def.get("input", {}).items():
-                task_docs.append(f"- {param_name}: {param_type}")
-            task_docs.append("")
-        if task_def.get("output"):
-            task_docs.append("#### Output:")
-            for param_name, param_type in task_def.get("output", {}).items():
-                task_docs.append(f"- {param_name}: {param_type}")
-            task_docs.append("")
+        inp = task_def.get("input")
+        if isinstance(inp, dict):
+            task_docs.extend(_schema_properties_lines(inp, "#### Input:"))
+        out = task_def.get("output")
+        if isinstance(out, dict):
+            task_docs.extend(_schema_properties_lines(out, "#### Output:"))
     return task_docs
 
 
@@ -79,6 +98,12 @@ def _generate_example_usage(agent_info: dict[str, str], tasks: dict[str, Any]) -
     first_task_name = next(iter(tasks.keys()), "")
     if not first_task_name:
         return ""
+    input_props = (
+        tasks[first_task_name].get("input", {}).get("properties", {})
+        if isinstance(tasks[first_task_name].get("input"), dict)
+        else {}
+    )
+    kwargs = ", ".join(f'{k}="example_{k}"' for k in input_props.keys())
     return f"""```python
 from agent import {to_pascal_case(agent_info["name"])}
 
@@ -86,9 +111,7 @@ agent = {to_pascal_case(agent_info["name"])}()
 # Example usage
 task_name = "{first_task_name}"
 if task_name:
-    result = getattr(agent, task_name.replace("-", "_"))(
-        {", ".join(f'{k}="example_{k}"' for k in tasks[first_task_name].get("input", {}))}
-    )
+    result = getattr(agent, task_name.replace("-", "_"))({kwargs})
     print(result)
 ```"""
 
