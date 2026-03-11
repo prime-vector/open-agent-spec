@@ -319,9 +319,7 @@ def update(
 
     # Check if output directory exists
     if not output.exists():
-        log.error(
-            f"Output directory {output} does not exist. Run 'oas init' first."
-        )
+        log.error(f"Output directory {output} does not exist. Run 'oas init' first.")
         raise typer.Exit(1)
 
     spec_data, agent_name, class_name = load_and_validate_spec(spec, log)
