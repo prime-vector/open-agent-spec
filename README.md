@@ -108,7 +108,7 @@ agent/
 
 # Design Philosophy
 
-Open Agent intentionally keeps the specification **minimal**.
+Open Agent Spec (OA) intentionally keeps the specification **minimal**.
 
 The goal is to define agents declaratively and generate consistent project scaffolding.
 
@@ -141,7 +141,7 @@ OA provides a consistent way to **define agents once and generate a working stru
 
 Several projects are exploring ways to standardize how AI agents are defined and orchestrated.
 
-Open Agent focuses specifically on **developer-facing scaffolding from a declarative YAML specification**.
+Open Agent Spec (OA) focuses specifically on **developer-facing scaffolding from a declarative YAML specification**.
 
 The goal is to make agent architecture easier to reason about and quicker to implement.
 
