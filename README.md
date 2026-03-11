@@ -75,7 +75,7 @@ prompts:
 Run the agent directly from the spec:
 
 ```bash
-oas run --spec agent.yaml --task greet --input '{"name":"Alice"}' --quiet
+oa run --spec agent.yaml --task greet --input '{"name":"Alice"}' --quiet
 ```
 
 ---
@@ -85,7 +85,7 @@ oas run --spec agent.yaml --task greet --input '{"name":"Alice"}' --quiet
 If you want to extend the implementation, generate a project scaffold:
 
 ```bash
-oas init --spec agent.yaml --output ./agent
+oa init --spec agent.yaml --output ./agent
 ```
 
 This produces a Python project you can customize.
@@ -151,15 +151,15 @@ The goal is to make agent architecture easier to reason about and quicker to imp
 
 | Command | Purpose |
 |--------|--------|
-| `oas init --spec … --output …` | Generate project from YAML |
-| `oas init --template minimal --output …` | Same with bundled spec |
-| `oas init aac` | `.agents/` + example spec only |
-| `oas run --spec … [--task …] [--input JSON] [--quiet]` | Run task without codegen |
-| `oas update --spec … --output …` | Regenerate into existing dir |
-| `oas init … --dry-run` | Validate only |
+| `oa init --spec … --output …` | Generate project from YAML |
+| `oa init --template minimal --output …` | Same with bundled spec |
+| `oa init aac` | `.agents/` + example spec only |
+| `oa run --spec … [--task …] [--input JSON] [--quiet]` | Run task without codegen |
+| `oa update --spec … --output …` | Regenerate into existing dir |
+| `oa init … --dry-run` | Validate only |
 
 ```bash
-oas --help
+oa --help
 ```
 
 ---
@@ -174,6 +174,12 @@ oas --help
 [![PyPI](https://img.shields.io/pypi/v/open-agent-spec)](https://pypi.org/project/open-agent-spec/)
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+
+---
+
+## Historical Changes
+
+“CLI command is oa (formerly oas in older releases).”
 
 ---
 

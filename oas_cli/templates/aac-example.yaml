@@ -1,7 +1,7 @@
 # Agent-as-code example — run directly with:
-#   oas run --spec .agents/example.yaml --task greet --input '{"name": "World"}' --quiet
+#   oa run --spec .agents/example.yaml --task greet --input '{"name": "World"}' --quiet
 # Or generate code into a folder with:
-#   oas init --spec .agents/example.yaml --output ./my-agent
+#   oa init --spec .agents/example.yaml --output ./my-agent
 open_agent_spec: "1.0.9"
 
 agent:

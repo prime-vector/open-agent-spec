@@ -19,7 +19,7 @@ from .core import validate_spec_file
 from .exceptions import AgentGenerationError
 from .runner import run_task_from_file
 
-app = typer.Typer(help="Open Agent Spec (OA) CLI")
+app = typer.Typer(help="Open Agent (OA) CLI")
 console = Console()
 
 
@@ -57,9 +57,9 @@ def main(
         console.print(f"[bold cyan]{ASCII_TITLE}[/]\n")
         console.print(
             Panel.fit(
-                "Use [bold magenta]oas init aac[/] for .agents/ agent-as-code layout\n"
-                "Use [bold magenta]oas init --spec … --output …[/] to scaffold code\n"
-                "Use [bold magenta]oas update[/] to update existing agent code\n"
+                "Use [bold magenta]oa init aac[/] for .agents/ agent-as-code layout\n"
+                "Use [bold magenta]oa init --spec … --output …[/] to scaffold code\n"
+                "Use [bold magenta]oa update[/] to update existing agent code\n"
                 "Define it via Open Agent Spec YAML\n"
                 "Use [bold yellow]--dry-run[/] to preview without writing files.",
                 title="[bold green]OA CLI[/]",
@@ -175,8 +175,8 @@ def _run_init_code_gen(
                 pass
 
 
-# Init as a group so we can support `oas init aac` while keeping
-# `oas init --spec ... --output ...` for code generation.
+# Init as a group so we can support `oa init aac` while keeping
+# `oa init --spec ... --output ...` for code generation.
 init_app = typer.Typer(
     help="Initialize agent projects (code gen or agent-as-code layout)"
 )
@@ -199,15 +199,15 @@ def init_callback(
         False, "--dry-run", help="Preview what would be created without writing files"
     ),
 ):
-    """Init code generation; use ``oas init aac`` for .agents/ layout only."""
+    """Init code generation; use ``oa init aac`` for .agents/ layout only."""
     if ctx.invoked_subcommand is not None:
         return
     if output is None:
         console.print(
             "[yellow]Code generation requires --output.[/]\n"
-            "  [bold]oas init --spec path/to/spec.yaml --output path/to/agent[/]\n"
-            "  [bold]oas init --template minimal --output path/to/agent[/]\n"
-            "For agent-as-code only (spec in .agents/), run: [bold]oas init aac[/]"
+            "  [bold]oa init --spec path/to/spec.yaml --output path/to/agent[/]\n"
+            "  [bold]oa init --template minimal --output path/to/agent[/]\n"
+            "For agent-as-code only (spec in .agents/), run: [bold]oa init aac[/]"
         )
         raise typer.Exit(1)
     _run_init_code_gen(spec, output, template, verbose, dry_run)
@@ -220,13 +220,13 @@ This folder holds **Open Agent Spec** YAML files. Treat them like infra-as-code.
 ## Run directly
 
 ```bash
-oas run --spec .agents/example.yaml --task greet --input '{"name": "CI"}' --quiet
+oa run --spec .agents/example.yaml --task greet --input '{"name": "CI"}' --quiet
 ```
 
 ## Generate full agent code
 
 ```bash
-oas init --spec .agents/example.yaml --output ./generated-agent
+oa init --spec .agents/example.yaml --output ./generated-agent
 ```
 """
 
@@ -282,8 +282,8 @@ def init_aac(
                 f"[green]Agent-as-code layout ready.[/]\n\n"
                 f"  [bold]{example_path}[/]\n"
                 f"  {readme_path}\n\n"
-                "[dim]Run:[/] [bold]oas run --spec .agents/example.yaml --quiet[/]",
-                title="[bold cyan]oas init aac[/]",
+                "[dim]Run:[/] [bold]oa run --spec .agents/example.yaml --quiet[/]",
+                title="[bold cyan]oa init aac[/]",
             )
         )
 
@@ -324,7 +324,7 @@ def update(
 
     # Check if output directory exists
     if not output.exists():
-        log.error(f"Output directory {output} does not exist. Run 'oas init' first.")
+        log.error(f"Output directory {output} does not exist. Run 'oa init' first.")
         raise typer.Exit(1)
 
     spec_data, agent_name, class_name = load_and_validate_spec(spec, log)

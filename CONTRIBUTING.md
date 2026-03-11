@@ -108,13 +108,13 @@ intelligence:
    - Use appropriate model for your use case
 
 4. **Validation**:
-   - Test your spec file with `oas init --dry-run`
+   - Test your spec file with `oa init --dry-run`
    - Ensure all required fields are present
    - Check that values are of correct types
 
 #### Adding a new template
 
-Add a new YAML spec under `oas_cli/templates/` (e.g. `my-template.yaml`). For `oas init --template minimal`-style usage, the CLI loads from that directory; For custom YAML use `oas init --spec path/to/your.yaml`. Overriding the template directory (e.g. via an env var) is not currently supported. Document the template in the README “Built-in Templates” section.
+Add a new YAML spec under `oas_cli/templates/` (e.g. `my-template.yaml`). For `oa init --template minimal`-style usage, the CLI loads from that directory; For custom YAML use `oa init --spec path/to/your.yaml`. Overriding the template directory (e.g. via an env var) is not currently supported. Document the template in the README “Built-in Templates” section.
 
 ### Reporting Bugs
 

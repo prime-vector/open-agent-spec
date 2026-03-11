@@ -5,8 +5,8 @@ build-backend = "hatchling.build"
 
 [project]
 name = "open-agent-spec"
-version = "1.2.2"
-description = "YAML-first agent specs: run with `oas run` or generate a full Python project with `oas init`."
+version = "1.2.3"
+description = "YAML-first agent specs: run with `oa run` or generate a full Python project with `oa init`."
 authors = [{ name = "Andrew Whitehouse", email = "andrewswhitehouse@gmail.com" }]
 license = { text = "MIT" }
 readme = "README.md"
@@ -22,7 +22,7 @@ dependencies = [
     "jsonschema>=4.0.0",
     "python-dotenv>=0.19.0",
     "tomli>=1.0.0; python_version < '3.11'",
-    # Runtime: oas_cli.runtime and oas run invoke DACP-backed adapters.
+    # Runtime: oas_cli.runtime and `oa run` invoke DACP-backed adapters.
     "dacp>=0.3.3",
 ]
 
@@ -54,7 +54,7 @@ dev = [
 ]
 
 [project.scripts]
-oas = "oas_cli.main:app"
+oa = "oas_cli.main:app"
 
 [tool.hatch.build.targets.wheel]
 packages = ["oas_cli"]

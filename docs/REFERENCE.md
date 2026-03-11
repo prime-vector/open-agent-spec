@@ -125,14 +125,14 @@ output/
 CLI shortcut (single built-in spec):
 
 ```bash
-oas init --template minimal --output my-agent/
+oa init --template minimal --output my-agent/
 ```
 
 Other YAMLs ship inside the package; from a clone you can do:
 
 ```bash
-oas init --spec oas_cli/templates/minimal-multi-task-agent.yaml --output my-multi-agent/
-oas init --spec oas_cli/templates/security-threat-analyzer.yaml --output threat-analyzer/
+oa init --spec oas_cli/templates/minimal-multi-task-agent.yaml --output my-multi-agent/
+oa init --spec oas_cli/templates/security-threat-analyzer.yaml --output threat-analyzer/
 ```
 
 Or point `--spec` at any file on disk.
