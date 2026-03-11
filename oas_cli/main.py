@@ -366,6 +366,12 @@ def run(
     verbose: bool = typer.Option(
         False, "--verbose", "-v", help="Enable verbose logging"
     ),
+    quiet: bool = typer.Option(
+        False,
+        "--quiet",
+        "-q",
+        help="No banner; print JSON only to stdout (for scripts and piping)",
+    ),
 ):
     """Run a single task directly from an Open Agent Spec file.
 
@@ -374,14 +380,19 @@ def run(
     log = setup_logging(verbose)
     if verbose:
         log.setLevel(logging.DEBUG)
+    if quiet:
+        # Script/CI mode: no banner, plain JSON; keep log noise down unless -v
+        if not verbose:
+            logging.getLogger("oas").setLevel(logging.WARNING)
 
-    console.print(
-        Panel(
-            ASCII_TITLE,
-            title="[bold cyan]OA CLI[/]",
-            subtitle="[green]Open Agent Spec Runner[/]",
+    if not quiet:
+        console.print(
+            Panel(
+                ASCII_TITLE,
+                title="[bold cyan]OA CLI[/]",
+                subtitle="[green]Open Agent Spec Runner[/]",
+            )
         )
-    )
 
     try:
         input_data: dict[str, Any] | None = None
@@ -395,7 +406,10 @@ def run(
             input_data = parsed
 
         result = run_task_from_file(spec, task_name=task, input_data=input_data)
-        console.print_json(data=result)
+        if quiet:
+            typer.echo(json.dumps(result, indent=2))
+        else:
+            console.print_json(data=result)
     except Exception as err:
         log.error(str(err))
         typer.echo(str(err), err=True)
