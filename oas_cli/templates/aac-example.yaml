@@ -1,0 +1,47 @@
+# Agent-as-code example — run directly with:
+#   oas run --spec .agents/example.yaml --task greet --input '{"name": "World"}' --quiet
+# Or generate code into a folder with:
+#   oas init --spec .agents/example.yaml --output ./my-agent
+open_agent_spec: "1.0.9"
+
+agent:
+  name: hello-world-agent
+  description: A simple agent that responds with a greeting
+  role: chat
+
+intelligence:
+  type: llm
+  engine: openai
+  model: gpt-4
+  endpoint: https://api.openai.com/v1
+  config:
+    temperature: 0.7
+    max_tokens: 150
+
+tasks:
+  greet:
+    description: Say hello to a person by name
+    timeout: 30
+    input:
+      type: object
+      properties:
+        name:
+          type: string
+          description: The name of the person to greet
+          minLength: 1
+          maxLength: 100
+      required: [name]
+    output:
+      type: object
+      properties:
+        response:
+          type: string
+          description: The greeting response
+          minLength: 1
+      required: [response]
+
+prompts:
+  system: >
+    You are a friendly agent that greets people by name.
+    Respond with: "Hello <name>!"
+  user: "{{ name }}"

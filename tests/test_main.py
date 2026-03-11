@@ -32,6 +32,24 @@ def test_version_flag():
     )
 
 
+def test_init_aac_creates_agents_example(tmp_path):
+    """init aac creates .agents/example.yaml."""
+    result = runner.invoke(app, ["init", "aac", "--directory", str(tmp_path), "-q"])
+    assert result.exit_code == 0
+    example = tmp_path / ".agents" / "example.yaml"
+    assert example.is_file()
+    text = example.read_text()
+    assert "open_agent_spec" in text
+    assert "hello-world-agent" in text
+
+
+def test_init_without_output_shows_helpful_message():
+    """init with no subcommand and no --output exits 1 with hint."""
+    result = runner.invoke(app, ["init"])
+    assert result.exit_code == 1
+    assert "init aac" in result.output or "aac" in result.output
+
+
 def test_init_with_directory_spec_returns_clean_error(tmp_path):
     """init --spec <directory> exits with error and no traceback (ValueError normalized)."""
     result = runner.invoke(

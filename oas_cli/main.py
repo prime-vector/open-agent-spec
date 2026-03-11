@@ -56,10 +56,11 @@ def main(
         console.print(f"[bold cyan]{ASCII_TITLE}[/]\n")
         console.print(
             Panel.fit(
-                "Use [bold magenta]oas init[/] to scaffold an agent project\n"
+                "Use [bold magenta]oas init aac[/] for .agents/ agent-as-code layout\n"
+                "Use [bold magenta]oas init --spec … --output …[/] to scaffold code\n"
                 "Use [bold magenta]oas update[/] to update existing agent code\n"
                 "Define it via Open Agent Spec YAML\n"
-                "Use [bold yellow]--dry-run[/] to preview actions without writing files.",
+                "Use [bold yellow]--dry-run[/] to preview without writing files.",
                 title="[bold green]OA CLI[/]",
                 subtitle="Open Agent Spec Generator",
             )
@@ -84,7 +85,10 @@ def load_and_validate_spec(
 def resolve_spec_path(
     spec: Path | None, template: str | None, log: logging.Logger
 ) -> tuple[Path, Path | None]:
-    """Return (spec_path, temp_file_to_delete). Second is non-None only when using minimal template."""
+    """Return (spec_path, temp_file_to_delete).
+
+    temp_file_to_delete is set only when using the minimal template.
+    """
     if spec is not None:
         return spec, None
     elif template == "minimal":
@@ -115,28 +119,14 @@ def generate_files(
     core_generate_files(output, spec_data, agent_name, class_name, log, console=console)
 
 
-@app.command()
-def version():
-    """Show the Open Agent Spec CLI version."""
-    cli_version = get_version_from_pyproject()
-    console.print(f"[bold cyan]Open Agent Spec CLI[/] version [green]{cli_version}[/]")
-
-
-@app.command()
-def init(
-    spec: Path | None = typer.Option(None, help="Path to Open Agent Spec YAML file"),
-    output: Path = typer.Option(..., help="Directory to scaffold the agent into"),
-    template: str | None = typer.Option(
-        None, help="Template name to use (e.g., 'minimal')"
-    ),
-    verbose: bool = typer.Option(
-        False, "--verbose", "-v", help="Enable verbose logging"
-    ),
-    dry_run: bool = typer.Option(
-        False, "--dry-run", help="Preview what would be created without writing files"
-    ),
-):
-    """Initialize an agent project based on Open Agent Spec."""
+def _run_init_code_gen(
+    spec: Path | None,
+    output: Path,
+    template: str | None,
+    verbose: bool,
+    dry_run: bool,
+) -> None:
+    """Legacy init: scaffold a full agent project into ``output``."""
     log = setup_logging(verbose)
     if verbose:
         log.setLevel(logging.DEBUG)
@@ -149,7 +139,6 @@ def init(
         )
     )
 
-    # Determine which spec to use
     spec_path, temp_file_to_delete = resolve_spec_path(spec, template, log)
     try:
         spec_data, agent_name, class_name = load_and_validate_spec(spec_path, log)
@@ -181,6 +170,129 @@ def init(
                 pass
 
 
+# Init as a group so we can support `oas init aac` while keeping
+# `oas init --spec ... --output ...` for code generation.
+init_app = typer.Typer(
+    help="Initialize agent projects (code gen or agent-as-code layout)"
+)
+
+
+@init_app.callback(invoke_without_command=True)
+def init_callback(
+    ctx: typer.Context,
+    spec: Path | None = typer.Option(None, help="Path to Open Agent Spec YAML file"),
+    output: Path | None = typer.Option(
+        None, help="Directory to scaffold the agent into (required for code generation)"
+    ),
+    template: str | None = typer.Option(
+        None, help="Template name to use (e.g., 'minimal')"
+    ),
+    verbose: bool = typer.Option(
+        False, "--verbose", "-v", help="Enable verbose logging"
+    ),
+    dry_run: bool = typer.Option(
+        False, "--dry-run", help="Preview what would be created without writing files"
+    ),
+):
+    """Init code generation; use ``oas init aac`` for .agents/ layout only."""
+    if ctx.invoked_subcommand is not None:
+        return
+    if output is None:
+        console.print(
+            "[yellow]Code generation requires --output.[/]\n"
+            "  [bold]oas init --spec path/to/spec.yaml --output path/to/agent[/]\n"
+            "  [bold]oas init --template minimal --output path/to/agent[/]\n"
+            "For agent-as-code only (spec in .agents/), run: [bold]oas init aac[/]"
+        )
+        raise typer.Exit(1)
+    _run_init_code_gen(spec, output, template, verbose, dry_run)
+
+
+AAC_README = """# Agent as code (`.agents/`)
+
+This folder holds **Open Agent Spec** YAML files. Treat them like infra-as-code.
+
+## Run directly
+
+```bash
+oas run --spec .agents/example.yaml --task greet --input '{"name": "CI"}' --quiet
+```
+
+## Generate full agent code
+
+```bash
+oas init --spec .agents/example.yaml --output ./generated-agent
+```
+"""
+
+
+@init_app.command("aac")
+def init_aac(
+    directory: Path = typer.Option(
+        Path("."),
+        "--directory",
+        "-C",
+        help="Repo root to create .agents/ under (default: current directory)",
+    ),
+    force: bool = typer.Option(
+        False,
+        "--force",
+        "-f",
+        help="Overwrite existing .agents/example.yaml",
+    ),
+    quiet: bool = typer.Option(
+        False,
+        "--quiet",
+        "-q",
+        help="Print only a short summary line",
+    ),
+):
+    """Agent-as-code: create `.agents/` with example.yaml (no full code gen)."""
+    agents_dir = directory.resolve() / ".agents"
+    example_path = agents_dir / "example.yaml"
+    template_path = Path(__file__).parent / "templates" / "aac-example.yaml"
+
+    if not template_path.is_file():
+        console.print(f"[red]Missing bundled template: {template_path}[/]")
+        raise typer.Exit(1)
+
+    if example_path.exists() and not force:
+        console.print(
+            f"[yellow]{example_path} already exists.[/] Use --force to overwrite."
+        )
+        raise typer.Exit(1)
+
+    agents_dir.mkdir(parents=True, exist_ok=True)
+    example_path.write_text(template_path.read_text(encoding="utf-8"), encoding="utf-8")
+
+    readme_path = agents_dir / "README.md"
+    if not readme_path.exists() or force:
+        readme_path.write_text(AAC_README, encoding="utf-8")
+
+    if quiet:
+        typer.echo(str(example_path))
+    else:
+        console.print(
+            Panel.fit(
+                f"[green]Agent-as-code layout ready.[/]\n\n"
+                f"  [bold]{example_path}[/]\n"
+                f"  {readme_path}\n\n"
+                "[dim]Run:[/] [bold]oas run --spec .agents/example.yaml --quiet[/]",
+                title="[bold cyan]oas init aac[/]",
+            )
+        )
+
+
+app.add_typer(init_app, name="init")
+
+
+@app.command()
+def version():
+    """Show the Open Agent Spec CLI version."""
+    cli_version = get_version_from_pyproject()
+    console.print(f"[bold cyan]Open Agent Spec CLI[/] version [green]{cli_version}[/]")
+
+
 @app.command()
 def update(
     spec: Path = typer.Option(..., help="Path to updated Open Agent Spec YAML file"),
@@ -208,7 +320,7 @@ def update(
     # Check if output directory exists
     if not output.exists():
         log.error(
-            f"Output directory {output} does not exist. Use 'oas init' to create a new agent."
+            f"Output directory {output} does not exist. Run 'oas init' first."
         )
         raise typer.Exit(1)
 
