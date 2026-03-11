@@ -31,7 +31,7 @@ class {{ class_name }}(AgentBase):
         # Embed YAML config as dict during generation
         {{ embedded_config }}
 
-        # Setup DACP logging FIRST
+        # Setup logging from embedded spec config
         self.setup_logging()
 {% if custom_router_init %}
         {{ custom_router_init }}

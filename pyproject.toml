@@ -5,7 +5,7 @@ build-backend = "hatchling.build"
 [project]
 name = "open-agent-spec"
 version = "1.0.9"
-description = "Open Agent Spec CLI for bootstrapping AI agent projects"
+description = "YAML-first agent specs: run with `oas run` or generate a full Python project with `oas init`."
 authors = [{ name = "Andrew Whitehouse", email = "andrewswhitehouse@gmail.com" }]
 license = { text = "MIT" }
 readme = "README.md"
@@ -16,14 +16,19 @@ dependencies = [
     "rich",
     "openai>=1.0.0",
     "anthropic>=0.3.0",
-    "behavioural-contracts==0.1.2",
-    "dacp>=0.3.3",
     "jinja2>=3.0.0",
     "setuptools>=69.0.0",
     "jsonschema>=4.0.0",
     "python-dotenv>=0.19.0",
-    "tomli>=1.0.0; python_version < '3.11'"
+    "tomli>=1.0.0; python_version < '3.11'",
+    # Runtime: oas_cli.runtime and oas run invoke DACP-backed adapters.
+    "dacp>=0.3.3",
 ]
+
+[project.urls]
+Homepage = "https://www.openagentstack.ai"
+Repository = "https://github.com/prime-vector/open-agent-spec"
+Documentation = "https://github.com/prime-vector/open-agent-spec/blob/main/docs/REFERENCE.md"
 
 [project.optional-dependencies]
 dev = [
@@ -41,7 +46,10 @@ dev = [
     "types-PyYAML>=6.0.0",
     "types-setuptools>=69.0.0",
     "types-toml>=0.10.0",
-    "types-jsonschema"
+    "types-jsonschema",
+    "behavioural-contracts==0.1.2",
+    # dacp is a runtime dependency above; listed in dev for tests that pin versions
+    "dacp>=0.3.3",
 ]
 
 [project.scripts]

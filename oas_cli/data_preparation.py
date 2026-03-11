@@ -58,9 +58,7 @@ class AgentDataPreparator:
 
     def _prepare_memory_config(self, spec_data: dict[str, Any]) -> dict[str, Any]:
         """Prepare memory configuration."""
-        from .generators import (
-            get_memory_config,
-        )  # Import here to avoid circular imports
+        from .generation.spec_config import get_memory_config
 
         return get_memory_config(spec_data)
 
@@ -114,9 +112,7 @@ class AgentDataPreparator:
 
     def _prepare_models(self, spec_data: dict[str, Any]) -> list[str]:
         """Prepare Pydantic model definitions."""
-        from .generators import (
-            _generate_pydantic_model,
-        )  # Import here to avoid circular imports
+        from .generation.pydantic_codegen import _generate_pydantic_model
 
         models = []
         tasks = spec_data.get("tasks", {})
@@ -137,9 +133,7 @@ class AgentDataPreparator:
         config: dict[str, Any],
     ) -> list[str]:
         """Prepare task function code."""
-        from .generators import (
-            _generate_task_function,
-        )  # Import here to avoid circular imports
+        from .generation.task_functions import _generate_task_function
 
         task_functions = []
         tasks = spec_data.get("tasks", {})
@@ -154,9 +148,7 @@ class AgentDataPreparator:
 
     def _prepare_class_methods(self, spec_data: dict[str, Any]) -> list[str]:
         """Prepare agent class methods."""
-        from .generators import (
-            _generate_input_params,
-        )  # Import here to avoid circular imports
+        from .generation.task_functions import _generate_input_params
 
         class_methods = []
         tasks = spec_data.get("tasks", {})
@@ -215,9 +207,7 @@ class AgentDataPreparator:
 
     def _prepare_embedded_config(self, spec_data: dict[str, Any]) -> str:
         """Prepare embedded configuration using proper serialization."""
-        from .generators import (
-            get_logging_config,
-        )  # Import here to avoid circular imports
+        from .generation.spec_config import get_logging_config
 
         logging_config = get_logging_config(spec_data)
         intelligence_config = spec_data.get("intelligence", {})
@@ -363,9 +353,7 @@ def load_custom_llm_router(endpoint, model, config):
         self, task_name: str, task_def: dict[str, Any]
     ) -> str:
         """Generate example code for a specific task."""
-        from .generators import (
-            _generate_input_params,
-        )  # Import here to avoid circular imports
+        from .generation.task_functions import _generate_input_params
 
         # Get input parameters
         input_params = [

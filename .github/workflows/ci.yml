@@ -1,4 +1,3 @@
-# Consolidated CI: one job, latest Python. Runs on every PR and push to main/develop.
 name: CI
 
 on:

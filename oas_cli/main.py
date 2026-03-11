@@ -16,6 +16,7 @@ from rich.panel import Panel
 from .banner import ASCII_TITLE
 from .core import generate_files as core_generate_files
 from .core import validate_spec_file
+from .exceptions import AgentGenerationError
 from .runner import run_task_from_file
 
 app = typer.Typer(help="Open Agent Spec (OA) CLI")
@@ -161,7 +162,11 @@ def _run_init_code_gen(
             log.info("- prompts/agent_prompt.jinja2")
             return
 
-        generate_files(output, spec_data, agent_name, class_name, log)
+        try:
+            generate_files(output, spec_data, agent_name, class_name, log)
+        except AgentGenerationError as e:
+            typer.echo(str(e), err=True)
+            raise typer.Exit(1) from e
     finally:
         if temp_file_to_delete is not None and temp_file_to_delete.exists():
             try:
@@ -342,7 +347,11 @@ def update(
 
     # Generate updated files
     log.info("Generating updated files...")
-    generate_files(output, spec_data, agent_name, class_name, log)
+    try:
+        generate_files(output, spec_data, agent_name, class_name, log)
+    except AgentGenerationError as e:
+        typer.echo(str(e), err=True)
+        raise typer.Exit(1) from e
 
     console.print("\n[bold green]✅ Agent project updated![/] ✨")
     log.info("Note: If you're using version control, make sure to commit your changes.")
@@ -366,6 +375,12 @@ def run(
     verbose: bool = typer.Option(
         False, "--verbose", "-v", help="Enable verbose logging"
     ),
+    quiet: bool = typer.Option(
+        False,
+        "--quiet",
+        "-q",
+        help="No banner; print JSON only to stdout (for scripts and piping)",
+    ),
 ):
     """Run a single task directly from an Open Agent Spec file.
 
@@ -374,14 +389,19 @@ def run(
     log = setup_logging(verbose)
     if verbose:
         log.setLevel(logging.DEBUG)
+    if quiet:
+        # Script/CI mode: no banner, plain JSON; keep log noise down unless -v
+        if not verbose:
+            logging.getLogger("oas").setLevel(logging.WARNING)
 
-    console.print(
-        Panel(
-            ASCII_TITLE,
-            title="[bold cyan]OA CLI[/]",
-            subtitle="[green]Open Agent Spec Runner[/]",
+    if not quiet:
+        console.print(
+            Panel(
+                ASCII_TITLE,
+                title="[bold cyan]OA CLI[/]",
+                subtitle="[green]Open Agent Spec Runner[/]",
+            )
         )
-    )
 
     try:
         input_data: dict[str, Any] | None = None
@@ -395,9 +415,13 @@ def run(
             input_data = parsed
 
         result = run_task_from_file(spec, task_name=task, input_data=input_data)
-        console.print_json(data=result)
+        if quiet:
+            typer.echo(json.dumps(result, indent=2))
+        else:
+            console.print_json(data=result)
     except Exception as err:
-        log.error(str(err))
+        if not quiet:
+            log.error(str(err))
         typer.echo(str(err), err=True)
         raise typer.Exit(1)
 

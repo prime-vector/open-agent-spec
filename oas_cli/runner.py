@@ -93,13 +93,19 @@ def _build_intelligence_config(spec_data: dict[str, Any]) -> dict[str, Any]:
     if not isinstance(cfg, dict):
         cfg = {}
 
-    return {
+    # Base keys for OpenAI-style calls; merge cfg so engines like codex get
+    # sandbox, cwd, extra_args, etc. from intelligence.config.
+    out: dict[str, Any] = {
         "engine": intelligence.get("engine", "openai"),
         "model": model,
         "endpoint": endpoint,
         "temperature": cfg.get("temperature", 0.7),
         "max_tokens": cfg.get("max_tokens", 1000),
     }
+    for k, v in cfg.items():
+        if k not in out:
+            out[k] = v
+    return out
 
 
 def run_task_from_spec(
