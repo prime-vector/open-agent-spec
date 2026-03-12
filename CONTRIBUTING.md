@@ -41,7 +41,7 @@ intelligence:
    - `role`: Optional; one of analyst, reviewer, chat, retriever, planner, executor
 
 3. **`intelligence`** section:
-   - `engine`: LLM provider (e.g. openai, anthropic, grok, local, custom)
+   - `engine`: LLM provider (e.g. openai, anthropic, grok, cortex, codex, local, custom)
    - `endpoint`: The API endpoint for your LLM provider
    - `model`: The specific model to use (e.g. "gpt-4", "gpt-3.5-turbo")
    - `config`: Model-specific configuration

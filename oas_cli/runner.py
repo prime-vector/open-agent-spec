@@ -8,6 +8,7 @@ underlying intelligence provider via the runtime abstraction.
 from __future__ import annotations
 
 import json
+import re
 from pathlib import Path
 from typing import Any
 
@@ -128,8 +129,14 @@ def run_task_from_spec(
     # Best-effort attempt to normalise JSON responses if they come back as strings.
     parsed_output: Any
     if isinstance(raw_output, str):
+        text = raw_output.strip()
+        # Models often wrap JSON in ```json ... ``` — strip fences before parsing.
+        if text.startswith("```"):
+            text = re.sub(r"^```(?:json)?\s*", "", text, count=1, flags=re.IGNORECASE)
+            text = re.sub(r"\s*```\s*$", "", text, count=1)
+            text = text.strip()
         try:
-            parsed_output = json.loads(raw_output)
+            parsed_output = json.loads(text)
         except json.JSONDecodeError:
             parsed_output = raw_output
     else:

@@ -13,7 +13,7 @@ agent:
   role: "chat"   # optional: analyst, reviewer, chat, retriever, planner, executor
 
 intelligence:
-  engine: "openai"   # openai | anthropic | grok | cortex | local | custom
+  engine: "openai"   # openai | anthropic | grok | cortex | codex | local | custom
   endpoint: "https://api.openai.com/v1"
   model: "gpt-4"
   config:
@@ -50,6 +50,7 @@ behavioural_contract:
 | anthropic | `ANTHROPIC_API_KEY` |
 | grok | `XAI_API_KEY` |
 | cortex | `OPENAI_API_KEY`, `CLAUDE_API_KEY` + `cortex-intelligence` |
+| codex | Codex CLI (`codex` on PATH; `codex login`) |
 | local | placeholder |
 | custom | Your router class: `__init__(endpoint, model, config)`, `run(prompt, **kwargs)` → JSON string |
 
