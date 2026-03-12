@@ -1,0 +1,121 @@
+# CI failure repair agent — "agent as code" for GitHub Actions
+#
+# Purpose: ingest workflow/job log excerpts (e.g. Ruff format check failures), classify
+# the failure, and emit structured remediation (shell commands + commit message).
+# A follow-on workflow can run the commands and push to the same branch/PR.
+#
+# Why OpenAI here (not Codex): runs anywhere with OPENAI_API_KEY only. Codex engine
+# is better for interactive repo edits locally; in GHA you'd need codex CLI + auth.
+#
+# Try locally (paste a short log into log.txt):
+#   oa run --spec .agents/ci-failure-repair.yaml --task diagnose_and_remediate \
+#     --input "$(jq -n --rawfile log log.txt '{workflow_name:"CI",branch:"main",job_log:$log}')" --quiet
+#
+open_agent_spec: "1.0.9"
+
+agent:
+  name: ci-failure-repair-agent
+  description: >
+    Diagnoses GitHub Actions job failures from logs (Ruff, mypy, pytest, etc.)
+    and returns safe, ordered shell commands to remediate plus a commit message.
+  role: analyst
+
+intelligence:
+  type: llm
+  engine: openai
+  model: gpt-4o
+  endpoint: https://api.openai.com/v1
+  config:
+    temperature: 0.1
+    max_tokens: 2048
+
+tasks:
+  diagnose_and_remediate:
+    description: >
+      Given workflow context and job log text, classify the failure and output
+      concrete remediation commands for the repo (prefer ruff format/check --fix
+      when logs indicate formatting or lint failures).
+    timeout: 120
+    input:
+      type: object
+      properties:
+        workflow_name:
+          type: string
+          description: Name of the workflow that failed
+        branch:
+          type: string
+          description: Head branch of the run
+        job_log:
+          type: string
+          description: >
+            Relevant job log excerpt or full log; include the failing step output
+            (e.g. Ruff format --check diff, mypy errors, pytest traceback).
+        repo_context:
+          type: string
+          description: >
+            Optional one-liner; use empty string if none, e.g. "Python package with ruff + mypy in CI"
+      required: [workflow_name, branch, job_log, repo_context]
+    output:
+      type: object
+      properties:
+        failure_category:
+          type: string
+          description: >
+            One of ruff_format, ruff_check, mypy, pytest, integration, other
+        summary:
+          type: string
+          description: One or two sentences for humans
+        root_cause:
+          type: string
+          description: What in the log indicates the failure
+        recommended_commands:
+          type: array
+          items:
+            type: string
+          description: >
+            Ordered shell commands to run at repo root (e.g. ruff format .,
+            ruff check --fix .). Use paths relative to repo root. No interactive prompts.
+        commit_message:
+          type: string
+          description: 'Conventional commit style, e.g. style: ruff format'
+        push_to_branch:
+          type: boolean
+          description: >
+            True if changes are safe to commit and push to the same branch without review
+        confidence:
+          type: string
+          description: high, medium, or low
+      required:
+        - failure_category
+        - summary
+        - recommended_commands
+        - commit_message
+        - push_to_branch
+        - confidence
+
+prompts:
+  system: |
+    You are a CI repair assistant. You receive GitHub Actions job logs and must:
+    1. Identify the failing tool (Ruff format/check, mypy, pytest, etc.).
+    2. Propose minimal, safe shell commands to fix the issue at repository root.
+    3. Prefer standard fixes: for Ruff formatting failures use `ruff format .` then
+       `ruff check .` or `ruff check --fix .` as appropriate; respect existing
+       exclude patterns if visible in logs (e.g. test_output/).
+    4. Never suggest destructive commands (rm -rf /, curl|bash from untrusted URLs).
+    5. Reply with a single JSON object only — no markdown, no code fences, no prose.
+       Use exactly these keys: failure_category (string: ruff_format, ruff_check,
+       mypy, pytest, integration, or other), summary, root_cause, recommended_commands
+       (array of strings), commit_message, push_to_branch (boolean), confidence
+       (string: high, medium, or low).
+    If the log is ambiguous, set confidence to low and push_to_branch to false.
+  user: |
+    Workflow: {{ workflow_name }}
+    Branch: {{ branch }}
+    Context: {{ repo_context }}
+
+    --- JOB LOG (excerpt) ---
+    {{ job_log }}
+    --- END LOG ---
+
+    Output one JSON object with keys failure_category, summary, root_cause,
+    recommended_commands, commit_message, push_to_branch, confidence — nothing else.
