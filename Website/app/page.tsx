@@ -1,6 +1,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import Logo from "../OAS-Logo.webp";
+import CliGif from "../oacli.gif";
 import InstallCard from "../components/InstallCard";
 
 export default function HomePage() {
@@ -115,6 +116,17 @@ export default function HomePage() {
                 Read the spec
               </Link>
             </div>
+
+            {/* CLI demo — under hero CTAs */}
+            <div className="mt-8 overflow-hidden rounded-xl border border-stone-300/50 bg-stone-900/5 shadow-sm">
+              <Image
+                src={CliGif}
+                alt="Open Agent Spec CLI in action"
+                unoptimized
+                className="h-auto w-full object-cover object-top"
+                sizes="(max-width: 1024px) 100vw, 1024px"
+              />
+            </div>
           </section>
 
           {/* Content sections — readable on textured bg */}
@@ -142,7 +154,7 @@ export default function HomePage() {
             </p>
           </section>
 
-          {/* How it works — right after The Problem */}
+          {/* How it works — after The Problem */}
           <section
             id="how-it-works"
             className="mx-auto mb-8 max-w-4xl scroll-mt-6 rounded-xl border border-stone-300/50 bg-white/50 p-4 text-left text-sm leading-relaxed text-stone-700 shadow-sm backdrop-blur-sm sm:p-6"
