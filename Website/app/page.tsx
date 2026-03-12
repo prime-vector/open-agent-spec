@@ -280,7 +280,7 @@ export default function HomePage() {
               <li>Not tied to any model provider.</li>
             </ul>
             <p>
-              It&apos;s a declarative standard — a thin, portable layer on top of any
+              It&apos;s a declarative standard | a thin, portable layer on top of any
               runtime.
             </p>
           </section>
@@ -313,7 +313,7 @@ export default function HomePage() {
             <div className="grid gap-3 sm:grid-cols-2 md:grid-cols-4">
               {[
                 ["Framework-agnostic", "Specs describe agents, not the web stack."],
-                ["Engine-agnostic", "OpenAI, Claude, Codex, custom — via adapters."],
+                ["Engine-agnostic", "OpenAI, Claude, Codex, custom | via adapters."],
                 [
                   "Repo-native",
                   "Agents live in .agents/, versioned like code.",
