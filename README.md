@@ -64,6 +64,7 @@ agent:
   role: chat
 
 intelligence:
+  type: llm
   engine: openai
   model: gpt-4
 
@@ -95,6 +96,21 @@ Run the agent directly from the spec:
 ```bash
 oa run --spec agent.yaml --task greet --input '{"name":"Alice"}' --quiet
 ```
+
+---
+
+# Agents as Code
+
+Store specs in a `.agents/` directory at the repo root — like `.github/workflows/` but for agents. Run them directly, or generate code from them.
+
+```bash
+oa init aac                          # scaffold .agents/ with an example spec
+oa run --spec .agents/example.yaml --task greet --input '{"name":"CI"}' --quiet
+```
+
+This repo's own `.agents/` directory includes a [CI failure repair agent](.agents/ci-failure-repair.yaml) that is called from a GitHub Actions workflow to auto-fix lint and formatting issues.
+
+See [docs/REFERENCE.md](docs/REFERENCE.md#agents-as-code-agents) for details and bundled examples.
 
 ---
 

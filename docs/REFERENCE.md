@@ -13,6 +13,7 @@ agent:
   role: "chat"   # optional: analyst, reviewer, chat, retriever, planner, executor
 
 intelligence:
+  type: "llm"
   engine: "openai"   # openai | anthropic | grok | cortex | codex | local | custom
   endpoint: "https://api.openai.com/v1"
   model: "gpt-4"
@@ -58,6 +59,7 @@ behavioural_contract:
 
 ```yaml
 intelligence:
+  type: "llm"
   engine: "openai"
   endpoint: "https://api.openai.com/v1"
   model: "gpt-4"
@@ -68,6 +70,7 @@ intelligence:
 
 ```yaml
 intelligence:
+  type: "llm"
   engine: "anthropic"
   endpoint: "https://api.anthropic.com"
   model: "claude-3-sonnet-20240229"
@@ -78,15 +81,33 @@ intelligence:
 
 ```yaml
 intelligence:
+  type: "llm"
   engine: "grok"
   endpoint: "https://api.x.ai/v1"
   model: "grok-3-latest"
 ```
 
+### Codex
+
+Runs [Codex CLI](https://github.com/openai/codex) non-interactively via the built-in adapter (`oas_cli/adapters/codex_adapter.py`). Requires `codex` on `PATH` and `codex login`.
+
+```yaml
+intelligence:
+  type: "llm"
+  engine: "codex"
+  model: "gpt-4.1-codex"
+  config:
+    sandbox: "workspace-write"   # codex sandbox mode
+    cwd: "."                     # working directory for codex exec
+```
+
+`config` keys are passed as CLI flags to `codex exec`. Common options: `sandbox` (`workspace-write`, `workspace-read`, `none`) and `cwd`.
+
 ### Custom router
 
 ```yaml
 intelligence:
+  type: "llm"
   engine: "custom"
   endpoint: "http://localhost:1234/invoke"
   model: "my-model"
@@ -106,6 +127,42 @@ class CustomLLMRouter:
     def run(self, prompt: str, **kwargs) -> str:
         return json.dumps({"response": f"…"})
 ```
+
+## Agents as code (`.agents/`)
+
+The **agent-as-code** pattern stores spec files in a `.agents/` directory at the root of your repository — similar to how `.github/workflows/` stores CI pipelines. Specs in `.agents/` are treated as infrastructure-as-code: check them into version control, run them directly with `oa run`, or generate full project scaffolds from them.
+
+### Scaffold the layout
+
+```bash
+oa init aac                          # creates .agents/example.yaml + README
+oa init aac --directory ./my-repo    # target a different root
+```
+
+### Run an agent directly
+
+```bash
+oa run --spec .agents/hello-world-agent.yaml --task greet \
+  --input '{"name":"Alice"}' --quiet
+```
+
+### Generate code from an agent spec
+
+```bash
+oa init --spec .agents/ci-failure-repair.yaml --output ./repair-agent
+```
+
+### Bundled examples
+
+This repository ships three `.agents/` specs as working examples:
+
+| File | Role | Engine | Description |
+|------|------|--------|-------------|
+| `hello-world-agent.yaml` | chat | openai | Simple greeting — good starting point |
+| `ci-failure-repair.yaml` | analyst | openai | Diagnoses GitHub Actions failures and emits remediation commands. Used by `.github/workflows/ci-failure-repair.yml` in this repo. |
+| `codex-runner.yaml` | executor | codex | Runs Codex CLI non-interactively for arbitrary instructions |
+
+---
 
 ## Generated project layout
 

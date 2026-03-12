@@ -116,6 +116,17 @@ intelligence:
 
 Add a new YAML spec under `oas_cli/templates/` (e.g. `my-template.yaml`). For `oa init --template minimal`-style usage, the CLI loads from that directory; For custom YAML use `oa init --spec path/to/your.yaml`. Overriding the template directory (e.g. via an env var) is not currently supported. Document the template in the README “Built-in Templates” section.
 
+#### Adding an agent-as-code example
+
+To add a new `.agents/` example to the repository:
+
+1. Create a YAML spec in `.agents/` following the standard spec structure (see examples in that directory).
+2. Make sure `open_agent_spec`, `agent`, `intelligence` (including `type: llm`), `tasks`, and `prompts` are all present and valid.
+3. Validate with `oa init --spec .agents/your-agent.yaml --output /tmp/test --dry-run`.
+4. Document the agent in the table in [docs/REFERENCE.md](docs/REFERENCE.md#bundled-examples) under “Agents as code”.
+
+See the existing `.agents/ci-failure-repair.yaml` for a production-quality example that is wired into a GitHub Actions workflow.
+
 ### Reporting Bugs
 
 - Check if the bug has already been reported in the Issues section

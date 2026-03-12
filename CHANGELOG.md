@@ -9,10 +9,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 - This changelog.
+- **Agents-as-code documentation** — new section in REFERENCE.md explaining the `.agents/` pattern, bundled examples table, and scaffold/run/generate workflows.
+- Agents-as-code overview section in README.md with link to REFERENCE.md.
+- "Adding an agent-as-code example" guide in CONTRIBUTING.md.
+- Codex engine configuration reference (sandbox modes, cwd) in REFERENCE.md.
 
 ### Changed
 - Standardised spec version to `1.0.9` across all examples, templates, and docs (CONTRIBUTING.md, README.md, `.agents/`, Website content).
 - README quick-start YAML now includes the required `open_agent_spec` version field.
+- Added required `type: llm` field to all `intelligence` examples in README.md and REFERENCE.md (field is required by schema but was missing from docs).
 
 ### Fixed
 - Removed broken references to non-existent `security-threat-analyzer.yaml` template and `SECURITY_TEMPLATES.md` from REFERENCE.md.
