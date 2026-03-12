@@ -30,7 +30,15 @@ export const oasSchema = {
         type: { type: "string", enum: ["llm"] },
         engine: {
           type: "string",
-          enum: ["openai", "anthropic", "grok", "cortex", "local", "custom"],
+          enum: [
+            "openai",
+            "anthropic",
+            "grok",
+            "cortex",
+            "codex",
+            "local",
+            "custom",
+          ],
         },
         model: { type: "string" },
         endpoint: { type: "string", pattern: "^(https?://)[^\\s]+$" },
