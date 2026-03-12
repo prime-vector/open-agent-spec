@@ -11,7 +11,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - This changelog.
 
 ### Changed
-- (none yet)
+- Standardised spec version to `1.0.9` across all examples, templates, and docs (CONTRIBUTING.md, README.md, `.agents/`, Website content).
+- README quick-start YAML now includes the required `open_agent_spec` version field.
+
+### Fixed
+- Removed broken references to non-existent `security-threat-analyzer.yaml` template and `SECURITY_TEMPLATES.md` from REFERENCE.md.
 
 ---
 

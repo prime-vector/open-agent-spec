@@ -57,6 +57,8 @@ export OPENAI_API_KEY=your_api_key_here
 Create an agent spec:
 
 ```yaml
+open_agent_spec: "1.0.9"
+
 agent:
   name: hello-world-agent
   role: chat

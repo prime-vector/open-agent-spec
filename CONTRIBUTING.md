@@ -14,7 +14,7 @@ The Open Agent Spec (OA) uses YAML files to define agent configurations. Use the
 
 #### Basic Structure
 ```yaml
-open_agent_spec: "1.0.8"
+open_agent_spec: "1.0.9"
 
 agent:
   name: my-agent
@@ -33,7 +33,7 @@ intelligence:
 
 #### Required Fields
 
-1. **`open_agent_spec`**: Version of the OA specification (string, e.g. `"1.0.8"`).
+1. **`open_agent_spec`**: Version of the OA specification (string, e.g. `"1.0.9"`).
 
 2. **`agent`** section:
    - `name`: A unique identifier for your agent (kebab-case; will be converted to snake_case for Python)
@@ -52,7 +52,7 @@ intelligence:
 
 1. Trading Agent:
 ```yaml
-open_agent_spec: "1.0.8"
+open_agent_spec: "1.0.9"
 
 agent:
   name: market-analyzer
@@ -71,7 +71,7 @@ intelligence:
 
 2. Content Generator:
 ```yaml
-open_agent_spec: "1.0.8"
+open_agent_spec: "1.0.9"
 
 agent:
   name: content-creator

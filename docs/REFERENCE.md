@@ -133,12 +133,10 @@ Other YAMLs ship inside the package; from a clone you can do:
 
 ```bash
 oa init --spec oas_cli/templates/minimal-multi-task-agent.yaml --output my-multi-agent/
-oa init --spec oas_cli/templates/security-threat-analyzer.yaml --output threat-analyzer/
+oa init --spec oas_cli/templates/minimal-agent-tool-usage.yaml --output tool-agent/
 ```
 
 Or point `--spec` at any file on disk.
-
-Security-focused templates and notes: [oas_cli/templates/SECURITY_TEMPLATES.md](../oas_cli/templates/SECURITY_TEMPLATES.md).
 
 ## Development
 

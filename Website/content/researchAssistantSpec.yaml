@@ -1,4 +1,4 @@
-open_agent_spec: "1.0.8"
+open_agent_spec: "1.0.9"
 
 agent:
   name: research-assistant
