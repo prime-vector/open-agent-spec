@@ -2,6 +2,7 @@ import Image from "next/image";
 import Link from "next/link";
 import Logo from "../OAS-Logo.webp";
 import CliGif from "../oacli.gif";
+import DiagramOa from "../diagramoa.png";
 import InstallCard from "../components/InstallCard";
 
 export default function HomePage() {
@@ -142,14 +143,8 @@ export default function HomePage() {
               dashboards. They&apos;re tightly coupled to specific runtimes, hard to
               version and review, and rarely portable across engines.
             </p>
-            <ul className="mb-2 list-disc pl-5 text-sm">
-              <li>Locked inside frameworks</li>
-              <li>Coupled to runtimes</li>
-              <li>Hard to version and review</li>
-              <li>Not portable across engines</li>
-            </ul>
             <p>
-              There is no standard way to define an agent declaratively. Open Agent
+              | There is no standard way to define an agent declaratively. Open Agent
               Spec solves that.
             </p>
           </section>
@@ -164,10 +159,6 @@ export default function HomePage() {
             </h2>
             <ol className="mb-3 list-decimal space-y-1 pl-5 text-sm">
               <li>Define your agent in YAML using Open Agent Spec.</li>
-              <li>
-                Store it in <code className="rounded bg-stone-200 px-1">.agents/</code>{" "}
-                in your repo.
-              </li>
               <li>
                 Run locally with{" "}
                 <code className="rounded bg-stone-200 px-1">
@@ -189,7 +180,7 @@ export default function HomePage() {
             className="mx-auto mb-8 max-w-4xl scroll-mt-6 rounded-xl border border-stone-300/50 bg-white/50 p-4 text-left text-sm leading-relaxed text-stone-700 shadow-sm backdrop-blur-sm sm:p-6"
           >
             <h2 className="mb-2 text-xs font-semibold uppercase tracking-wide text-stone-900">
-              Two Ways to Use Open Agent Spec
+              There are Two 'Main' Ways to Use Open Agent Spec
             </h2>
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="rounded-lg border border-stone-300/60 bg-stone-50/80 p-3">
@@ -226,44 +217,40 @@ export default function HomePage() {
             id="repo-native"
             className="mx-auto mb-8 flex w-full max-w-5xl scroll-mt-6 flex-col gap-4 rounded-xl border border-stone-300/50 bg-white/50 p-4 text-left text-sm leading-relaxed text-stone-700 shadow-sm backdrop-blur-sm sm:flex-row sm:p-6"
           >
-            <div className="flex-1 space-y-3">
-              <div className="font-semibold text-stone-900">Repo-native agents</div>
-              <div className="flex gap-4">
-                <div className="rounded-lg border border-stone-300/60 bg-stone-50 px-3 py-2 font-mono text-[11px] leading-relaxed">
-                  <div>my-service-repo/</div>
-                  <div className="pl-4">.agents/</div>
-                  <div className="pl-8">review.yaml</div>
-                  <div className="pl-8">deploy.yaml</div>
+            <div className="w-full space-y-4">
+              <div className="flex flex-col gap-4 sm:flex-row">
+                <div className="flex-1 space-y-3">
+                  <div className="font-semibold text-stone-900">
+                    Repo-native agents
+                  </div>
+                  <p>
+                    Agents belong in your repo. The OA CLI reads{" "}
+                    <code className="rounded bg-stone-200 px-1">
+                      .agents/*.yaml
+                    </code>
+                    , validates them, and uses engine adapters to run your
+                    agents.
+                  </p>
+                </div>
+                <div id="ci" className="flex-1 space-y-3 scroll-mt-6">
+                  <div className="font-semibold text-stone-900">
+                    CI & sub-agents
+                  </div>
+                  <p>
+                    A single spec can fan out into multiple sub-agent processes.
+                    The OA runtime routes each task to the right engine via
+                    adapters.
+                  </p>
                 </div>
               </div>
-              <p>
-                Agents belong in your repo. The OA CLI reads{" "}
-                <code className="rounded bg-stone-200 px-1">.agents/*.yaml</code>,
-                validates them, and uses engine adapters to run your agents.
-              </p>
-              <div className="mt-2 rounded-lg border border-dashed border-stone-400/60 bg-stone-50 px-3 py-2 font-mono text-[10px] leading-relaxed">
-                <div>.agents/review.yaml</div>
-                <div className="pl-2">↓</div>
-                <div>oa run --spec .agents/review.yaml</div>
-                <div className="pl-2">↓</div>
-                <div>Engine adapter (OpenAI / Claude / Codex / custom)</div>
-                <div className="pl-2">↓</div>
-                <div>Structured output</div>
+              <div className="overflow-hidden rounded-lg border border-stone-300/60 bg-stone-50 p-3">
+                <Image
+                  src={DiagramOa}
+                  alt="Diagram showing repo-native agents and CI sub-agent flow"
+                  className="mx-auto h-auto w-full max-w-xs"
+                  priority
+                />
               </div>
-            </div>
-            <div id="ci" className="flex-1 space-y-3 scroll-mt-6">
-              <div className="font-semibold text-stone-900">CI & sub-agents</div>
-              <div className="rounded-lg border border-stone-300/60 bg-stone-50 px-3 py-2 font-mono text-[10px]">
-                <div>- uses: open-agent-spec/run-agent@v1</div>
-                <div className="pl-4">with:</div>
-                <div className="pl-8">spec-path: .agents/review.yaml</div>
-                <div className="pl-8">task: review</div>
-                <div className="pl-8">input: pr.json</div>
-              </div>
-              <p>
-                A single spec can fan out into multiple sub-agent processes. The OA
-                runtime routes each task to the right engine via adapters.
-              </p>
             </div>
           </section>
 
