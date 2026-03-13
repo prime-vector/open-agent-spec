@@ -1,5 +1,5 @@
 // Default YAML shown in the playground editor. Keep in sync with defaultSpec.yaml.
-export const DEFAULT_SPEC_YAML = `open_agent_spec: "1.0.8"
+export const DEFAULT_SPEC_YAML = `open_agent_spec: "1.2.3"
 
 agent:
   name: hello-world-agent

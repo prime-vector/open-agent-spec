@@ -57,7 +57,7 @@ export OPENAI_API_KEY=your_api_key_here
 Create an agent spec:
 
 ```yaml
-open_agent_spec: "1.0.9"
+open_agent_spec: "1.2.3"
 
 agent:
   name: hello-world-agent
@@ -66,7 +66,7 @@ agent:
 intelligence:
   type: llm
   engine: openai
-  model: gpt-4
+  model: gpt-4o  # or any model your account has access to
 
 tasks:
   greet:
@@ -94,7 +94,9 @@ prompts:
 Run the agent directly from the spec:
 
 ```bash
-oa run --spec agent.yaml --task greet --input '{"name":"Alice"}' --quiet
+oa validate --spec agent.yaml          # schema check only (no model call)
+oa run --spec agent.yaml --task greet \
+  --input '{"name":"Alice"}' --quiet   # model call (requires OPENAI_API_KEY)
 ```
 
 ---

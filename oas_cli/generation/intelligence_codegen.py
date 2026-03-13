@@ -18,7 +18,8 @@ def _generate_intelligence_config(
     intelligence = spec_data.get("intelligence", {})
     intelligence_config = {
         "engine": intelligence.get("engine", "openai"),
-        "model": intelligence.get("model", config.get("model", "gpt-4")),
+        # Prefer a widely available default model when none is specified.
+        "model": intelligence.get("model", config.get("model", "gpt-4o")),
         "endpoint": intelligence.get(
             "endpoint", config.get("endpoint", "https://api.openai.com/v1")
         ),

@@ -299,6 +299,21 @@ def version():
 
 
 @app.command()
+def validate(
+    spec: Path = typer.Option(..., help="Path to Open Agent Spec YAML file"),
+):
+    """Validate a spec file against the Open Agent Spec schema (no model calls)."""
+    log = setup_logging(verbose=False)
+    try:
+        validate_spec_file(spec)
+    except ValueError as err:
+        typer.echo(str(err), err=True)
+        raise typer.Exit(1) from err
+    log.info("Spec validation succeeded for %s", spec)
+    typer.echo(f"Spec is valid: {spec}")
+
+
+@app.command()
 def update(
     spec: Path = typer.Option(..., help="Path to updated Open Agent Spec YAML file"),
     output: Path = typer.Option(..., help="Directory containing the agent to update"),

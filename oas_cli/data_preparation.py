@@ -224,7 +224,8 @@ class AgentDataPreparator:
             },
             "intelligence": {
                 "engine": intelligence_config.get("engine", "openai"),
-                "model": intelligence_config.get("model", "gpt-4"),
+                # Default to a broadly available OpenAI model if none is set.
+                "model": intelligence_config.get("model", "gpt-4o"),
                 "endpoint": intelligence_config.get(
                     "endpoint", "https://api.openai.com/v1"
                 ),
