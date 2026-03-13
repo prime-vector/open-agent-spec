@@ -78,7 +78,7 @@ jobs:
             '{workflow_name:$w, branch:$b, repo_context:$c, job_log:$log}' > repair-input.json
           oa run --spec .agents/ci-failure-repair.yaml \
             --task diagnose_and_remediate \
-            --input repair-input.json \
+            --input "$(cat repair-input.json)" \
             --quiet > repair-output.json
           echo "skip=false" >> "$GITHUB_OUTPUT"
           cat repair-output.json | head -c 4000
