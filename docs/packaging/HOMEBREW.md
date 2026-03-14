@@ -40,7 +40,7 @@ To get `brew install open-agent-spec`:
 2. **Create a formula** that uses the PyPI **sdist** URL and sha256 from [pypi.org/project/open-agent-spec/#files](https://pypi.org/project/open-agent-spec/#files).
 3. **Generate Python resources** (required — Brew won’t run `pip install` online during install):
    ```bash
-   brew create --set-name open-agent-spec https://files.pythonhosted.org/packages/source/o/open-agent-spec/open_agent_spec-1.2.3.tar.gz
+   brew create --set-name open-agent-spec https://files.pythonhosted.org/packages/source/o/open-agent-spec/open_agent_spec-1.2.5.tar.gz
    # Then in the formula directory:
    brew update-python-resources open-agent-spec
    ```

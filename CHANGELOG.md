@@ -24,6 +24,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.2.5] - 2026-03-14
+
+### Changed
+- Spec version and docs aligned to **1.2.5** (open_agent_spec in examples, templates, Website, REFERENCE, CONTRIBUTING, HOMEBREW).
+- Test plan doc renamed to `docs/TEST_PLAN_1.2.5.md`.
+
+---
+
 ## [1.2.3] - 2026-03-11
 
 ### Breaking
