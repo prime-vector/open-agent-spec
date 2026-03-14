@@ -334,7 +334,9 @@ validate_app = typer.Typer(
 @validate_app.callback(invoke_without_command=True)
 def validate_callback(
     ctx: typer.Context,
-    spec: Path = typer.Option(None, "--spec", help="Path to a single Open Agent Spec YAML file"),
+    spec: Path = typer.Option(
+        None, "--spec", help="Path to a single Open Agent Spec YAML file"
+    ),
 ):
     """Validate one spec file. Use 'oa validate aac' to validate all specs in .agents/."""
     if ctx.invoked_subcommand is not None:
@@ -540,7 +542,9 @@ def run(
             input_stripped = input.strip()
             # Convenience: if --input is a path to an existing file and the task
             # has a single required string input, use file contents as that key.
-            if not input_stripped.startswith("{") and not input_stripped.startswith("["):
+            if not input_stripped.startswith("{") and not input_stripped.startswith(
+                "["
+            ):
                 input_path = Path(input_stripped).resolve()
                 if not input_path.is_file():
                     raise typer.BadParameter(f"File not found: {input_path}")

@@ -1,0 +1,27 @@
+test	Ruff (check + format)	﻿2026-03-14T02:20:58.5644088Z ##[group]Run ruff check . --exclude test_output/
+test	Ruff (check + format)	2026-03-14T02:20:58.5644483Z [36;1mruff check . --exclude test_output/[0m
+test	Ruff (check + format)	2026-03-14T02:20:58.5644792Z [36;1mruff format --check . --exclude test_output/[0m
+test	Ruff (check + format)	2026-03-14T02:20:58.5694670Z shell: /usr/bin/bash -e {0}
+test	Ruff (check + format)	2026-03-14T02:20:58.5694905Z env:
+test	Ruff (check + format)	2026-03-14T02:20:58.5695142Z   pythonLocation: /opt/hostedtoolcache/Python/3.12.13/x64
+test	Ruff (check + format)	2026-03-14T02:20:58.5695548Z   PKG_CONFIG_PATH: /opt/hostedtoolcache/Python/3.12.13/x64/lib/pkgconfig
+test	Ruff (check + format)	2026-03-14T02:20:58.5695946Z   Python_ROOT_DIR: /opt/hostedtoolcache/Python/3.12.13/x64
+test	Ruff (check + format)	2026-03-14T02:20:58.5696295Z   Python2_ROOT_DIR: /opt/hostedtoolcache/Python/3.12.13/x64
+test	Ruff (check + format)	2026-03-14T02:20:58.5696665Z   Python3_ROOT_DIR: /opt/hostedtoolcache/Python/3.12.13/x64
+test	Ruff (check + format)	2026-03-14T02:20:58.5697021Z   LD_LIBRARY_PATH: /opt/hostedtoolcache/Python/3.12.13/x64/lib
+test	Ruff (check + format)	2026-03-14T02:20:58.5697331Z ##[endgroup]
+test	Ruff (check + format)	2026-03-14T02:20:58.5924285Z RUF059 Unpacked variable `class_name` is never used
+test	Ruff (check + format)	2026-03-14T02:20:58.5925094Z    --> oas_cli/main.py:383:36
+test	Ruff (check + format)	2026-03-14T02:20:58.5925624Z     |
+test	Ruff (check + format)	2026-03-14T02:20:58.5925993Z 381 |             rel_path = spec_path.name
+test	Ruff (check + format)	2026-03-14T02:20:58.5926462Z 382 |         try:
+test	Ruff (check + format)	2026-03-14T02:20:58.5927029Z 383 |             spec_data, agent_name, class_name = validate_spec_file(spec_path)
+test	Ruff (check + format)	2026-03-14T02:20:58.5927719Z     |                                    ^^^^^^^^^^
+test	Ruff (check + format)	2026-03-14T02:20:58.5928255Z 384 |         except (ValueError, KeyError) as err:
+test	Ruff (check + format)	2026-03-14T02:20:58.5928769Z 385 |             failed += 1
+test	Ruff (check + format)	2026-03-14T02:20:58.5929116Z     |
+test	Ruff (check + format)	2026-03-14T02:20:58.5929563Z help: Prefix it with an underscore or any other dummy variable pattern
+test	Ruff (check + format)	2026-03-14T02:20:58.5929989Z 
+test	Ruff (check + format)	2026-03-14T02:20:58.5930100Z Found 1 error.
+test	Ruff (check + format)	2026-03-14T02:20:58.5930626Z No fixes available (1 hidden fix can be enabled with the `--unsafe-fixes` option).
+test	Ruff (check + format)	2026-03-14T02:20:58.5951752Z ##[error]Process completed with exit code 1.

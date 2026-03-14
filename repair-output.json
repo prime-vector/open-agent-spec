@@ -1,0 +1,12 @@
+{
+  "failure_category": "ruff_check",
+  "summary": "Ruff check failed due to an unused variable.",
+  "root_cause": "The variable 'class_name' is unpacked but never used in the code.",
+  "recommended_commands": [
+    "sed -i 's/class_name/_class_name/' oas_cli/main.py",
+    "ruff check . --exclude test_output/"
+  ],
+  "commit_message": "Fix unused variable warning by prefixing with underscore",
+  "push_to_branch": true,
+  "confidence": "high"
+}
