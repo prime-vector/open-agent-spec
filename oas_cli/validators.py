@@ -249,6 +249,23 @@ def _validate_tasks(spec_data: dict) -> None:
                     "Define output schema, e.g., "
                     "output: {result: {type: string}}"
                 )
+            # Require output to have non-empty 'required' when it has 'properties'
+            output_schema = task_def["output"]
+            props = output_schema.get("properties")
+            if isinstance(props, dict) and props:
+                req = output_schema.get("required")
+                if not isinstance(req, list) or len(req) == 0:
+                    raise ValueError(
+                        f"tasks.{task_name}.output has 'properties' but missing or "
+                        "empty 'required'. Specify which output properties are "
+                        "required, e.g. required: [response]"
+                    )
+                for r in req:
+                    if r not in props:
+                        raise ValueError(
+                            f"tasks.{task_name}.output.required references '{r}' "
+                            "which is not in output.properties"
+                        )
         else:
             # For multi-step tasks, validate that steps are defined
             if not isinstance(task_def.get("steps"), list):

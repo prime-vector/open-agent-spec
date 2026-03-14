@@ -1,0 +1,50 @@
+# Code review agent — review a git diff and return decision + summary.
+# Run after making a small change:
+#   git diff > change.diff
+#   oa run .agents/review.yaml --task review --input change.diff --quiet
+#
+open_agent_spec: "1.2.3"
+
+agent:
+  name: code-reviewer
+  description: Reviews a unified diff and returns a decision plus short summary
+  role: reviewer
+
+intelligence:
+  type: llm
+  engine: openai
+  model: gpt-4o
+  endpoint: https://api.openai.com/v1
+  config:
+    temperature: 0.2
+    max_tokens: 512
+
+tasks:
+  review:
+    description: Review a git diff and decide approve, comment, or request_changes with a brief summary
+    timeout: 60
+    input:
+      type: object
+      properties:
+        diff:
+          type: string
+          description: Unified diff content (e.g. from git diff)
+      required: [diff]
+    output:
+      type: object
+      properties:
+        decision:
+          type: string
+          description: One of approve, comment, request_changes
+        summary:
+          type: string
+          description: One-line summary for the author
+      required: [decision, summary]
+
+prompts:
+  system: |
+    You are a code reviewer. You receive a unified diff and respond with JSON only.
+    - decision: "approve" if the change looks good, "comment" for minor suggestions (e.g. debug prints, style), "request_changes" for blocking issues.
+    - summary: One short sentence for the author (e.g. "Debug print statement detected. Consider removing before production.").
+    Be concise and consistent. Output valid JSON only, no markdown.
+  user: "{{ diff }}"
