@@ -2,6 +2,7 @@ import Image from "next/image";
 import Link from "next/link";
 import Logo from "../OAS-Logo.webp";
 import CliGif from "../oacli.gif";
+import AacDemoGif from "../oaaacdemog.gif";
 import DiagramOa from "../diagramoa.png";
 import InstallCard from "../components/InstallCard";
 
@@ -249,6 +250,15 @@ export default function HomePage() {
                   alt="Diagram showing repo-native agents and CI sub-agent flow"
                   className="mx-auto h-auto w-full max-w-xs"
                   priority
+                />
+              </div>
+              <div className="overflow-hidden rounded-xl border border-stone-300/50 bg-stone-900/5 shadow-sm">
+                <Image
+                  src={AacDemoGif}
+                  alt="Agent-as-code demo: oa run with review agent and jq in the terminal"
+                  unoptimized
+                  className="h-auto w-full object-cover object-top"
+                  sizes="(max-width: 1024px) 100vw, 1024px"
                 />
               </div>
             </div>
