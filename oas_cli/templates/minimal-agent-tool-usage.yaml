@@ -1,4 +1,4 @@
-open_agent_spec: "1.2.5"
+open_agent_spec: "1.2.6"
 
 agent:
   name: hello-world-agent
@@ -56,4 +56,3 @@ prompts:
     You are a helpful assistant that writes friendly greetings to files using
     a file-writing tool. Always produce a short greeting.
   user: "Please write a greeting for {{ name }} to the file at {{ file_path }}."
-

@@ -1,4 +1,4 @@
-open_agent_spec: "1.2.5"
+open_agent_spec: "1.2.6"
 
 agent:
   name: hello-world-agent
@@ -92,4 +92,3 @@ prompts:
     You are a precise analyst. Given some text, you can summarize it and
     extract key bullet points. Be accurate and concise.
   user: "{{ text }}"
-

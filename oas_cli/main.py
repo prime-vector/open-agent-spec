@@ -236,7 +236,7 @@ After making a small change, have the reviewer agent decide and summarize:
 
 ```bash
 git diff > change.diff
-oa run .agents/review.yaml --task review --input change.diff --quiet
+oa run --spec .agents/review.yaml --task review --input change.diff --quiet
 ```
 
 Example output:

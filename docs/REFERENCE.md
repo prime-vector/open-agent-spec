@@ -5,7 +5,7 @@ For a short intro, see the [README](../README.md). This page is the longer refer
 ## Spec file structure
 
 ```yaml
-open_agent_spec: "1.2.5"
+open_agent_spec: "1.2.6"
 
 agent:
   name: "hello-world-agent"
@@ -135,14 +135,14 @@ The **agent-as-code** pattern stores spec files in a `.agents/` directory at the
 ### Scaffold the layout
 
 ```bash
-oa init aac                          # creates .agents/example.yaml + README
+oa init aac                          # creates .agents/example.yaml, review.yaml, and README
 oa init aac --directory ./my-repo    # target a different root
 ```
 
 ### Run an agent directly
 
 ```bash
-oa run --spec .agents/hello-world-agent.yaml --task greet \
+oa run --spec .agents/example.yaml --task greet \
   --input '{"name":"Alice"}' --quiet
 ```
 
@@ -154,13 +154,14 @@ oa init --spec .agents/ci-failure-repair.yaml --output ./repair-agent
 
 ### Bundled examples
 
-This repository ships three `.agents/` specs as working examples:
+This repository ships four `.agents/` specs as working examples:
 
 | File | Role | Engine | Description |
 |------|------|--------|-------------|
 | `hello-world-agent.yaml` | chat | openai | Simple greeting — good starting point |
 | `ci-failure-repair.yaml` | analyst | openai | Diagnoses GitHub Actions failures and emits remediation commands. Used by `.github/workflows/ci-failure-repair.yml` in this repo. |
 | `codex-runner.yaml` | executor | codex | Runs Codex CLI non-interactively for arbitrary instructions |
+| `review.yaml` | reviewer | openai | Reviews a git diff and returns a decision plus summary |
 
 ---
 
