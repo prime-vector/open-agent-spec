@@ -1,27 +1,27 @@
-test	Ruff (check + format)	﻿2026-03-14T02:53:00.9558993Z ##[group]Run ruff check . --exclude test_output/
-test	Ruff (check + format)	2026-03-14T02:53:00.9559375Z [36;1mruff check . --exclude test_output/[0m
-test	Ruff (check + format)	2026-03-14T02:53:00.9559693Z [36;1mruff format --check . --exclude test_output/[0m
-test	Ruff (check + format)	2026-03-14T02:53:00.9608719Z shell: /usr/bin/bash -e {0}
-test	Ruff (check + format)	2026-03-14T02:53:00.9608944Z env:
-test	Ruff (check + format)	2026-03-14T02:53:00.9609189Z   pythonLocation: /opt/hostedtoolcache/Python/3.12.12/x64
-test	Ruff (check + format)	2026-03-14T02:53:00.9609634Z   PKG_CONFIG_PATH: /opt/hostedtoolcache/Python/3.12.12/x64/lib/pkgconfig
-test	Ruff (check + format)	2026-03-14T02:53:00.9610040Z   Python_ROOT_DIR: /opt/hostedtoolcache/Python/3.12.12/x64
-test	Ruff (check + format)	2026-03-14T02:53:00.9610397Z   Python2_ROOT_DIR: /opt/hostedtoolcache/Python/3.12.12/x64
-test	Ruff (check + format)	2026-03-14T02:53:00.9610744Z   Python3_ROOT_DIR: /opt/hostedtoolcache/Python/3.12.12/x64
-test	Ruff (check + format)	2026-03-14T02:53:00.9611098Z   LD_LIBRARY_PATH: /opt/hostedtoolcache/Python/3.12.12/x64/lib
-test	Ruff (check + format)	2026-03-14T02:53:00.9611384Z ##[endgroup]
-test	Ruff (check + format)	2026-03-14T02:53:00.9837494Z RUF059 Unpacked variable `class_name` is never used
-test	Ruff (check + format)	2026-03-14T02:53:00.9838112Z    --> oas_cli/main.py:385:36
-test	Ruff (check + format)	2026-03-14T02:53:00.9838584Z     |
-test	Ruff (check + format)	2026-03-14T02:53:00.9838888Z 383 |             rel_path = spec_path.name
-test	Ruff (check + format)	2026-03-14T02:53:00.9839284Z 384 |         try:
-test	Ruff (check + format)	2026-03-14T02:53:00.9839757Z 385 |             spec_data, agent_name, class_name = validate_spec_file(spec_path)
-test	Ruff (check + format)	2026-03-14T02:53:00.9840368Z     |                                    ^^^^^^^^^^
-test	Ruff (check + format)	2026-03-14T02:53:00.9840824Z 386 |         except (ValueError, KeyError) as err:
-test	Ruff (check + format)	2026-03-14T02:53:00.9841262Z 387 |             failed += 1
-test	Ruff (check + format)	2026-03-14T02:53:00.9841589Z     |
-test	Ruff (check + format)	2026-03-14T02:53:00.9842022Z help: Prefix it with an underscore or any other dummy variable pattern
-test	Ruff (check + format)	2026-03-14T02:53:00.9842469Z 
-test	Ruff (check + format)	2026-03-14T02:53:00.9842583Z Found 1 error.
-test	Ruff (check + format)	2026-03-14T02:53:00.9843105Z No fixes available (1 hidden fix can be enabled with the `--unsafe-fixes` option).
-test	Ruff (check + format)	2026-03-14T02:53:00.9863198Z ##[error]Process completed with exit code 1.
+test	Ruff (check + format)	﻿2026-03-17T07:51:22.9276813Z ##[group]Run ruff check . --exclude test_output/
+test	Ruff (check + format)	2026-03-17T07:51:22.9277193Z [36;1mruff check . --exclude test_output/[0m
+test	Ruff (check + format)	2026-03-17T07:51:22.9277503Z [36;1mruff format --check . --exclude test_output/[0m
+test	Ruff (check + format)	2026-03-17T07:51:22.9345229Z shell: /usr/bin/bash -e {0}
+test	Ruff (check + format)	2026-03-17T07:51:22.9345465Z env:
+test	Ruff (check + format)	2026-03-17T07:51:22.9345717Z   pythonLocation: /opt/hostedtoolcache/Python/3.12.13/x64
+test	Ruff (check + format)	2026-03-17T07:51:22.9346151Z   PKG_CONFIG_PATH: /opt/hostedtoolcache/Python/3.12.13/x64/lib/pkgconfig
+test	Ruff (check + format)	2026-03-17T07:51:22.9346558Z   Python_ROOT_DIR: /opt/hostedtoolcache/Python/3.12.13/x64
+test	Ruff (check + format)	2026-03-17T07:51:22.9346919Z   Python2_ROOT_DIR: /opt/hostedtoolcache/Python/3.12.13/x64
+test	Ruff (check + format)	2026-03-17T07:51:22.9347296Z   Python3_ROOT_DIR: /opt/hostedtoolcache/Python/3.12.13/x64
+test	Ruff (check + format)	2026-03-17T07:51:22.9347668Z   LD_LIBRARY_PATH: /opt/hostedtoolcache/Python/3.12.13/x64/lib
+test	Ruff (check + format)	2026-03-17T07:51:22.9347975Z ##[endgroup]
+test	Ruff (check + format)	2026-03-17T07:51:22.9572279Z RUF059 Unpacked variable `class_name` is never used
+test	Ruff (check + format)	2026-03-17T07:51:22.9572910Z    --> oas_cli/main.py:385:36
+test	Ruff (check + format)	2026-03-17T07:51:22.9573374Z     |
+test	Ruff (check + format)	2026-03-17T07:51:22.9573685Z 383 |             rel_path = spec_path.name
+test	Ruff (check + format)	2026-03-17T07:51:22.9574334Z 384 |         try:
+test	Ruff (check + format)	2026-03-17T07:51:22.9574840Z 385 |             spec_data, agent_name, class_name = validate_spec_file(spec_path)
+test	Ruff (check + format)	2026-03-17T07:51:22.9575491Z     |                                    ^^^^^^^^^^
+test	Ruff (check + format)	2026-03-17T07:51:22.9575981Z 386 |         except (ValueError, KeyError) as err:
+test	Ruff (check + format)	2026-03-17T07:51:22.9576465Z 387 |             failed += 1
+test	Ruff (check + format)	2026-03-17T07:51:22.9576823Z     |
+test	Ruff (check + format)	2026-03-17T07:51:22.9577281Z help: Prefix it with an underscore or any other dummy variable pattern
+test	Ruff (check + format)	2026-03-17T07:51:22.9577778Z 
+test	Ruff (check + format)	2026-03-17T07:51:22.9577897Z Found 1 error.
+test	Ruff (check + format)	2026-03-17T07:51:22.9578443Z No fixes available (1 hidden fix can be enabled with the `--unsafe-fixes` option).
+test	Ruff (check + format)	2026-03-17T07:51:22.9598461Z ##[error]Process completed with exit code 1.
