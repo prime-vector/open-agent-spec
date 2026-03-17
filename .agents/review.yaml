@@ -1,7 +1,7 @@
 # Code review agent — review a git diff and return decision + summary.
 # Run after making a small change:
 #   git diff > change.diff
-#   oa run --spec.agents/review.yaml --task review --input change.diff --quiet
+#   oa run --spec .agents/review.yaml --task review --input change.diff --quiet
 #
 open_agent_spec: "1.2.6"
 
