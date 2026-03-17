@@ -1,5 +1,5 @@
 // Research assistant example. Keep in sync with researchAssistantSpec.yaml.
-export const RESEARCH_ASSISTANT_SPEC_YAML = `open_agent_spec: "1.2.5"
+export const RESEARCH_ASSISTANT_SPEC_YAML = `open_agent_spec: "1.2.6"
 
 agent:
   name: research-assistant

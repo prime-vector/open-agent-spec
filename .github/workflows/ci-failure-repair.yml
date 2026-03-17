@@ -4,7 +4,9 @@
 # Requires OPENAI_API_KEY. Auto-push only when the agent returns high confidence
 # and failure_category is ruff_format or ruff_check (safe, deterministic fixes).
 #
-# Enable by ensuring this workflow exists; it triggers on CI workflow failures.
+# IMPORTANT: This workflow must NEVER commit generated logs or diagnostic JSON
+# to the branch. Those files are uploaded as GitHub Actions artifacts instead.
+# This avoids polluting PRs with noise that confuses contributors and reviewers.
 
 name: CI failure repair
 
@@ -47,17 +49,16 @@ jobs:
           pip install .
           pip install ".[dev]"
 
-      # ubuntu-latest includes gh; set GH_TOKEN for run view
       - name: Fetch failed job log
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          gh run view "${{ github.event.workflow_run.id }}" --log-failed > failed-log.txt 2>/dev/null || \
-            gh run view "${{ github.event.workflow_run.id }}" --log > failed-log.txt
-          # Cap size for API prompt (~100k chars)
-          head -c 120000 failed-log.txt > failed-log.trimmed.txt
-          mv failed-log.trimmed.txt failed-log.txt
-          wc -c failed-log.txt
+          mkdir -p /tmp/repair-artifacts
+          gh run view "${{ github.event.workflow_run.id }}" --log-failed > /tmp/repair-artifacts/failed-log.txt 2>/dev/null || \
+            gh run view "${{ github.event.workflow_run.id }}" --log > /tmp/repair-artifacts/failed-log.txt
+          head -c 120000 /tmp/repair-artifacts/failed-log.txt > /tmp/repair-artifacts/failed-log.trimmed.txt
+          mv /tmp/repair-artifacts/failed-log.trimmed.txt /tmp/repair-artifacts/failed-log.txt
+          wc -c /tmp/repair-artifacts/failed-log.txt
 
       - name: Run OA repair agent
         id: oa
@@ -69,39 +70,37 @@ jobs:
             echo "skip=true" >> "$GITHUB_OUTPUT"
             exit 0
           fi
-          LOG_CONTENT=$(jq -Rs . < failed-log.txt)
+          LOG_CONTENT=$(jq -Rs . < /tmp/repair-artifacts/failed-log.txt)
           jq -n \
             --arg w "${{ github.event.workflow_run.name }}" \
             --arg b "${{ github.event.workflow_run.head_branch }}" \
             --arg c "Python package; CI runs ruff check, ruff format --check, mypy, pytest" \
             --argjson log "$LOG_CONTENT" \
-            '{workflow_name:$w, branch:$b, repo_context:$c, job_log:$log}' > repair-input.json
+            '{workflow_name:$w, branch:$b, repo_context:$c, job_log:$log}' > /tmp/repair-artifacts/repair-input.json
           oa run --spec .agents/ci-failure-repair.yaml \
             --task diagnose_and_remediate \
-            --input "$(cat repair-input.json)" \
-            --quiet > repair-output.json
+            --input "$(cat /tmp/repair-artifacts/repair-input.json)" \
+            --quiet > /tmp/repair-artifacts/repair-output.json
           echo "skip=false" >> "$GITHUB_OUTPUT"
-          cat repair-output.json | head -c 4000
+          cat /tmp/repair-artifacts/repair-output.json | head -c 4000
 
       - name: Apply Ruff remediation and push
         if: steps.oa.outputs.skip != 'true'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          # Parse agent result from oa stdout (JSON line or wrapper)
-          if ! jq -e . repair-output.json >/dev/null 2>&1; then
+          if ! jq -e . /tmp/repair-artifacts/repair-output.json >/dev/null 2>&1; then
             echo "No valid repair-output.json"
             exit 0
           fi
-          # oa run --quiet may wrap in { task, output }; normalize to .output if present
-          if jq -e '.output' repair-output.json >/dev/null 2>&1; then
-            jq '.output' repair-output.json > repair-plan.json
+          if jq -e '.output' /tmp/repair-artifacts/repair-output.json >/dev/null 2>&1; then
+            jq '.output' /tmp/repair-artifacts/repair-output.json > /tmp/repair-artifacts/repair-plan.json
           else
-            cp repair-output.json repair-plan.json
+            cp /tmp/repair-artifacts/repair-output.json /tmp/repair-artifacts/repair-plan.json
           fi
-          CATEGORY=$(jq -r '.failure_category // empty' repair-plan.json)
-          CONF=$(jq -r '.confidence // empty' repair-plan.json)
-          PUSH=$(jq -r '.push_to_branch // false' repair-plan.json)
+          CATEGORY=$(jq -r '.failure_category // empty' /tmp/repair-artifacts/repair-plan.json)
+          CONF=$(jq -r '.confidence // empty' /tmp/repair-artifacts/repair-plan.json)
+          PUSH=$(jq -r '.push_to_branch // false' /tmp/repair-artifacts/repair-plan.json)
           echo "category=$CATEGORY confidence=$CONF push_to_branch=$PUSH"
           if [ "$PUSH" != "true" ] || [ "$CONF" != "high" ]; then
             echo "Agent did not authorize auto-push; upload artifact only."
@@ -117,14 +116,16 @@ jobs:
                 echo "No changes after ruff — nothing to push"
                 exit 0
               fi
-              git add -A
-              MSG=$(jq -r '.commit_message // "chore: ci auto-fix (ruff)"' repair-plan.json)
+              MSG=$(jq -r '.commit_message // "chore: ci auto-fix (ruff)"' /tmp/repair-artifacts/repair-plan.json)
+              # Stage only tracked source files that ruff modified; logs live
+              # outside the workspace in /tmp so they can never be staged.
+              git add -u
               git commit -m "$MSG"
               git push origin "HEAD:${{ github.event.workflow_run.head_branch }}"
               echo "Pushed remediation to ${{ github.event.workflow_run.head_branch }}"
               ;;
             *)
-              echo "Category $CATEGORY not auto-applied; see repair-plan.json"
+              echo "Category $CATEGORY not auto-applied; see ci-repair-plan artifact"
               ;;
           esac
 
@@ -133,8 +134,5 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: ci-repair-plan
-          path: |
-            repair-output.json
-            repair-plan.json
-            failed-log.txt
+          path: /tmp/repair-artifacts/
           retention-days: 14

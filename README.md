@@ -1,17 +1,12 @@
 # Open Agent Spec (OA)
 
-Define an AI agent once in YAML, then either run it directly with `oa run` or generate a Python scaffold with `oa init`.
+Define an AI agent once in YAML, then run it directly with `oa run` or generate a Python scaffold with `oa init`.
 
 ![PyPI version](https://img.shields.io/pypi/v/open-agent-spec)
 ![Python](https://img.shields.io/pypi/pyversions/open-agent-spec)
 ![License](https://img.shields.io/badge/license-MIT-blue)
 
-Open Agent Spec is a spec-first CLI for developers who want agent behavior to live in source control instead of being spread across prompts, scripts, and framework glue.
-
-Think:
-- OpenAPI, but for agent capabilities
-- Terraform-style declarative files, but for repo-native agents
-- A clean boundary between agent definition and runtime implementation
+OA is a spec-first CLI for developers who want agent behavior to live in source control — not spread across prompts, scripts, and framework glue. Think OpenAPI, but for agents.
 
 With OA you can:
 - define tasks, prompts, model config, and expected I/O in YAML
@@ -21,59 +16,65 @@ With OA you can:
 
 ## Quick Start
 
-Recommended install:
+Install (Python 3.10+):
 
 ```bash
 pipx install open-agent-spec
 ```
 
-Alternative installs:
+<details>
+<summary>Alternative: pip</summary>
 
 ```bash
 pip install open-agent-spec
 ```
+</details>
 
-```bash
-brew tap prime-vector/homebrew-prime-vector
-brew install open-agent-spec
-```
-
-Check the CLI:
+Verify:
 
 ```bash
 oa --version
 oa --help
 ```
 
-## Fastest First Run
+## First Run
 
-This is the shortest path to a successful local setup.
+Shortest path from install to a working agent:
 
-1. Create the repo-native `.agents/` layout:
+**1. Create the agents-as-code layout** (`aac` = repo-native `.agents/` directory):
 
 ```bash
 oa init aac
 ```
 
-2. Validate the generated specs:
+This creates:
+
+```text
+.agents/
+├── example.yaml   # minimal hello-world spec
+├── review.yaml    # code-review agent that accepts a diff file
+└── README.md      # quick usage notes
+```
+
+**2. Validate the generated specs:**
 
 ```bash
 oa validate aac
 ```
 
-3. Set an API key for the engine you want to use. Example for OpenAI:
+**3. Set an API key** for the engine in your spec (OpenAI by default):
 
 ```bash
-export OPENAI_API_KEY=your_api_key_here
+export OPENAI_API_KEY=your_key_here
 ```
 
-4. Run the example agent:
+**4. Run the example agent:**
 
 ```bash
 oa run --spec .agents/example.yaml --task greet --input '{"name":"Alice"}' --quiet
 ```
 
-Expected `--quiet` output is the task output JSON only, which makes it easy to pipe into `jq` or use in scripts:
+`--quiet` prints the task output JSON only — good for piping to `jq` or scripting:
 
 ```json
 {
@@ -81,24 +82,9 @@ Expected `--quiet` output is the task output JSON only, which makes it easy to p
 }
 ```
 
-If you want the full execution envelope for debugging, omit `--quiet`.
+Omit `--quiet` for the full execution envelope with Rich formatting.
 
-## What `oa init aac` Gives You
-
-`oa init aac` creates a repo-native `.agents/` directory for “agents as code”:
-
-```text
-.agents/
-├── example.yaml
-├── review.yaml
-└── README.md
-```
-
-- `example.yaml`: a minimal hello-world spec
-- `review.yaml`: a code-review agent that accepts a diff file
-- `README.md`: quick usage notes for the generated folder
-
-Try the review agent on a local diff:
+**5. Try the review agent on a local diff:**
 
 ```bash
 git diff > change.diff
@@ -107,7 +93,7 @@ oa run --spec .agents/review.yaml --task review --input change.diff --quiet
 
 ## Write Your Own Spec
 
-When you want to create a spec from scratch, start from this shape:
+Start from this shape:
 
 ```yaml
 open_agent_spec: "1.2.6"
@@ -220,9 +206,9 @@ OA deliberately does not prescribe:
 
 ## Notes
 
-- The CLI command is `oa` and not `oas`.
+- The CLI command is `oa` (not `oas`).
 - Python 3.10+ is required.
-- `oa run` requires the relevant provider auth for the engine in your spec.
+- `oa run` requires the relevant provider API key for the engine in your spec.
 
 ## License
 
