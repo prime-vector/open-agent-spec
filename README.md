@@ -10,6 +10,12 @@ OA is a spec-first CLI for developers who want agent behavior to live in source 
 
 ## Super Quick Start
 
+Install (Python 3.10+):
+
+```bash
+pipx install open-agent-spec
+```
+
 ```bash
 oa init aac
 oa validate aac
@@ -23,7 +29,7 @@ With OA you can:
 - keep `.agents/*.yaml` in your repo and call them from CI
 - generate a Python project scaffold when you want to customize implementation
 
-## Quick Start
+## Slightly Less Quick Start
 
 Install (Python 3.10+):
 
