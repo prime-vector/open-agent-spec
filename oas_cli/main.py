@@ -261,6 +261,11 @@ def init_aac(
         "-C",
         help="Repo root to create .agents/ under (default: current directory)",
     ),
+    dry_run: bool = typer.Option(
+        False,
+        "--dry-run",
+        help="Preview what would be created without writing files",
+    ),
     force: bool = typer.Option(
         False,
         "--force",
@@ -290,10 +295,31 @@ def init_aac(
         raise typer.Exit(1)
 
     if example_path.exists() and not force:
+        if dry_run:
+            pass
+        else:
+            console.print(
+                f"[yellow]{example_path} already exists.[/] Use --force to overwrite."
+            )
+            raise typer.Exit(1)
+
+    if dry_run:
+        summary_lines = [
+            "[bold]Dry run:[/] no files will be written.",
+            "",
+            f"  [bold]{example_path}[/]{' (would overwrite)' if example_path.exists() else ''}",
+            f"  [bold]{review_path}[/]{' (would overwrite)' if review_path.exists() else ''}",
+            f"  {agents_dir / 'README.md'}{' (would overwrite)' if (agents_dir / 'README.md').exists() else ''}",
+        ]
+        if example_path.exists() and not force:
+            summary_lines += [
+                "",
+                "[yellow]Note:[/] example.yaml already exists; without [bold]--force[/] this command would fail.",
+            ]
         console.print(
-            f"[yellow]{example_path} already exists.[/] Use --force to overwrite."
+            Panel.fit("\n".join(summary_lines), title="[bold cyan]oa init aac[/]")
         )
-        raise typer.Exit(1)
+        raise typer.Exit(0)
 
     agents_dir.mkdir(parents=True, exist_ok=True)
     example_path.write_text(example_tpl.read_text(encoding="utf-8"), encoding="utf-8")
@@ -362,8 +388,14 @@ def validate_aac(
         "-C",
         help="Repo root containing .agents/ (default: current directory)",
     ),
+    dry_run: bool = typer.Option(
+        False,
+        "--dry-run",
+        help="No-op (validate never writes files)",
+    ),
 ):
     """Validate all agent spec files in .agents/ and print a summary per agent."""
+    _ = dry_run
     agents_dir = directory.resolve() / ".agents"
     if not agents_dir.is_dir():
         console.print(f"[red].agents/ not found[/] at [bold]{agents_dir}[/]")
@@ -433,8 +465,12 @@ def version():
 
 @app.command()
 def update(
-    spec: Path = typer.Option(..., help="Path to updated Open Agent Spec YAML file"),
-    output: Path = typer.Option(..., help="Directory containing the agent to update"),
+    spec: Path | None = typer.Option(
+        None, help="Path to updated Open Agent Spec YAML file"
+    ),
+    output: Path | None = typer.Option(
+        None, help="Directory containing the agent to update"
+    ),
     verbose: bool = typer.Option(
         False, "--verbose", "-v", help="Enable verbose logging"
     ),
@@ -447,6 +483,15 @@ def update(
     if verbose:
         log.setLevel(logging.DEBUG)
 
+    if spec is None or output is None:
+        console.print("[red]Missing required options.[/]\n")
+        console.print(
+            "[bold]Examples:[/]\n"
+            "  [bold]oa update --spec agent.yaml --output ./agent[/]\n"
+            "  [bold]oa update --spec agent.yaml --output ./agent --dry-run[/]\n"
+        )
+        raise typer.Exit(2)
+
     console.print(
         Panel(
             ASCII_TITLE,
@@ -454,6 +499,10 @@ def update(
             subtitle="[green]Open Agent Spec Updater[/]",
         )
     )
+
+    # Narrow types after validation above.
+    spec = spec
+    output = output
 
     # Check if output directory exists
     if not output.exists():
@@ -465,7 +514,7 @@ def update(
     if dry_run:
         console.print(
             Panel.fit(
-                "🧪 [bold]Dry run mode[/]: No files will be updated.", style="yellow"
+                "[bold]Dry run mode[/]: No files will be updated.", style="yellow"
             )
         )
         log.info("Agent Name: %s", agent_name)
@@ -486,7 +535,7 @@ def update(
         typer.echo(str(e), err=True)
         raise typer.Exit(1) from e
 
-    console.print("\n[bold green]✅ Agent project updated![/] ✨")
+    console.print("\n[bold green]Agent project updated![/]")
     log.info("Note: If you're using version control, make sure to commit your changes.")
 
 

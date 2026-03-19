@@ -1,12 +1,50 @@
 # Open Agent Spec (OA)
 
-Define an AI agent once in YAML, then run it directly with `oa run` or generate a Python scaffold with `oa init`.
+Define AI agents as contracts, not scattered prompts.
 
 ![PyPI version](https://img.shields.io/pypi/v/open-agent-spec)
 ![Python](https://img.shields.io/badge/Python-3.10%2B-blue?logo=python)
 ![License](https://img.shields.io/badge/license-MIT-blue)
 
-OA is a spec-first CLI for developers who want agent behavior to live in source control, not spread across prompts, scripts, and framework glue. Think OpenAPI, but for agents.
+Open Agent Spec lets you define an agent once in YAML, validate inputs and outputs against a schema, and either run it directly with `oa run` or generate a Python scaffold with `oa init`.
+
+## Why This Exists
+
+Most agent systems are hard to reason about:
+- outputs are not strictly typed
+- behaviour is buried in prompts
+- logic is split across Python, Markdown, and framework abstractions
+- swapping models often breaks things in subtle ways
+
+## The Idea
+
+Open Agent Spec treats an agent like infrastructure.
+
+Think OpenAPI or Terraform, but for AI agents.
+
+You define:
+- input schema
+- output schema
+- prompts
+- model configuration
+
+Then OA enforces the boundary:
+
+`input -> LLM -> validated output`
+
+If the output does not match schema, the task fails fast with a validation error.
+
+For example, this shape mismatch can silently break downstream systems:
+
+```json
+{"msg":"hello"}
+```
+
+instead of:
+
+```json
+{"response":"hello"}
+```
 
 ## Super Quick Start
 
@@ -28,29 +66,6 @@ With OA you can:
 - run a spec directly without generating code first
 - keep `.agents/*.yaml` in your repo and call them from CI
 - generate a Python project scaffold when you want to customize implementation
-
-## Slightly Less Quick Start
-
-Install (Python 3.10+):
-
-```bash
-pipx install open-agent-spec
-```
-
-<details>
-<summary>Alternative: pip</summary>
-
-```bash
-pip install open-agent-spec
-```
-</details>
-
-Verify:
-
-```bash
-oa --version
-oa --help
-```
 
 ## First Run
 
