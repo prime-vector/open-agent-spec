@@ -34,6 +34,18 @@ Then OA enforces the boundary:
 
 If the output does not match schema, the task fails fast with a validation error.
 
+For example, this shape mismatch can silently break downstream systems:
+
+```json
+{"msg":"hello"}
+```
+
+instead of:
+
+```json
+{"response":"hello"}
+```
+
 ## Super Quick Start
 
 Install (Python 3.10+):
@@ -54,29 +66,6 @@ With OA you can:
 - run a spec directly without generating code first
 - keep `.agents/*.yaml` in your repo and call them from CI
 - generate a Python project scaffold when you want to customize implementation
-
-## Slightly Less Quick Start
-
-Install (Python 3.10+):
-
-```bash
-pipx install open-agent-spec
-```
-
-<details>
-<summary>Alternative: pip</summary>
-
-```bash
-pip install open-agent-spec
-```
-</details>
-
-Verify:
-
-```bash
-oa --version
-oa --help
-```
 
 ## First Run
 
