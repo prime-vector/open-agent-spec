@@ -1,4 +1,4 @@
-# OA: The Open Agent Spec
+# OA Reference
 
 For a short intro, see the [README](../README.md). This page is the longer reference moved out of the main README so PyPI stays simple.
 
@@ -154,11 +154,12 @@ oa init --spec .agents/ci-failure-repair.yaml --output ./repair-agent
 
 ### Bundled examples
 
-This repository ships three `.agents/` specs as working examples:
+This repository ships four `.agents/` specs as working examples:
 
 | File | Role | Engine | Description |
 |------|------|--------|-------------|
 | `hello-world-agent.yaml` | chat | openai | Simple greeting — good starting point |
+| `review.yaml` | reviewer | openai | Reviews a git diff and returns approve/comment/request\_changes with a summary |
 | `ci-failure-repair.yaml` | analyst | openai | Diagnoses GitHub Actions failures and emits remediation commands. Used by `.github/workflows/ci-failure-repair.yml` in this repo. |
 | `codex-runner.yaml` | executor | codex | Runs Codex CLI non-interactively for arbitrary instructions |
 

@@ -41,6 +41,21 @@ Founded in 2024, OA is the original community-driven standard for agent scaffold
 
 ---
 
+## Agents as Code
+
+Store specs in a `.agents/` directory at the repo root — like `.github/workflows/` but for agents. Check them into version control, run them directly with `oa run`, or generate full project scaffolds from them.
+
+```bash
+oa init aac                          # scaffold .agents/ with starter specs
+oa run --spec .agents/example.yaml --task greet --input '{"name":"CI"}' --quiet
+```
+
+This repo's own `.agents/` directory includes a [code-review agent](.agents/review.yaml) and a [CI failure repair agent](.agents/ci-failure-repair.yaml) that is called from a GitHub Actions workflow to auto-fix lint and formatting issues.
+
+See [docs/REFERENCE.md](docs/REFERENCE.md#agents-as-code-agents) for details and bundled examples.
+
+---
+
 ## Why OA?
 
 | | The Usual Way | The OA Way |
@@ -58,14 +73,15 @@ Founded in 2024, OA is the original community-driven standard for agent scaffold
 **1. Install** (Python 3.10+):
 
 ```bash
+pip install open-agent-spec
+```
+
+<details><summary>Or use pipx for isolation</summary>
+
+```bash
 pipx install open-agent-spec
 ```
 
-Set your LLM API key (example for OpenAI):
-
-```bash
-pip install open-agent-spec
-```
 </details>
 
 **2. Create the agents-as-code layout** (`aac` = repo-native `.agents/` directory):
@@ -175,23 +191,21 @@ agent/
 
 Or start from a bundled template:
 
-# Design Philosophy
+```bash
+oa init --template minimal --output ./agent
+```
 
 ---
 
-## How It Works
+## Design Philosophy
 
-Most agent projects hand-roll the same pieces: prompt templates, model config, task definitions, routing glue, runtime wrappers. OA moves all of that into a **declarative spec** so it can be reviewed, versioned, and reused.
+OA is the **contract layer**, not the framework. It defines agent behavior declaratively so it can be reviewed, versioned, and reused — then gets out of the way.
 
-The model:
-- **Spec** defines the agent contract (tasks, I/O shapes, prompts, engine config)
-- **`oa run`** executes the spec directly — no codegen required
-- **`oa init`** generates a starting implementation when you want to customize
-- **External systems** orchestrate multiple specs however they want
-
-OA deliberately does **not** prescribe orchestration, evaluation, governance, or long-running runtime architecture. It's the contract layer, not the framework.
+OA deliberately does **not** prescribe orchestration, evaluation, governance, or long-running runtime architecture. External systems orchestrate multiple specs however they want. Tasks are **atomic units of capability**; higher-level workflows are built on top.
 
 ---
+
+## Related Work
 
 Several projects are exploring ways to standardize how AI agents are defined and orchestrated.
 
