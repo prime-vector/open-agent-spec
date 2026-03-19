@@ -4,7 +4,7 @@ import React, { useState } from "react";
 
 interface GeneratedCodeTabProps {
   code: string | null;
-  language: "python" | "typescript";
+  language: "python";
   emptyMessage?: string;
   /** When using real generator: optional other files to show (e.g. README, requirements) */
   generatedFiles?: Record<string, string>;

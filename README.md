@@ -209,6 +209,7 @@ OA deliberately does not prescribe:
 
 | Resource | Contents |
 |----------|----------|
+| [openagentspec.dev](https://www.openagentspec.dev/) | Project website |
 | [docs/REFERENCE.md](https://github.com/prime-vector/open-agent-spec/blob/main/docs/REFERENCE.md) | Spec structure, engines, templates, `.agents/` usage |
 | [Repository](https://github.com/prime-vector/open-agent-spec) | Source, issues, workflows |
 

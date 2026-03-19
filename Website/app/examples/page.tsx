@@ -168,7 +168,6 @@ export default function PlaygroundPage() {
             aria-label="Code generation language"
           >
             <option value="python">Python</option>
-            <option value="typescript">TypeScript</option>
           </select>
           <GenerateButton
             onClick={handleGenerate}
