@@ -3,7 +3,7 @@
 #   git diff > change.diff
 #   oa run --spec .agents/review.yaml --task review --input change.diff --quiet
 #
-open_agent_spec: "1.2.7"
+open_agent_spec: "1.2.8"
 
 agent:
   name: code-reviewer

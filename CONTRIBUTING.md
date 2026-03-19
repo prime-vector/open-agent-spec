@@ -14,7 +14,7 @@ The Open Agent Spec (OA) uses YAML files to define agent configurations. Use the
 
 #### Basic Structure
 ```yaml
-open_agent_spec: "1.2.7"
+open_agent_spec: "1.2.8"
 
 agent:
   name: my-agent
@@ -52,7 +52,7 @@ intelligence:
 
 1. Trading Agent:
 ```yaml
-open_agent_spec: "1.2.7"
+open_agent_spec: "1.2.8"
 
 agent:
   name: market-analyzer
@@ -71,7 +71,7 @@ intelligence:
 
 2. Content Generator:
 ```yaml
-open_agent_spec: "1.2.7"
+open_agent_spec: "1.2.8"
 
 agent:
   name: content-creator
