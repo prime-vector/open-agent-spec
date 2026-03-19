@@ -232,7 +232,13 @@ oa run --spec .agents/example.yaml --task greet --input '{"name": "CI"}' --quiet
 
 ## Review a diff (code reviewer agent)
 
-After making a small change, have the reviewer agent decide and summarize:
+Run the reviewer immediately with the bundled sample diff:
+
+```bash
+oa run --spec .agents/review.yaml --task review --input .agents/change.diff --quiet
+```
+
+Or review your own change:
 
 ```bash
 git diff > change.diff
@@ -279,19 +285,24 @@ def init_aac(
         help="Print only a short summary line",
     ),
 ):
-    """Agent-as-code: create `.agents/` with example.yaml and review.yaml (no full code gen)."""
+    """Agent-as-code: create `.agents/` with starter specs and a sample change.diff."""
     agents_dir = directory.resolve() / ".agents"
     templates_dir = Path(__file__).parent / "templates"
     example_path = agents_dir / "example.yaml"
     review_path = agents_dir / "review.yaml"
+    change_diff_path = agents_dir / "change.diff"
     example_tpl = templates_dir / "aac-example.yaml"
     review_tpl = templates_dir / "aac-review.yaml"
+    change_diff_tpl = templates_dir / "aac-change.diff"
 
     if not example_tpl.is_file():
         console.print(f"[red]Missing bundled template: {example_tpl}[/]")
         raise typer.Exit(1)
     if not review_tpl.is_file():
         console.print(f"[red]Missing bundled template: {review_tpl}[/]")
+        raise typer.Exit(1)
+    if not change_diff_tpl.is_file():
+        console.print(f"[red]Missing bundled template: {change_diff_tpl}[/]")
         raise typer.Exit(1)
 
     if example_path.exists() and not force:
@@ -309,6 +320,7 @@ def init_aac(
             "",
             f"  [bold]{example_path}[/]{' (would overwrite)' if example_path.exists() else ''}",
             f"  [bold]{review_path}[/]{' (would overwrite)' if review_path.exists() else ''}",
+            f"  {change_diff_path}{' (would overwrite)' if change_diff_path.exists() else ''}",
             f"  {agents_dir / 'README.md'}{' (would overwrite)' if (agents_dir / 'README.md').exists() else ''}",
         ]
         if example_path.exists() and not force:
@@ -325,6 +337,10 @@ def init_aac(
     example_path.write_text(example_tpl.read_text(encoding="utf-8"), encoding="utf-8")
     if not review_path.exists() or force:
         review_path.write_text(review_tpl.read_text(encoding="utf-8"), encoding="utf-8")
+    if not change_diff_path.exists() or force:
+        change_diff_path.write_text(
+            change_diff_tpl.read_text(encoding="utf-8"), encoding="utf-8"
+        )
 
     readme_path = agents_dir / "README.md"
     if not readme_path.exists() or force:
@@ -333,16 +349,18 @@ def init_aac(
     if quiet:
         typer.echo(str(example_path))
         typer.echo(str(review_path))
+        typer.echo(str(change_diff_path))
     else:
         console.print(
             Panel.fit(
                 f"[green]Agent-as-code layout ready.[/]\n\n"
                 f"  [bold]{example_path}[/]\n"
                 f"  [bold]{review_path}[/]\n"
+                f"  {change_diff_path}\n"
                 f"  {readme_path}\n\n"
                 "[dim]Validate:[/] [bold]oa validate aac[/]\n"
                 "[dim]Run example:[/] [bold]oa run --spec .agents/example.yaml --quiet[/]\n"
-                "[dim]Review a diff:[/] [bold]oa run --spec .agents/review.yaml --task review --input …[/]",
+                "[dim]Review sample diff:[/] [bold]oa run --spec .agents/review.yaml --task review --input .agents/change.diff --quiet[/]",
                 title="[bold cyan]oa init aac[/]",
             )
         )
