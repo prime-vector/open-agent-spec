@@ -1,46 +1,32 @@
-## Description
+## What changed
 
-<!-- Provide a clear and concise description of what this PR does and why it's needed -->
+<!-- 1-3 sentences: what does this PR do? -->
 
-## Type of Change
+## Why
 
-<!-- Mark the relevant option(s) with an 'x' -->
+<!-- Link to issue or explain the motivation -->
 
-- [ ] 🐛 Bug fix (non-breaking change which fixes an issue)
-- [ ] ✨ New feature (non-breaking change which adds functionality)
-- [ ] 💥 Breaking change (fix or feature that would cause existing functionality to not work as expected)
-- [ ] 📚 Documentation update
-- [ ] 🔧 Refactoring (no functional changes)
-- [ ] ⚡ Performance improvement
-- [ ] 🧪 Test addition or improvement
-- [ ] 🏗️ CI/CD improvement
+## How tested
 
-## Testing
+<!-- Commands you ran, tests you wrote, or manual checks -->
 
-<!-- Describe how you tested these changes -->
+- [ ] All existing tests pass (`pytest tests/`)
+- [ ] New tests added (if applicable)
 
-- [ ] All existing tests pass
-- [ ] New tests added for new functionality
+## Type of change
+
+- [ ] Bug fix
+- [ ] New feature
+- [ ] Breaking change
+- [ ] Documentation
+- [ ] Refactoring / CI / tooling
+
+## Breaking changes
+
+<!-- If none, delete this section. Otherwise list what breaks and migration steps. -->
 
 ## Checklist
 
-<!-- Go through this checklist and mark items as completed -->
-
-### Code Quality
-- [ ] Code follows the project's style guidelines
-- [ ] Self-review of code completed
-- [ ] Code is commented where necessary
-- [ ] No new warnings or errors from linting tools
-- [ ] Type hints added where appropriate
-
-## Screenshots/Examples
-
-<!-- If applicable, add screenshots or examples to help explain the changes -->
-
-## Deployment Notes
-
-<!-- Any special considerations for deployment -->
-
-- [ ] Version bump required
-- [ ] Environment variables updated
-- [ ] New dependencies deployed
+- [ ] Code follows project style (`ruff check . && ruff format --check .`)
+- [ ] Self-review completed
+- [ ] Version bumped if needed (`pyproject.toml`, templates, docs)

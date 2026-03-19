@@ -1,4 +1,4 @@
-open_agent_spec: "1.2.5"
+open_agent_spec: "1.2.6"
 
 agent:
   name: hello-world-agent
@@ -41,4 +41,3 @@ prompts:
     You are a friendly agent that greets people by name.
     Respond with: "Hello <name>!"
   user: "{{ name }}"
-

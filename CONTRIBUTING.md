@@ -14,7 +14,7 @@ The Open Agent Spec (OA) uses YAML files to define agent configurations. Use the
 
 #### Basic Structure
 ```yaml
-open_agent_spec: "1.2.5"
+open_agent_spec: "1.2.6"
 
 agent:
   name: my-agent
@@ -52,7 +52,7 @@ intelligence:
 
 1. Trading Agent:
 ```yaml
-open_agent_spec: "1.2.5"
+open_agent_spec: "1.2.6"
 
 agent:
   name: market-analyzer
@@ -71,7 +71,7 @@ intelligence:
 
 2. Content Generator:
 ```yaml
-open_agent_spec: "1.2.5"
+open_agent_spec: "1.2.6"
 
 agent:
   name: content-creator
@@ -192,10 +192,10 @@ pip install -e ".[dev]"
 
 ## Pull Request Process
 
-1. Update the README.md with details of changes if needed
-2. Update the documentation if needed
-3. The PR will be merged once you have the sign-off of at least one maintainer
-4. Make sure all CI checks pass
+1. Fill in the [PR template](.github/pull_request_template.md) — What changed, Why, How tested.
+2. Update README.md and docs/ if your change affects user-facing behavior.
+3. Make sure CI passes (`pytest tests/`, `ruff check .`, `ruff format --check .`).
+4. One maintainer sign-off required for merge.
 
 ## Questions?
 

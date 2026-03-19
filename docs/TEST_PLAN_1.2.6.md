@@ -1,4 +1,4 @@
-# OA CLI 1.2.5 — manual test plan
+# OA CLI 1.2.6 — manual test plan
 
 **Purpose:** Step-by-step checks for **open-agent-spec** CLI (**`oa`** command) before sign-off.
 
@@ -11,8 +11,8 @@
 | Step | Action | Pass if |
 |------|--------|--------|
 | 0.1 | `python --version` | Shows 3.10 or newer |
-| 0.2 | Install the build under test | e.g. `pip install open-agent-spec==1.2.5` or `pip install .` from repo |
-| 0.3 | `oa --version` | Prints **1.2.5** (or `python -m oas_cli --version` if `oa` not on PATH) |
+| 0.2 | Install the build under test | e.g. `pip install open-agent-spec==1.2.6` or `pip install .` from repo |
+| 0.3 | `oa --version` | Prints **1.2.6** (or `python -m oas_cli --version` if `oa` not on PATH) |
 
 **Note:** The console script is **`oa`** (not `oas`). If `oa` is not found, use:
 
@@ -26,7 +26,7 @@ python -m oas_cli --version
 
 | # | Command | What to check |
 |---|---------|----------------|
-| 1.1 | `oa --version` | Exits 0; shows version **1.2.5** |
+| 1.1 | `oa --version` | Exits 0; shows version **1.2.6** |
 | 1.2 | `oa version` | Same as 1.1 (dedicated version command) |
 | 1.3 | `oa --help` | Lists commands: `init`, `run`, `update`, `version` |
 | 1.4 | `oa init --help` | Shows `--spec`, `--output`, `--template`, `--dry-run`, `--verbose` |
@@ -48,11 +48,11 @@ python -m oas_cli --version
 | # | Command | What to check |
 |---|---------|----------------|
 | 3.1 | `cd /tmp && mkdir -p oa-test && cd oa-test` | Clean dir |
-| 3.2 | `oa init aac` | Creates `.agents/example.yaml` and `.agents/README.md` |
-| 3.3 | `test -f .agents/example.yaml` | File exists |
+| 3.2 | `oa init aac` | Creates `.agents/example.yaml`, `.agents/review.yaml`, and `.agents/README.md` |
+| 3.3 | `test -f .agents/example.yaml && test -f .agents/review.yaml` | Both files exist |
 | 3.4 | `oa init aac` again (no force) | Exits non-zero; says file exists; suggests `--force` |
 | 3.5 | `oa init aac --force` | Overwrites; still succeeds |
-| 3.6 | `oa init aac -q` | Quiet: prints only path to `example.yaml` (run in new empty dir or after rm -rf .agents) |
+| 3.6 | `oa init aac -q` | Quiet: prints only the paths to `example.yaml` and `review.yaml` |
 
 ---
 
@@ -62,7 +62,7 @@ python -m oas_cli --version
 
 | # | Command | What to check |
 |---|---------|----------------|
-| 4.1 | After `oa init aac`, `oa run --spec .agents/example.yaml --task greet --input '{"name": "Tester"}' --quiet` | Exit 0; **stdout** is JSON only (no banner); includes `"task"`, `"output"` (or error if no key) |
+| 4.1 | After `oa init aac`, `oa run --spec .agents/example.yaml --task greet --input '{"name": "Tester"}' --quiet` | Exit 0; **stdout** is task output JSON only (no banner), suitable for piping to `jq` |
 | 4.2 | Same without `--quiet` | Banner + pretty JSON (Rich) |
 | 4.3 | `oa run --spec .agents/example.yaml --input '{"name": "X"}'` | Omitting `--task` uses default task; still runs or clear error |
 | 4.4 | `oa run --spec missing.yaml` | Non-zero; error on stderr |
@@ -122,7 +122,7 @@ python -m oas_cli --version
 
 ## Pass criteria
 
-- **§1** help/version all succeed; version reads **1.2.5**.
+- **§1** help/version all succeed; version reads **1.2.6**.
 - **§3** `oa init aac` creates `.agents/` as documented.
 - **§5–6** init produces expected tree; `--dry-run` does not write.
 - **§7** update works on existing dir; fails cleanly on missing dir.

@@ -80,6 +80,14 @@ dmypy.json
 *.spec.yaml
 !example.spec.yaml
 
+# CI repair agent artifacts (generated at runtime; must never be committed)
+failed-log.txt
+failed-log.trimmed.txt
+repair-input.json
+repair-output.json
+repair-plan.json
+repair-*.json
+
 # Website (Next.js) artifacts
 /Website/.next/
 /Website/node_modules/

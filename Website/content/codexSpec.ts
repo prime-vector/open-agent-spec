@@ -1,5 +1,5 @@
 // Codex engine example spec. Keep in sync with codexSpec.yaml.
-export const CODEX_SPEC_YAML = `open_agent_spec: "1.2.5"
+export const CODEX_SPEC_YAML = `open_agent_spec: "1.2.6"
 
 agent:
   name: repo-refactor-agent

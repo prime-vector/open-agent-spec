@@ -1,63 +1,102 @@
 # Open Agent Spec (OA)
 
-Define AI agents with YAML. Generate working scaffolding instantly.
+Define an AI agent once in YAML, then run it directly with `oa run` or generate a Python scaffold with `oa init`.
 
 ![PyPI version](https://img.shields.io/pypi/v/open-agent-spec)
 ![Python](https://img.shields.io/pypi/pyversions/open-agent-spec)
 ![License](https://img.shields.io/badge/license-MIT-blue)
 
-**Open Agent Spec (OA)** is a YAML specification for defining AI agents and generating working scaffolding.
+OA is a spec-first CLI for developers who want agent behavior to live in source control — not spread across prompts, scripts, and framework glue. Think OpenAPI, but for agents.
 
-Building AI agents today often requires manually wiring together:
+With OA you can:
+- define tasks, prompts, model config, and expected I/O in YAML
+- run a spec directly without generating code first
+- keep `.agents/*.yaml` in your repo and call them from CI
+- generate a Python project scaffold when you want to customize implementation
 
-- prompt templates  
-- LLM configuration  
-- task routing  
-- memory structures  
-- runtime logic  
+## Quick Start
 
-Open Agent Spec moves these concerns into a **declarative specification**.
-
-Define an agent once in YAML and run it directly, or generate a project scaffold for customization.
-
-You can think of OA as something similar to **OpenAPI for services** or **Terraform for infrastructure**, but for **AI agents**.
-
----
-
-# Quick Start
-
-Install the CLI:
-
-**pip**
-
-```bash
-pip install open-agent-spec
-```
-
-**Homebrew** (tap then install):
-
-```bash
-brew tap prime-vector/homebrew-prime-vector
-brew install open-agent-spec
-oa --version
-```
-
-**pipx** (isolated CLI):
+Install (Python 3.10+):
 
 ```bash
 pipx install open-agent-spec
 ```
 
-Set your LLM API key (example for OpenAI):
+<details>
+<summary>Alternative: pip</summary>
 
 ```bash
-export OPENAI_API_KEY=your_api_key_here
+pip install open-agent-spec
+```
+</details>
+
+Verify:
+
+```bash
+oa --version
+oa --help
 ```
 
-Create an agent spec:
+## First Run
+
+Shortest path from install to a working agent:
+
+**1. Create the agents-as-code layout** (`aac` = repo-native `.agents/` directory):
+
+```bash
+oa init aac
+```
+
+This creates:
+
+```text
+.agents/
+├── example.yaml   # minimal hello-world spec
+├── review.yaml    # code-review agent that accepts a diff file
+└── README.md      # quick usage notes
+```
+
+**2. Validate the generated specs:**
+
+```bash
+oa validate aac
+```
+
+**3. Set an API key** for the engine in your spec (OpenAI by default):
+
+```bash
+export OPENAI_API_KEY=your_key_here
+```
+
+**4. Run the example agent:**
+
+```bash
+oa run --spec .agents/example.yaml --task greet --input '{"name":"Alice"}' --quiet
+```
+
+`--quiet` prints the task output JSON only — good for piping to `jq` or scripting:
+
+```json
+{
+  "response": "Hello Alice!"
+}
+```
+
+Omit `--quiet` for the full execution envelope with Rich formatting.
+
+**5. Try the review agent on a local diff:**
+
+```bash
+git diff > change.diff
+oa run --spec .agents/review.yaml --task review --input change.diff --quiet
+```
+
+## Write Your Own Spec
+
+Start from this shape:
 
 ```yaml
-open_agent_spec: "1.2.5"
+open_agent_spec: "1.2.6"
 
 agent:
   name: hello-world-agent
@@ -66,7 +105,7 @@ agent:
 intelligence:
   type: llm
   engine: openai
-  model: gpt-4o  # or any model your account has access to
+  model: gpt-4o
 
 tasks:
   greet:
@@ -77,7 +116,6 @@ tasks:
         name:
           type: string
       required: [name]
-
     output:
       type: object
       properties:
@@ -91,46 +129,24 @@ prompts:
   user: "{{ name }}"
 ```
 
-Run the agent directly from the spec:
+Validate first, then run:
 
 ```bash
-oa validate --spec agent.yaml          # schema check only (no model call)
-oa run --spec agent.yaml --task greet \
-  --input '{"name":"Alice"}' --quiet   # model call (requires OPENAI_API_KEY)
+oa validate --spec agent.yaml
+oa run --spec agent.yaml --task greet --input '{"name":"Alice"}' --quiet
 ```
 
----
+## Generate a Python Scaffold
 
-# Agents as Code
-
-Store specs in a `.agents/` directory at the repo root — like `.github/workflows/` but for agents. Run them directly, or generate code from them.
-
-```bash
-oa init aac                          # scaffold .agents/ with an example spec
-oa run --spec .agents/example.yaml --task greet --input '{"name":"CI"}' --quiet
-```
-
-This repo's own `.agents/` directory includes a [CI failure repair agent](.agents/ci-failure-repair.yaml) that is called from a GitHub Actions workflow to auto-fix lint and formatting issues.
-
-See [docs/REFERENCE.md](docs/REFERENCE.md#agents-as-code-agents) for details and bundled examples.
-
----
-
-# Generate a Project Scaffold (Optional)
-
-If you want to extend the implementation, generate a project scaffold:
+If you want editable generated code instead of running the YAML directly:
 
 ```bash
 oa init --spec agent.yaml --output ./agent
 ```
 
-This produces a Python project you can customize.
+Generated structure:
 
----
-
-# Generated Project Structure
-
-```
+```text
 agent/
 ├── agent.py
 ├── models.py
@@ -140,84 +156,59 @@ agent/
 └── README.md
 ```
 
----
+You can also start from the bundled template:
 
-# Design Philosophy
+```bash
+oa init --template minimal --output ./agent
+```
 
-Open Agent Spec (OA) intentionally keeps the specification **minimal**.
+## Core Idea
 
-The goal is to define agents declaratively and generate consistent project scaffolding.
-
-Tasks in an OA specification are intended to represent **atomic units of capability** for an agent, rather than complex workflows. Higher-level orchestration can be built on top of these primitives by external systems.
-
-OA does **not prescribe**:
-
-- runtime orchestration
-- governance systems
-- evaluation frameworks
-
-These concerns can be layered on top by different runtimes, frameworks, or architectures.
-
----
-
-# Why OA?
-
-Many teams building agents end up recreating the same infrastructure:
-
-- agent scaffolding
-- prompt organization
+Most agent projects end up hand-rolling the same pieces:
+- prompt templates
 - model configuration
 - task definitions
+- routing glue
+- runtime wrappers
 
-OA provides a consistent way to **define agents once and generate a working structure automatically**.
+OA moves those concerns into a declarative spec so they can be reviewed, versioned, and reused.
 
----
+The intended model is:
+- spec defines the agent contract
+- `oa run` executes the spec directly
+- `oa init` generates a starting implementation when you need code
+- external systems can orchestrate multiple specs however they want
 
-# Related Work
+OA deliberately does not prescribe:
+- orchestration
+- evaluation
+- governance
+- long-running runtime architecture
 
-Several projects are exploring ways to standardize how AI agents are defined and orchestrated.
-
-Open Agent Spec (OA) focuses specifically on **developer-facing scaffolding from a declarative YAML specification**.
-
-The goal is to make agent architecture easier to reason about and quicker to implement.
-
----
-
-## Commands
+## Common Commands
 
 | Command | Purpose |
 |--------|--------|
-| `oa init --spec … --output …` | Generate project from YAML |
-| `oa init --template minimal --output …` | Same with bundled spec |
-| `oa init aac` | `.agents/` + example spec only |
-| `oa run --spec … [--task …] [--input JSON] [--quiet]` | Run task without codegen |
-| `oa update --spec … --output …` | Regenerate into existing dir |
-| `oa init … --dry-run` | Validate only |
+| `oa init aac` | Create `.agents/` with starter specs |
+| `oa validate aac` | Validate all specs in `.agents/` |
+| `oa validate --spec agent.yaml` | Validate one spec |
+| `oa run --spec agent.yaml --task greet --input '{"name":"Alice"}' --quiet` | Run one task directly from YAML |
+| `oa init --spec agent.yaml --output ./agent` | Generate a Python scaffold |
+| `oa init --template minimal --output ./agent` | Generate from bundled template |
+| `oa update --spec agent.yaml --output ./agent` | Regenerate an existing scaffold |
 
-```bash
-oa --help
-```
-
----
-
-## More detail
+## More Detail
 
 | Resource | Contents |
 |----------|----------|
-| [docs/REFERENCE.md](https://github.com/prime-vector/open-agent-spec/blob/main/docs/REFERENCE.md) | Full spec, engines, templates |
-| [Repository](https://github.com/prime-vector/open-agent-spec) | Source, issues, CI |
+| [docs/REFERENCE.md](https://github.com/prime-vector/open-agent-spec/blob/main/docs/REFERENCE.md) | Spec structure, engines, templates, `.agents/` usage |
+| [Repository](https://github.com/prime-vector/open-agent-spec) | Source, issues, workflows |
 
-[![PyPI](https://img.shields.io/pypi/v/open-agent-spec)](https://pypi.org/project/open-agent-spec/)
-[![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+## Notes
 
----
-
-## Historical Changes
-
-“CLI command is oa (formerly oas in older releases).”
-
----
+- The CLI command is `oa` (not `oas`).
+- Python 3.10+ is required.
+- `oa run` requires the relevant provider API key for the engine in your spec.
 
 ## License
 
