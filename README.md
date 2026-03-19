@@ -12,7 +12,7 @@ Open Agent Spec lets you define an agent once in YAML, validate inputs and outpu
 
 Most agent systems are hard to reason about:
 - outputs are not strictly typed
-- behavior is buried in prompts
+- behaviour is buried in prompts
 - logic is split across Python, Markdown, and framework abstractions
 - swapping models often breaks things in subtle ways
 
@@ -32,7 +32,7 @@ Then OA enforces the boundary:
 
 `input -> LLM -> validated output`
 
-If output does not match schema, the task fails fast with a validation error.
+If the output does not match schema, the task fails fast with a validation error.
 
 ## Super Quick Start
 
