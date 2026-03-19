@@ -70,25 +70,17 @@ python -m oas_cli --version
 
 ---
 
-## 5. `oa init --template minimal --output …` (full scaffold)
+## 5. `oa init --spec … --output …` (full scaffold)
 
 | # | Command | What to check |
 |---|---------|----------------|
-| 5.1 | `rm -rf /tmp/oa-agent && oa init --template minimal --output /tmp/oa-agent` | Success message; no traceback |
+| 5.1 | Use path to bundled minimal spec, e.g. from repo:  
+`oa init --spec <path-to>/oas_cli/templates/minimal-agent.yaml --output /tmp/oa-agent` | Success message; no traceback |
 | 5.2 | `ls /tmp/oa-agent` | Contains `agent.py`, `requirements.txt`, `.env.example`, `README.md`, `prompts/` |
 | 5.3 | `ls /tmp/oa-agent/prompts` | At least `agent_prompt.jinja2`; task prompts if spec has tasks |
-| 5.4 | `oa init --template minimal --output /tmp/oa-agent --dry-run` | No files changed; lists what would be created |
-
----
-
-## 6. `oa init --spec … --output …` (custom spec)
-
-| # | Command | What to check |
-|---|---------|----------------|
-| 6.1 | Use path to bundled minimal spec, e.g. from repo:  
-`oa init --spec <path-to>/oas_cli/templates/minimal-agent.yaml --output /tmp/oa-agent2` | Same file set as §5 |
-| 6.2 | `oa init --spec /nonexistent.yaml --output /tmp/x` | Non-zero; validation/path error |
-| 6.3 | `oa init --spec <valid.yaml> --output /tmp/oa-agent2 --verbose` | More log output; still succeeds |
+| 5.4 | `oa init --spec <same-spec> --output /tmp/oa-agent --dry-run` | No files changed; lists what would be created |
+| 5.5 | `oa init --spec /nonexistent.yaml --output /tmp/x` | Non-zero; validation/path error |
+| 5.6 | `oa init --spec <valid.yaml> --output /tmp/oa-agent --verbose` | More log output; still succeeds |
 
 ---
 

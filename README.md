@@ -171,12 +171,6 @@ agent/
 └── README.md
 ```
 
-You can also start from the bundled template:
-
-```bash
-oa init --template minimal --output ./agent
-```
-
 ## Core Idea
 
 Most agent projects end up hand-rolling the same pieces:
@@ -209,7 +203,6 @@ OA deliberately does not prescribe:
 | `oa validate --spec agent.yaml` | Validate one spec |
 | `oa run --spec agent.yaml --task greet --input '{"name":"Alice"}' --quiet` | Run one task directly from YAML |
 | `oa init --spec agent.yaml --output ./agent` | Generate a Python scaffold |
-| `oa init --template minimal --output ./agent` | Generate from bundled template |
 | `oa update --spec agent.yaml --output ./agent` | Regenerate an existing scaffold |
 
 ## More Detail

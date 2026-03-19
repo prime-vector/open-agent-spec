@@ -191,13 +191,7 @@ output/
 
 ## Bundled templates
 
-CLI shortcut (single built-in spec):
-
-```bash
-oa init --template minimal --output my-agent/
-```
-
-Other YAMLs ship inside the package; from a clone you can do:
+YAMLs ship inside the package; from a clone you can do:
 
 ```bash
 oa init --spec oas_cli/templates/minimal-multi-task-agent.yaml --output my-multi-agent/

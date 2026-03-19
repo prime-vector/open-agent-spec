@@ -114,7 +114,7 @@ intelligence:
 
 #### Adding a new template
 
-Add a new YAML spec under `oas_cli/templates/` (e.g. `my-template.yaml`). For `oa init --template minimal`-style usage, the CLI loads from that directory; For custom YAML use `oa init --spec path/to/your.yaml`. Overriding the template directory (e.g. via an env var) is not currently supported. Document the template in the README “Built-in Templates” section.
+Add a new YAML spec under `oas_cli/templates/` (e.g. `my-template.yaml`). For scaffolding, reference it explicitly with `oa init --spec path/to/your.yaml --output ...`. Overriding the templates directory (e.g. via an env var) is not currently supported. Document the template in the README “Built-in Templates” section.
 
 #### Adding an agent-as-code example
 
