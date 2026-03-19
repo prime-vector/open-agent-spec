@@ -1,4 +1,4 @@
-# Open Agent Spec — reference
+# OA: The Open Agent Spec
 
 For a short intro, see the [README](../README.md). This page is the longer reference moved out of the main README so PyPI stays simple.
 
