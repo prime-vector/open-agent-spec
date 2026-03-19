@@ -382,7 +382,7 @@ def validate_aac(
         except ValueError:
             rel_path = spec_path.name
         try:
-            spec_data, agent_name, class_name = validate_spec_file(spec_path)
+            spec_data, agent_name, _class_name = validate_spec_file(spec_path)
         except (ValueError, KeyError) as err:
             failed += 1
             console.print(
