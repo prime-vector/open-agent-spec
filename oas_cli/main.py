@@ -316,7 +316,9 @@ def init_aac(
                 "",
                 "[yellow]Note:[/] example.yaml already exists; without [bold]--force[/] this command would fail.",
             ]
-        console.print(Panel.fit("\n".join(summary_lines), title="[bold cyan]oa init aac[/]"))
+        console.print(
+            Panel.fit("\n".join(summary_lines), title="[bold cyan]oa init aac[/]")
+        )
         raise typer.Exit(0)
 
     agents_dir.mkdir(parents=True, exist_ok=True)
