@@ -6,7 +6,7 @@ Define an AI agent once in YAML, then run it directly with `oa run` or generate 
 ![Python](https://img.shields.io/pypi/pyversions/open-agent-spec)
 ![License](https://img.shields.io/badge/license-MIT-blue)
 
-OA is a spec-first CLI for developers who want agent behavior to live in source control — not spread across prompts, scripts, and framework glue. Think OpenAPI, but for agents.
+OA is a spec-first CLI for developers who want agent behavior to live in source control, not spread across prompts, scripts, and framework glue. Think OpenAPI, but for agents.
 
 With OA you can:
 - define tasks, prompts, model config, and expected I/O in YAML
@@ -74,7 +74,7 @@ export OPENAI_API_KEY=your_key_here
 oa run --spec .agents/example.yaml --task greet --input '{"name":"Alice"}' --quiet
 ```
 
-`--quiet` prints the task output JSON only — good for piping to `jq` or scripting:
+`--quiet` prints the task output JSON only, good for piping to `jq` or scripting:
 
 ```json
 {
@@ -96,7 +96,7 @@ oa run --spec .agents/review.yaml --task review --input change.diff --quiet
 Start from this shape:
 
 ```yaml
-open_agent_spec: "1.2.6"
+open_agent_spec: "1.2.7"
 
 agent:
   name: hello-world-agent
@@ -212,6 +212,6 @@ OA deliberately does not prescribe:
 
 ## License
 
-MIT — see [LICENSE](LICENSE).
+MIT | see [LICENSE](LICENSE).
 
 [Open Agent Stack](https://www.openagentstack.ai)

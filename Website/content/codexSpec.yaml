@@ -1,4 +1,4 @@
-open_agent_spec: "1.2.6"
+open_agent_spec: "1.2.7"
 
 agent:
   name: repo-refactor-agent

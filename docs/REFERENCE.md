@@ -5,7 +5,7 @@ For a short intro, see the [README](../README.md). This page is the longer refer
 ## Spec file structure
 
 ```yaml
-open_agent_spec: "1.2.6"
+open_agent_spec: "1.2.7"
 
 agent:
   name: "hello-world-agent"
