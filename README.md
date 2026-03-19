@@ -8,6 +8,15 @@ Define an AI agent once in YAML, then run it directly with `oa run` or generate 
 
 OA is a spec-first CLI for developers who want agent behavior to live in source control, not spread across prompts, scripts, and framework glue. Think OpenAPI, but for agents.
 
+## Super Quick Start
+
+```bash
+oa init aac
+oa validate aac
+export OPENAI_API_KEY=your_key_here
+oa run --spec .agents/example.yaml --task greet --input '{"name":"Alice"}' --quiet
+```
+
 With OA you can:
 - define tasks, prompts, model config, and expected I/O in YAML
 - run a spec directly without generating code first
@@ -209,6 +218,10 @@ OA deliberately does not prescribe:
 - The CLI command is `oa` (not `oas`).
 - Python 3.10+ is required.
 - `oa run` requires the relevant provider API key for the engine in your spec.
+
+## About
+- OA Open Agent Spec was dreamed up by Andrew Whitehouse in late 2024, with a desire to give structure and standardiasation to early agent systems
+- In early 2025 Prime Vector was formed taking over the public facing project
 
 ## License
 
