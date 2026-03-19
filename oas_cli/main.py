@@ -380,7 +380,7 @@ def validate_aac(
         try:
             rel_path = spec_path.resolve().relative_to(directory.resolve())
         except ValueError:
-            rel_path = spec_path.name
+            rel_path = Path(spec_path.name)
         try:
             spec_data, agent_name, _class_name = validate_spec_file(spec_path)
         except (ValueError, KeyError) as err:
