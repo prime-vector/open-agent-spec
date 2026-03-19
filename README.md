@@ -3,7 +3,7 @@
 Define an AI agent once in YAML, then run it directly with `oa run` or generate a Python scaffold with `oa init`.
 
 ![PyPI version](https://img.shields.io/pypi/v/open-agent-spec)
-![Python](https://img.shields.io/pypi/pyversions/open-agent-spec)
+![Python](https://img.shields.io/badge/Python-3.10%2B-blue?logo=python)
 ![License](https://img.shields.io/badge/license-MIT-blue)
 
 OA is a spec-first CLI for developers who want agent behavior to live in source control, not spread across prompts, scripts, and framework glue. Think OpenAPI, but for agents.
