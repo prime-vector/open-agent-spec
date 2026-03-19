@@ -12,12 +12,12 @@ Open Agent Spec lets you define an agent once in YAML, validate inputs and outpu
 
 ```mermaid
 flowchart TD
-    A["📄 YAML Spec\n(.agents/*.yaml)"] -->|"oa run / oa init"| B["✅ Input Validation\n(schema check)"]
-    B --> C["📝 Prompt Builder\n(template substitution)"]
-    C --> D["⚙️ Engine Adapter"]
-    D --> E["✅ Output Validation\n(schema enforcement)"]
-    E -->|"match"| F["📦 Structured JSON"]
-    E -->|"mismatch"| G["❌ Fail Fast\n(validation error)"]
+    A["YAML Spec\n(.agents/*.yaml)"] -->|"oa run / oa init"| B["Input Validation\n(schema check)"]
+    B --> C["Prompt Builder\n(template substitution)"]
+    C --> D["Engine Adapter"]
+    D --> E["Output Validation\n(schema enforcement)"]
+    E -->|"match"| F["Structured JSON"]
+    E -->|"mismatch"| G["Fail Fast\n(validation error)"]
 
     subgraph Engines
         D
