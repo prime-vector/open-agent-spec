@@ -86,7 +86,7 @@ export default function HomePage() {
                   Open source · MIT
                 </span>
                 <span className="rounded-full border border-stone-400/50 bg-white/60 px-3 py-1 text-[10px] font-medium text-stone-700 backdrop-blur-sm">
-                  Spec v1.2.7
+                  Spec v1.2.9
                 </span>
               </div>
             </div>
@@ -295,7 +295,7 @@ export default function HomePage() {
                 Open source · MIT
               </span>
               <span className="rounded-full border border-stone-400/50 bg-stone-100/80 px-3 py-1">
-                Spec v1.2.7
+                Spec v1.2.9
               </span>
             </div>
           </section>
