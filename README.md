@@ -126,7 +126,7 @@ oa run --spec .agents/review.yaml --task review --input change.diff --quiet
 Start from this shape:
 
 ```yaml
-open_agent_spec: "1.2.7"
+open_agent_spec: "1.2.8"
 
 agent:
   name: hello-world-agent
