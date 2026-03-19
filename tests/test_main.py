@@ -37,10 +37,16 @@ def test_init_aac_creates_agents_example(tmp_path):
     result = runner.invoke(app, ["init", "aac", "--directory", str(tmp_path), "-q"])
     assert result.exit_code == 0
     example = tmp_path / ".agents" / "example.yaml"
+    review = tmp_path / ".agents" / "review.yaml"
+    change_diff = tmp_path / ".agents" / "change.diff"
     assert example.is_file()
+    assert review.is_file()
+    assert change_diff.is_file()
     text = example.read_text()
+    diff_text = change_diff.read_text()
     assert "open_agent_spec" in text
     assert "hello-world-agent" in text
+    assert "diff --git" in diff_text
 
 
 def test_init_without_output_shows_helpful_message():

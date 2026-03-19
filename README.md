@@ -46,6 +46,8 @@ instead of:
 {"response":"hello"}
 ```
 
+![Agents as Code — OA init spec, spec run, LLM execution, tasks executed](OAAAC.png)
+
 ## Super Quick Start
 
 Install (Python 3.10+):
@@ -83,6 +85,7 @@ This creates:
 .agents/
 ├── example.yaml   # minimal hello-world spec
 ├── review.yaml    # code-review agent that accepts a diff file
+├── change.diff    # sample diff for immediate review-agent testing
 └── README.md      # quick usage notes
 ```
 
@@ -114,7 +117,13 @@ oa run --spec .agents/example.yaml --task greet --input '{"name":"Alice"}' --qui
 
 Omit `--quiet` for the full execution envelope with Rich formatting.
 
-**5. Try the review agent on a local diff:**
+**5. Run the review agent with the bundled sample diff:**
+
+```bash
+oa run --spec .agents/review.yaml --task review --input .agents/change.diff --quiet
+```
+
+Or review your own change:
 
 ```bash
 git diff > change.diff
@@ -126,7 +135,7 @@ oa run --spec .agents/review.yaml --task review --input change.diff --quiet
 Start from this shape:
 
 ```yaml
-open_agent_spec: "1.2.7"
+open_agent_spec: "1.2.8"
 
 agent:
   name: hello-world-agent

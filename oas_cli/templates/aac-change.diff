@@ -1,0 +1,12 @@
+diff --git a/src/calc.py b/src/calc.py
+index 1111111..2222222 100644
+--- a/src/calc.py
++++ b/src/calc.py
+@@ -1,5 +1,7 @@
+ def add(a, b):
+     return a + b
+ 
+ def divide(a, b):
++    # TODO: handle divide-by-zero explicitly
++    print("DEBUG divide inputs", a, b)
+     return a / b
