@@ -11,25 +11,20 @@ Open Agent Spec lets you define an agent once in YAML, validate inputs and outpu
 ## How It Works
 
 ```mermaid
-flowchart TD
-    A["YAML Spec\n(.agents/*.yaml)"] -->|"oa run / oa init"| B["Input Validation\n(schema check)"]
-    B --> C["Prompt Builder\n(template substitution)"]
-    C --> D["Engine Adapter"]
-    D --> E["Output Validation\n(schema enforcement)"]
-    E -->|"match"| F["Structured JSON"]
-    E -->|"mismatch"| G["Fail Fast\n(validation error)"]
-
-    subgraph Engines
-        D
-    end
+flowchart LR
+    A["YAML Spec"] --> B["Input\n(schema check)"]
+    B --> C["LLM"]
+    C --> D["Output\n(schema check)"]
+    D -->|"valid"| E["Structured JSON"]
+    D -->|"invalid"| F["Fail Fast"]
 
     style A fill:#2d333b,stroke:#539bf5,color:#adbac7
-    style F fill:#2d333b,stroke:#57ab5a,color:#adbac7
-    style G fill:#2d333b,stroke:#e5534b,color:#adbac7
-    style D fill:#2d333b,stroke:#539bf5,color:#adbac7
+    style E fill:#2d333b,stroke:#57ab5a,color:#adbac7
+    style F fill:#2d333b,stroke:#e5534b,color:#adbac7
+    style C fill:#2d333b,stroke:#539bf5,color:#adbac7
 ```
 
-Supported engines: **OpenAI** · **Claude** · **Grok** · **Codex** · **Local** · **Custom**
+Engines: **OpenAI** · **Claude** · **Grok** · **Codex** · **Local** · **Custom**
 
 ## Why This Exists
 
