@@ -8,8 +8,7 @@
       "open_agent_spec",
       "agent",
       "intelligence",
-      "tasks",
-      "prompts"
+      "tasks"
     ],
     "properties": {
       "open_agent_spec": {
@@ -305,6 +304,31 @@
                   }
                 },
                 "description": "Output schema for this task"
+              },
+              "prompts": {
+                "type": "object",
+                "properties": {
+                  "system": {
+                    "type": "string",
+                    "description": "System prompt for this task (overrides global prompts.system)"
+                  },
+                  "user": {
+                    "type": "string",
+                    "description": "User prompt template for this task (overrides global prompts.user)"
+                  }
+                },
+                "description": "Per-task prompts. Takes priority over the global prompts section."
+              },
+              "response_format": {
+                "type": "string",
+                "enum": ["json", "text"],
+                "default": "json",
+                "description": "Output format. 'json' (default): runner parses model output as JSON. 'text': raw model output is returned as-is; output schema validation is skipped."
+              },
+              "depends_on": {
+                "type": "array",
+                "items": { "type": "string" },
+                "description": "List of task names that must run before this task. Their outputs are merged into this task's input (later entries win on key collision). Linear chains only — no branching or conditions."
               }
             },
             "required": [
@@ -319,16 +343,15 @@
         "type": "object",
         "properties": {
           "system": {
-            "type": "string"
+            "type": "string",
+            "description": "Global fallback system prompt used when a task has no per-task prompts"
           },
           "user": {
-            "type": "string"
+            "type": "string",
+            "description": "Global fallback user prompt template"
           }
         },
-        "required": [
-          "system",
-          "user"
-        ]
+        "description": "Global prompt fallbacks. Per-task prompts (tasks.<name>.prompts) take priority."
       },
       "logging": {
         "type": "object",

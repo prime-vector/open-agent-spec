@@ -119,6 +119,54 @@ export default function HomePage() {
               </Link>
             </div>
 
+            {/* Announcement — multi-step workflows */}
+            <div className="mt-8">
+              <div className="mb-3 flex flex-wrap items-baseline gap-2">
+                <span className="inline-block rounded bg-stone-900 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-stone-100">
+                  New in 1.2.9
+                </span>
+                <p className="text-sm font-semibold text-stone-900">
+                  NEW!! Multi-step agent workflows, no framework required.{" "}
+                  <span className="font-normal text-stone-600">
+                    Define composable tasks and chain them with{" "}
+                    <code className="rounded bg-stone-200 px-1 py-0.5 text-stone-800">
+                      depends_on
+                    </code>
+                    .
+                  </span>
+                </p>
+              </div>
+              <div className="overflow-hidden rounded-xl border border-stone-700 bg-stone-900">
+                <div className="overflow-x-auto p-4 font-mono text-[11px] leading-relaxed text-stone-300">
+                  <pre>{`tasks:
+  extract:
+    description: Pull key facts from a document
+    prompts:
+      system: "Extract the three most important facts."
+      user: "{{ document }}"
+    output:
+      type: object
+      properties:
+        facts: { type: string }
+      required: [facts]
+
+  summarize:
+    description: Summarise the extracted facts
+    depends_on: [extract]     # extract runs first; its output flows in automatically
+    prompts:
+      system: "Summarise in one sentence."
+      user: "{{ facts }}"
+    output:
+      type: object
+      properties:
+        summary: { type: string }`}</pre>
+                </div>
+                <div className="border-t border-stone-700 px-4 py-2 text-[11px] text-stone-500">
+                  No orchestration engine. No Python glue. Just YAML.
+                </div>
+              </div>
+            </div>
+
             {/* CLI demo — under hero CTAs */}
             <div className="mt-8 overflow-hidden rounded-xl border border-stone-300/50 bg-stone-900/5 shadow-sm">
               <Image

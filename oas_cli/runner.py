@@ -17,11 +17,61 @@ import yaml
 from .runtime import invoke_intelligence
 
 
+class OARunError(Exception):
+    """Structured run-time error that carries machine-readable metadata.
+
+    Attributes:
+        message: Human-readable description.
+        code:    Machine-readable error code (e.g. TASK_NOT_FOUND).
+        stage:   Pipeline stage where the error occurred.
+        task:    Task name involved, if known.
+    """
+
+    def __init__(
+        self,
+        message: str,
+        code: str,
+        stage: str,
+        task: str | None = None,
+    ) -> None:
+        super().__init__(message)
+        self.code = code
+        self.stage = stage
+        self.task = task
+
+    def to_dict(self) -> dict[str, Any]:
+        d: dict[str, Any] = {
+            "error": str(self),
+            "code": self.code,
+            "stage": self.stage,
+        }
+        if self.task is not None:
+            d["task"] = self.task
+        return d
+
+
 def _load_spec(path: Path) -> dict[str, Any]:
-    with path.open("r", encoding="utf-8") as f:
-        data = yaml.safe_load(f) or {}
+    try:
+        with path.open("r", encoding="utf-8") as f:
+            data = yaml.safe_load(f) or {}
+    except FileNotFoundError as exc:
+        raise OARunError(
+            f"Spec file not found: {path}",
+            code="SPEC_LOAD_ERROR",
+            stage="load",
+        ) from exc
+    except yaml.YAMLError as exc:
+        raise OARunError(
+            f"Invalid YAML in spec: {exc}",
+            code="SPEC_LOAD_ERROR",
+            stage="load",
+        ) from exc
     if not isinstance(data, dict):
-        raise ValueError("Spec YAML must decode to a mapping/object")
+        raise OARunError(
+            "Spec YAML must decode to a mapping/object",
+            code="SPEC_LOAD_ERROR",
+            stage="load",
+        )
     return data
 
 
@@ -30,12 +80,21 @@ def _choose_task(
 ) -> tuple[str, dict[str, Any]]:
     tasks = spec_data.get("tasks") or {}
     if not isinstance(tasks, dict) or not tasks:
-        raise ValueError("Spec has no tasks defined")
+        raise OARunError(
+            "Spec has no tasks defined",
+            code="SPEC_LOAD_ERROR",
+            stage="routing",
+        )
 
     if task_name:
         task = tasks.get(task_name)
         if not task:
-            raise ValueError(f"Task '{task_name}' not found in spec")
+            raise OARunError(
+                f"Task '{task_name}' not found in spec",
+                code="TASK_NOT_FOUND",
+                stage="routing",
+                task=task_name,
+            )
         return task_name, task
 
     # Default: first non-multi-step task, falling back to the first task.
@@ -51,24 +110,50 @@ def _choose_task(
 
 
 def _build_prompt(
-    spec_data: dict[str, Any], task_name: str, input_data: dict[str, Any]
+    spec_data: dict[str, Any],
+    task_name: str,
+    input_data: dict[str, Any],
+    override_system: str | None = None,
+    override_user: str | None = None,
 ) -> str:
-    prompts = spec_data.get("prompts") or {}
-    task_prompts = (
-        prompts.get(task_name) if isinstance(prompts.get(task_name), dict) else {}
-    )
+    """Build the prompt for a task using a layered resolution order.
 
-    system = ""
-    if isinstance(task_prompts, dict):
-        system = task_prompts.get("system") or ""
-    if not system:
+    Priority (highest → lowest):
+      1. CLI overrides  (override_system / override_user)
+      2. Per-task inline prompts  tasks.<name>.prompts  (Style A — preferred)
+      3. Per-task map prompts     prompts.<name>.system/user  (Style B — legacy)
+      4. Global fallback          prompts.system / prompts.user
+    """
+    # Style A — prompts block co-located inside the task definition
+    tasks = spec_data.get("tasks") or {}
+    task_def = tasks.get(task_name) or {}
+    inline: dict[str, Any] = task_def.get("prompts") or {}
+
+    # Style B — keyed sub-object under the global prompts map (existing behaviour)
+    prompts = spec_data.get("prompts") or {}
+    mapped: dict[str, Any] = {}
+    if isinstance(prompts.get(task_name), dict):
+        mapped = prompts[task_name]
+
+    # Resolve system prompt
+    if override_system is not None:
+        system = override_system
+    elif inline.get("system"):
+        system = str(inline["system"])
+    elif mapped.get("system"):
+        system = str(mapped["system"])
+    else:
         system = prompts.get("system") or ""
 
-    user_template = ""
-    if isinstance(task_prompts, dict):
-        user_template = task_prompts.get("user") or ""
-    if not user_template:
-        user_template = prompts.get("user") or "{{ name }}"
+    # Resolve user template
+    if override_user is not None:
+        user_template = override_user
+    elif inline.get("user"):
+        user_template = str(inline["user"])
+    elif mapped.get("user"):
+        user_template = str(mapped["user"])
+    else:
+        user_template = prompts.get("user") or "{{ input }}"
 
     user = user_template
     for key, value in input_data.items():
@@ -109,26 +194,117 @@ def _build_intelligence_config(spec_data: dict[str, Any]) -> dict[str, Any]:
     return out
 
 
-def run_task_from_spec(
+def _resolve_chain(
     spec_data: dict[str, Any],
-    task_name: str | None = None,
-    input_data: dict[str, Any] | None = None,
-) -> dict[str, Any]:
-    """Run a single task defined in the spec and return a simple result dict.
+    task_name: str,
+    base_input: dict[str, Any],
+    override_system: str | None,
+    override_user: str | None,
+) -> tuple[dict[str, Any], dict[str, Any]]:
+    """Resolve depends_on chain and return (merged_input, chain_results).
 
-    This makes no assumptions about the surrounding orchestration; it just
-    builds a prompt and invokes the model via the runtime abstraction.
+    Executes prerequisite tasks in the order listed, merging their outputs into
+    the input for the dependent task.  Previous task output wins on key collision:
+        merged = {**base_input, **dep1_output, **dep2_output, ...}
     """
-    input_payload: dict[str, Any] = dict(input_data or {})
-    chosen_task, _ = _choose_task(spec_data, task_name)
-    prompt = _build_prompt(spec_data, chosen_task, input_payload)
+    tasks = spec_data.get("tasks") or {}
+    task_def = tasks.get(task_name) or {}
+    deps: list[str] = task_def.get("depends_on") or []
+
+    if not deps:
+        return dict(base_input), {}
+
+    # Cycle detection: walk the full dependency graph breadth-first.
+    seen: set[str] = {task_name}
+
+    def _check_cycles(name: str) -> None:
+        for dep in (tasks.get(name) or {}).get("depends_on") or []:
+            if dep in seen:
+                raise OARunError(
+                    f"Circular dependency detected: '{dep}' is already in the chain",
+                    code="CHAIN_CYCLE_ERROR",
+                    stage="routing",
+                    task=name,
+                )
+            seen.add(dep)
+            _check_cycles(dep)
+
+    _check_cycles(task_name)
+
+    merged: dict[str, Any] = dict(base_input)
+    chain: dict[str, Any] = {}
+
+    for dep_name in deps:
+        if dep_name not in tasks:
+            raise OARunError(
+                f"depends_on references unknown task '{dep_name}'",
+                code="TASK_NOT_FOUND",
+                stage="routing",
+                task=dep_name,
+            )
+        dep_result = _run_single_task(
+            spec_data,
+            dep_name,
+            dict(merged),
+            override_system=None,
+            override_user=None,
+        )
+        chain[dep_name] = dep_result
+        dep_output = dep_result.get("output") or {}
+        if isinstance(dep_output, dict):
+            merged.update(dep_output)
+
+    return merged, chain
+
+
+def _run_single_task(
+    spec_data: dict[str, Any],
+    task_name: str,
+    input_data: dict[str, Any],
+    override_system: str | None,
+    override_user: str | None,
+) -> dict[str, Any]:
+    """Execute one task (no chain resolution) and return the result envelope."""
+    tasks = spec_data.get("tasks") or {}
+    task_def = tasks.get(task_name) or {}
+
+    # Validate required inputs before touching the model.
+    inp_schema = task_def.get("input") or {}
+    required_fields: list[str] = inp_schema.get("required") or []
+    missing = [f for f in required_fields if f not in input_data]
+    if missing:
+        raise OARunError(
+            f"Missing required input field(s) for task '{task_name}': {', '.join(missing)}",
+            code="CHAIN_INPUT_MISSING",
+            stage="input_validation",
+            task=task_name,
+        )
+
+    prompt = _build_prompt(
+        spec_data,
+        task_name,
+        input_data,
+        override_system=override_system,
+        override_user=override_user,
+    )
     intelligence_config = _build_intelligence_config(spec_data)
 
-    raw_output = invoke_intelligence(prompt, intelligence_config)
+    try:
+        raw_output = invoke_intelligence(prompt, intelligence_config)
+    except Exception as exc:
+        raise OARunError(
+            str(exc),
+            code="RUN_ERROR",
+            stage="run",
+            task=task_name,
+        ) from exc
 
-    # Best-effort attempt to normalise JSON responses if they come back as strings.
+    # response_format: text → skip JSON parsing entirely.
+    response_format = task_def.get("response_format", "json")
     parsed_output: Any
-    if isinstance(raw_output, str):
+    if response_format == "text":
+        parsed_output = raw_output
+    elif isinstance(raw_output, str):
         text = raw_output.strip()
         # Models often wrap JSON in ```json ... ``` — strip fences before parsing.
         if text.startswith("```"):
@@ -143,8 +319,8 @@ def run_task_from_spec(
         parsed_output = raw_output
 
     return {
-        "task": chosen_task,
-        "input": input_payload,
+        "task": task_name,
+        "input": input_data,
         "prompt": prompt,
         "engine": intelligence_config.get("engine"),
         "model": intelligence_config.get("model"),
@@ -153,11 +329,55 @@ def run_task_from_spec(
     }
 
 
+def run_task_from_spec(
+    spec_data: dict[str, Any],
+    task_name: str | None = None,
+    input_data: dict[str, Any] | None = None,
+    override_system: str | None = None,
+    override_user: str | None = None,
+) -> dict[str, Any]:
+    """Run a task defined in the spec, resolving any depends_on chain first.
+
+    Returns a result envelope.  When the task has dependencies the envelope
+    includes a ``chain`` key with intermediate results keyed by task name.
+
+    override_system / override_user replace the resolved spec prompt for this
+    invocation only — useful for targeted one-off instructions from the CLI.
+    """
+    base_input: dict[str, Any] = dict(input_data or {})
+    chosen_task, _ = _choose_task(spec_data, task_name)
+
+    merged_input, chain = _resolve_chain(
+        spec_data, chosen_task, base_input, override_system, override_user
+    )
+
+    result = _run_single_task(
+        spec_data,
+        chosen_task,
+        merged_input,
+        override_system=override_system,
+        override_user=override_user,
+    )
+
+    if chain:
+        result["chain"] = chain
+
+    return result
+
+
 def run_task_from_file(
     spec_path: Path,
     task_name: str | None = None,
     input_data: dict[str, Any] | None = None,
+    override_system: str | None = None,
+    override_user: str | None = None,
 ) -> dict[str, Any]:
     """Convenience wrapper to load a spec from disk and run a task."""
     spec = _load_spec(spec_path)
-    return run_task_from_spec(spec, task_name=task_name, input_data=input_data)
+    return run_task_from_spec(
+        spec,
+        task_name=task_name,
+        input_data=input_data,
+        override_system=override_system,
+        override_user=override_user,
+    )
