@@ -691,7 +691,9 @@ def run(
     except Exception as err:
         if quiet:
             typer.echo(
-                json.dumps({"error": str(err), "code": "RUN_ERROR", "stage": "run"}, indent=2),
+                json.dumps(
+                    {"error": str(err), "code": "RUN_ERROR", "stage": "run"}, indent=2
+                ),
                 err=True,
             )
         else:

@@ -37,6 +37,7 @@ cli = CliRunner()
 # Shared fixtures / spec builders
 # ===========================================================================
 
+
 def _base_intelligence() -> dict:
     return {"type": "llm", "engine": "openai", "model": "gpt-4o"}
 
@@ -64,7 +65,11 @@ def _task(
         t["prompts"] = prompts
 
     props = output_fields or {"result": {"type": "string"}}
-    t["output"] = {"type": "object", "properties": props, "required": list(props.keys())}
+    t["output"] = {
+        "type": "object",
+        "properties": props,
+        "required": list(props.keys()),
+    }
 
     if input_fields:
         t["input"] = {
@@ -80,7 +85,7 @@ def _spec(
     *,
     global_system: str | None = None,
     global_user: str | None = None,
-    style_b: dict | None = None,          # {task_name: {system:.., user:..}}
+    style_b: dict | None = None,  # {task_name: {system:.., user:..}}
     intelligence: dict | None = None,
 ) -> dict:
     """Build a complete spec dict."""
@@ -103,9 +108,14 @@ def _spec(
     return s
 
 
-def _run(spec: dict, task_name: str | None = None, input_data: dict | None = None,
-         override_system: str | None = None, override_user: str | None = None,
-         fake_response: str = '{"result": "ok"}') -> dict:
+def _run(
+    spec: dict,
+    task_name: str | None = None,
+    input_data: dict | None = None,
+    override_system: str | None = None,
+    override_user: str | None = None,
+    fake_response: str = '{"result": "ok"}',
+) -> dict:
     """Run run_task_from_spec with a monkeypatched invoke_intelligence."""
     captured: dict = {}
 
@@ -130,6 +140,7 @@ def _run(spec: dict, task_name: str | None = None, input_data: dict | None = Non
 # ===========================================================================
 # A. Prompt resolution — all four layers
 # ===========================================================================
+
 
 class TestPromptResolutionLayers:
     """All four priority layers, both dimensions, independent resolution."""
@@ -205,15 +216,21 @@ class TestPromptResolutionLayers:
     # --- Layer 2: Style A (tasks.<name>.prompts) ---
 
     def test_style_a_system_overrides_global(self):
-        spec = _spec({"t": _task(system="inline-sys")}, global_system="global-sys",
-                     global_user="{{ q }}")
+        spec = _spec(
+            {"t": _task(system="inline-sys")},
+            global_system="global-sys",
+            global_user="{{ q }}",
+        )
         result = _run(spec, "t", {"q": "z"})
         assert "inline-sys" in result["_captured_prompt"]
         assert "global-sys" not in result["_captured_prompt"]
 
     def test_style_a_user_overrides_global(self):
-        spec = _spec({"t": _task(user="inline {{ q }}")}, global_system="sys",
-                     global_user="global {{ q }}")
+        spec = _spec(
+            {"t": _task(user="inline {{ q }}")},
+            global_system="sys",
+            global_user="global {{ q }}",
+        )
         result = _run(spec, "t", {"q": "z"})
         assert "inline z" in result["_captured_prompt"]
         assert "global z" not in result["_captured_prompt"]
@@ -292,10 +309,18 @@ class TestPromptResolutionLayers:
         assert "global x" not in result["_captured_prompt"]
 
     def test_both_overrides_fully_replace(self):
-        spec = _spec({"t": _task(system="inline-sys", user="inline {{ q }}")},
-                     global_system="global-sys", global_user="global {{ q }}")
-        result = _run(spec, "t", {"q": "ignored"},
-                      override_system="cli-sys", override_user="cli-user")
+        spec = _spec(
+            {"t": _task(system="inline-sys", user="inline {{ q }}")},
+            global_system="global-sys",
+            global_user="global {{ q }}",
+        )
+        result = _run(
+            spec,
+            "t",
+            {"q": "ignored"},
+            override_system="cli-sys",
+            override_user="cli-user",
+        )
         assert result["_captured_prompt"] == "cli-sys\n\ncli-user"
 
     def test_override_system_none_does_not_suppress_inline(self):
@@ -315,22 +340,27 @@ class TestPromptResolutionLayers:
 # B. Multi-task routing
 # ===========================================================================
 
-class TestMultiTaskRouting:
 
+class TestMultiTaskRouting:
     def test_default_selects_first_non_multistep(self):
-        spec = _spec({
-            "alpha": _task("first", system="alpha-sys", user="{{ q }}"),
-            "beta": _task("second", system="beta-sys", user="{{ q }}"),
-        }, global_user="{{ q }}")
+        spec = _spec(
+            {
+                "alpha": _task("first", system="alpha-sys", user="{{ q }}"),
+                "beta": _task("second", system="beta-sys", user="{{ q }}"),
+            },
+            global_user="{{ q }}",
+        )
         result = _run(spec, None, {"q": "hi"})
         assert result["task"] == "alpha"
         assert "alpha-sys" in result["_captured_prompt"]
 
     def test_explicit_task_second(self):
-        spec = _spec({
-            "alpha": _task("first", system="alpha-sys", user="{{ q }}"),
-            "beta": _task("second", system="beta-sys", user="{{ q }}"),
-        })
+        spec = _spec(
+            {
+                "alpha": _task("first", system="alpha-sys", user="{{ q }}"),
+                "beta": _task("second", system="beta-sys", user="{{ q }}"),
+            }
+        )
         result = _run(spec, "beta", {"q": "hi"})
         assert result["task"] == "beta"
         assert "beta-sys" in result["_captured_prompt"]
@@ -346,23 +376,27 @@ class TestMultiTaskRouting:
             _run(spec, None, {})
 
     def test_all_multistep_falls_back_to_first(self):
-        spec = _spec({
-            "a": _task("a", multi_step=True, system="a-sys", user="{{ q }}"),
-            "b": _task("b", multi_step=True, system="b-sys", user="{{ q }}"),
-        })
+        spec = _spec(
+            {
+                "a": _task("a", multi_step=True, system="a-sys", user="{{ q }}"),
+                "b": _task("b", multi_step=True, system="b-sys", user="{{ q }}"),
+            }
+        )
         result = _run(spec, None, {"q": "hi"})
         assert result["task"] == "a"
 
     def test_three_tasks_each_with_own_system(self):
-        spec = _spec({
-            "edit":    _task("edit",    system="edit-sys",    user="{{ instructions }}"),
-            "ask":     _task("ask",     system="ask-sys",     user="{{ question }}"),
-            "explain": _task("explain", system="explain-sys", user="{{ code }}"),
-        })
+        spec = _spec(
+            {
+                "edit": _task("edit", system="edit-sys", user="{{ instructions }}"),
+                "ask": _task("ask", system="ask-sys", user="{{ question }}"),
+                "explain": _task("explain", system="explain-sys", user="{{ code }}"),
+            }
+        )
         for task_name, field, sys_str in [
-            ("edit",    "instructions", "edit-sys"),
-            ("ask",     "question",     "ask-sys"),
-            ("explain", "code",         "explain-sys"),
+            ("edit", "instructions", "edit-sys"),
+            ("ask", "question", "ask-sys"),
+            ("explain", "code", "explain-sys"),
         ]:
             result = _run(spec, task_name, {field: "value"})
             assert result["task"] == task_name
@@ -373,7 +407,7 @@ class TestMultiTaskRouting:
         spec = _spec(
             {
                 "a": _task("a", system="a-sys", user="{{ x }}"),
-                "b": _task("b"),   # no per-task prompts
+                "b": _task("b"),  # no per-task prompts
             },
             global_system="global-sys",
             global_user="{{ x }}",
@@ -389,8 +423,8 @@ class TestMultiTaskRouting:
 # C. Template interpolation
 # ===========================================================================
 
-class TestTemplateInterpolation:
 
+class TestTemplateInterpolation:
     def test_single_placeholder(self):
         spec = _spec({"t": _task(system="s", user="{{ name }}")})
         result = _run(spec, "t", {"name": "Alice"})
@@ -460,8 +494,8 @@ class TestTemplateInterpolation:
 # D. Output normalisation
 # ===========================================================================
 
-class TestOutputNormalisation:
 
+class TestOutputNormalisation:
     def test_plain_json_string_parsed(self):
         spec = _spec({"t": _task(system="s", user="{{ q }}")})
         result = _run(spec, "t", {"q": "hi"}, fake_response='{"answer": "42"}')
@@ -505,14 +539,24 @@ class TestOutputNormalisation:
     def test_result_envelope_fields_present(self):
         spec = _spec({"t": _task(system="s", user="{{ q }}")})
         result = _run(spec, "t", {"q": "hi"})
-        for key in ("task", "input", "prompt", "engine", "model", "raw_output", "output"):
+        for key in (
+            "task",
+            "input",
+            "prompt",
+            "engine",
+            "model",
+            "raw_output",
+            "output",
+        ):
             assert key in result
 
     def test_result_task_name_matches(self):
-        spec = _spec({
-            "alpha": _task("a", system="s", user="{{ q }}"),
-            "beta":  _task("b", system="s", user="{{ q }}"),
-        })
+        spec = _spec(
+            {
+                "alpha": _task("a", system="s", user="{{ q }}"),
+                "beta": _task("b", system="s", user="{{ q }}"),
+            }
+        )
         result = _run(spec, "beta", {"q": "hi"})
         assert result["task"] == "beta"
 
@@ -522,8 +566,10 @@ class TestOutputNormalisation:
         assert result["input"] == {"q": "myvalue"}
 
     def test_result_engine_and_model(self):
-        spec = _spec({"t": _task(system="s", user="{{ q }}")},
-                     intelligence={"type": "llm", "engine": "openai", "model": "gpt-4o-mini"})
+        spec = _spec(
+            {"t": _task(system="s", user="{{ q }}")},
+            intelligence={"type": "llm", "engine": "openai", "model": "gpt-4o-mini"},
+        )
         result = _run(spec, "t", {"q": "hi"})
         assert result["engine"] == "openai"
         assert result["model"] == "gpt-4o-mini"
@@ -533,8 +579,8 @@ class TestOutputNormalisation:
 # E. Intelligence config building
 # ===========================================================================
 
-class TestIntelligenceConfigBuilding:
 
+class TestIntelligenceConfigBuilding:
     def test_defaults_when_not_specified(self):
         spec = _spec({"t": _task()})
         cfg = _build_intelligence_config(spec)
@@ -543,41 +589,60 @@ class TestIntelligenceConfigBuilding:
         assert cfg["max_tokens"] == 1000
 
     def test_custom_endpoint(self):
-        spec = _spec({"t": _task()}, intelligence={
-            "type": "llm", "engine": "openai", "model": "gpt-4o",
-            "endpoint": "https://custom.example.com/v1",
-        })
+        spec = _spec(
+            {"t": _task()},
+            intelligence={
+                "type": "llm",
+                "engine": "openai",
+                "model": "gpt-4o",
+                "endpoint": "https://custom.example.com/v1",
+            },
+        )
         cfg = _build_intelligence_config(spec)
         assert cfg["endpoint"] == "https://custom.example.com/v1"
 
     def test_config_overrides_defaults(self):
-        spec = _spec({"t": _task()}, intelligence={
-            "type": "llm", "engine": "openai", "model": "gpt-4o",
-            "config": {"temperature": 0.1, "max_tokens": 256},
-        })
+        spec = _spec(
+            {"t": _task()},
+            intelligence={
+                "type": "llm",
+                "engine": "openai",
+                "model": "gpt-4o",
+                "config": {"temperature": 0.1, "max_tokens": 256},
+            },
+        )
         cfg = _build_intelligence_config(spec)
         assert cfg["temperature"] == 0.1
         assert cfg["max_tokens"] == 256
 
     def test_extra_config_keys_passed_through(self):
-        spec = _spec({"t": _task()}, intelligence={
-            "type": "llm", "engine": "openai", "model": "gpt-4o",
-            "config": {"top_p": 0.9, "frequency_penalty": 0.5},
-        })
+        spec = _spec(
+            {"t": _task()},
+            intelligence={
+                "type": "llm",
+                "engine": "openai",
+                "model": "gpt-4o",
+                "config": {"top_p": 0.9, "frequency_penalty": 0.5},
+            },
+        )
         cfg = _build_intelligence_config(spec)
         assert cfg["top_p"] == 0.9
         assert cfg["frequency_penalty"] == 0.5
 
     def test_missing_model_raises(self):
-        spec = _spec({"t": _task()},
-                     intelligence={"type": "llm", "engine": "openai"})
+        spec = _spec({"t": _task()}, intelligence={"type": "llm", "engine": "openai"})
         with pytest.raises(ValueError, match="model"):
             _build_intelligence_config(spec)
 
     def test_engine_field_passed_through(self):
-        spec = _spec({"t": _task()}, intelligence={
-            "type": "llm", "engine": "anthropic", "model": "claude-3-sonnet",
-        })
+        spec = _spec(
+            {"t": _task()},
+            intelligence={
+                "type": "llm",
+                "engine": "anthropic",
+                "model": "claude-3-sonnet",
+            },
+        )
         cfg = _build_intelligence_config(spec)
         assert cfg["engine"] == "anthropic"
 
@@ -585,6 +650,7 @@ class TestIntelligenceConfigBuilding:
 # ===========================================================================
 # F. Spec shape permutations
 # ===========================================================================
+
 
 class TestSpecShapePermutations:
     """Integration-level: run_task_from_spec with various spec structures."""
@@ -610,7 +676,7 @@ class TestSpecShapePermutations:
         spec = _spec(
             {
                 "greet": _task("greet"),
-                "bye":   _task("bye"),
+                "bye": _task("bye"),
             },
             global_system="you are an agent",
             global_user="{{ msg }}",
@@ -623,29 +689,29 @@ class TestSpecShapePermutations:
         """Five tasks: 2 per-task, 1 Style B, 2 global fallback."""
         spec = _spec(
             {
-                "edit":    _task("edit",    system="edit-sys",    user="{{ code }}"),
-                "ask":     _task("ask",     system="ask-sys",     user="{{ q }}"),
-                "format":  _task("format"),   # global fallback
+                "edit": _task("edit", system="edit-sys", user="{{ code }}"),
+                "ask": _task("ask", system="ask-sys", user="{{ q }}"),
+                "format": _task("format"),  # global fallback
                 "explain": _task("explain"),  # global fallback
-                "review":  _task("review"),   # Style B
+                "review": _task("review"),  # Style B
             },
             global_system="global-sys",
             global_user="{{ text }}",
             style_b={"review": {"system": "review-sys", "user": "{{ diff }}"}},
         )
 
-        edit_r    = _run(spec, "edit",    {"code": "x"})
-        ask_r     = _run(spec, "ask",     {"q": "y"})
-        format_r  = _run(spec, "format",  {"text": "z"})
+        edit_r = _run(spec, "edit", {"code": "x"})
+        ask_r = _run(spec, "ask", {"q": "y"})
+        format_r = _run(spec, "format", {"text": "z"})
         explain_r = _run(spec, "explain", {"text": "w"})
-        review_r  = _run(spec, "review",  {"diff": "d"})
+        review_r = _run(spec, "review", {"diff": "d"})
 
-        assert "edit-sys"    in edit_r["_captured_prompt"]
-        assert "ask-sys"     in ask_r["_captured_prompt"]
-        assert "global-sys"  in format_r["_captured_prompt"]
-        assert "global-sys"  in explain_r["_captured_prompt"]
-        assert "review-sys"  in review_r["_captured_prompt"]
-        assert "global-sys"  not in review_r["_captured_prompt"]
+        assert "edit-sys" in edit_r["_captured_prompt"]
+        assert "ask-sys" in ask_r["_captured_prompt"]
+        assert "global-sys" in format_r["_captured_prompt"]
+        assert "global-sys" in explain_r["_captured_prompt"]
+        assert "review-sys" in review_r["_captured_prompt"]
+        assert "global-sys" not in review_r["_captured_prompt"]
 
     def test_single_task_spec_runs_without_task_name(self):
         spec = _spec({"only": _task("only", system="sys", user="{{ q }}")})
@@ -722,13 +788,12 @@ CODE_ASSISTANT_SPEC = _spec(
 
 
 class TestCodeAssistantScenario:
-
     def test_each_task_uses_its_own_system_prompt(self):
         for task, field, sys_kw in [
-            ("edit",    "instructions", "precise code editor"),
-            ("ask",     "question",     "helpful code assistant"),
-            ("explain", "code",         "code explainer"),
-            ("review",  "diff",         "code reviewer"),
+            ("edit", "instructions", "precise code editor"),
+            ("ask", "question", "helpful code assistant"),
+            ("explain", "code", "code explainer"),
+            ("review", "diff", "code reviewer"),
         ]:
             result = _run(CODE_ASSISTANT_SPEC, task, {field: "sample"})
             assert sys_kw in result["_captured_prompt"], (
@@ -739,7 +804,9 @@ class TestCodeAssistantScenario:
             )
 
     def test_edit_task_prompt_contains_instructions(self):
-        result = _run(CODE_ASSISTANT_SPEC, "edit", {"instructions": "remove all print statements"})
+        result = _run(
+            CODE_ASSISTANT_SPEC, "edit", {"instructions": "remove all print statements"}
+        )
         assert "remove all print statements" in result["_captured_prompt"]
 
     def test_ask_task_prompt_contains_question(self):
@@ -773,8 +840,8 @@ class TestCodeAssistantScenario:
 
     def test_sequential_tasks_independent(self):
         """Running multiple tasks sequentially doesn't bleed prompts between them."""
-        r1 = _run(CODE_ASSISTANT_SPEC, "edit",    {"instructions": "fix x"})
-        r2 = _run(CODE_ASSISTANT_SPEC, "ask",     {"question": "why?"})
+        r1 = _run(CODE_ASSISTANT_SPEC, "edit", {"instructions": "fix x"})
+        r2 = _run(CODE_ASSISTANT_SPEC, "ask", {"question": "why?"})
         r3 = _run(CODE_ASSISTANT_SPEC, "explain", {"code": "y = 1"})
 
         assert "precise code editor" in r1["_captured_prompt"]
@@ -851,8 +918,9 @@ def cli_spec_file(tmp_path: Path) -> Path:
     return f
 
 
-def _cli_run(cli_spec_file: Path, *extra_args: str,
-             fake_response: str = '{"response": "ok"}') -> object:
+def _cli_run(
+    cli_spec_file: Path, *extra_args: str, fake_response: str = '{"response": "ok"}'
+) -> object:
     captured: dict = {}
 
     def fake_invoke(prompt: str, config: dict) -> str:
@@ -860,16 +928,22 @@ def _cli_run(cli_spec_file: Path, *extra_args: str,
         return fake_response
 
     with patch("oas_cli.runner.invoke_intelligence", fake_invoke):
-        result = cli.invoke(app, [
-            "run", "--spec", str(cli_spec_file), "--quiet", *extra_args,
-        ])
+        result = cli.invoke(
+            app,
+            [
+                "run",
+                "--spec",
+                str(cli_spec_file),
+                "--quiet",
+                *extra_args,
+            ],
+        )
 
     result._captured_prompt = captured.get("prompt", "")  # type: ignore[attr-defined]
     return result
 
 
 class TestCLIIntegration:
-
     def test_default_task_uses_first_task_sys_prompt(self, cli_spec_file):
         result = _cli_run(cli_spec_file, "--input", '{"name":"Alice"}')
         assert result.exit_code == 0, result.output
@@ -888,9 +962,12 @@ class TestCLIIntegration:
     def test_system_prompt_flag_overrides_per_task(self, cli_spec_file):
         result = _cli_run(
             cli_spec_file,
-            "--task", "greet",
-            "--input", '{"name":"Alice"}',
-            "--system-prompt", "cli-override-sys",
+            "--task",
+            "greet",
+            "--input",
+            '{"name":"Alice"}',
+            "--system-prompt",
+            "cli-override-sys",
         )
         assert result.exit_code == 0
         assert "cli-override-sys" in result._captured_prompt
@@ -899,9 +976,12 @@ class TestCLIIntegration:
     def test_user_prompt_flag_overrides_per_task(self, cli_spec_file):
         result = _cli_run(
             cli_spec_file,
-            "--task", "greet",
-            "--input", '{"name":"Alice"}',
-            "--user-prompt", "custom user {{ name }}",
+            "--task",
+            "greet",
+            "--input",
+            '{"name":"Alice"}',
+            "--user-prompt",
+            "custom user {{ name }}",
         )
         assert result.exit_code == 0
         assert "custom user Alice" in result._captured_prompt
@@ -910,10 +990,14 @@ class TestCLIIntegration:
     def test_both_prompt_flags(self, cli_spec_file):
         result = _cli_run(
             cli_spec_file,
-            "--task", "greet",
-            "--input", '{"name":"Alice"}',
-            "--system-prompt", "cli-sys",
-            "--user-prompt", "cli-user",
+            "--task",
+            "greet",
+            "--input",
+            '{"name":"Alice"}',
+            "--system-prompt",
+            "cli-sys",
+            "--user-prompt",
+            "cli-user",
         )
         assert result.exit_code == 0
         assert "cli-sys" in result._captured_prompt
@@ -922,8 +1006,10 @@ class TestCLIIntegration:
     def test_quiet_mode_outputs_valid_json(self, cli_spec_file):
         result = _cli_run(
             cli_spec_file,
-            "--task", "greet",
-            "--input", '{"name":"Alice"}',
+            "--task",
+            "greet",
+            "--input",
+            '{"name":"Alice"}',
             fake_response='{"response": "Hello Alice!"}',
         )
         assert result.exit_code == 0
@@ -935,8 +1021,9 @@ class TestCLIIntegration:
         assert result.exit_code != 0
 
     def test_unknown_task_exits_nonzero(self, cli_spec_file):
-        result = _cli_run(cli_spec_file, "--task", "nonexistent",
-                          "--input", '{"name":"A"}')
+        result = _cli_run(
+            cli_spec_file, "--task", "nonexistent", "--input", '{"name":"A"}'
+        )
         assert result.exit_code != 0
 
     def test_file_input_single_required_string_field(self, tmp_path, cli_spec_file):
@@ -952,13 +1039,19 @@ class TestCLIIntegration:
             return '{"response": "hi"}'
 
         with patch("oas_cli.runner.invoke_intelligence", fake_invoke):
-            result = cli.invoke(app, [
-                "run",
-                "--spec", str(cli_spec_file),
-                "--task", "greet",
-                "--input", str(input_file),
-                "--quiet",
-            ])
+            result = cli.invoke(
+                app,
+                [
+                    "run",
+                    "--spec",
+                    str(cli_spec_file),
+                    "--task",
+                    "greet",
+                    "--input",
+                    str(input_file),
+                    "--quiet",
+                ],
+            )
 
         assert result.exit_code == 0, result.output
         assert "Alice" in captured["prompt"]
@@ -966,9 +1059,12 @@ class TestCLIIntegration:
     def test_system_prompt_on_bye_task(self, cli_spec_file):
         result = _cli_run(
             cli_spec_file,
-            "--task", "bye",
-            "--input", '{"name":"Bob"}',
-            "--system-prompt", "override for bye",
+            "--task",
+            "bye",
+            "--input",
+            '{"name":"Bob"}',
+            "--system-prompt",
+            "override for bye",
         )
         assert result.exit_code == 0
         assert "override for bye" in result._captured_prompt
@@ -979,16 +1075,18 @@ class TestCLIIntegration:
 # I. Error cases
 # ===========================================================================
 
-class TestErrorCases:
 
+class TestErrorCases:
     def test_no_tasks_in_spec_raises(self):
         spec = _spec({})
         with pytest.raises((ValueError, KeyError, Exception)):
             _run(spec, None, {})
 
     def test_intelligence_missing_model_raises(self):
-        spec = _spec({"t": _task(system="s", user="{{ q }}")},
-                     intelligence={"type": "llm", "engine": "openai"})
+        spec = _spec(
+            {"t": _task(system="s", user="{{ q }}")},
+            intelligence={"type": "llm", "engine": "openai"},
+        )
         with pytest.raises(ValueError, match="model"):
             _run(spec, "t", {"q": "hi"})
 

@@ -8,6 +8,7 @@ from oas_cli.runner import OARunError, _build_prompt, run_task_from_spec
 # Helpers
 # ---------------------------------------------------------------------------
 
+
 def _spec(
     *,
     global_system: str | None = None,
@@ -57,6 +58,7 @@ def _spec(
 # Layer 4 — global fallback
 # ---------------------------------------------------------------------------
 
+
 class TestGlobalFallback:
     def test_uses_global_system(self):
         spec = _spec(global_system="global sys", global_user="{{ name }}")
@@ -73,6 +75,7 @@ class TestGlobalFallback:
 # ---------------------------------------------------------------------------
 # Layer 3 — Style B  (prompts.<task_name>)
 # ---------------------------------------------------------------------------
+
 
 class TestStyleB:
     def test_style_b_overrides_global_system(self):
@@ -99,6 +102,7 @@ class TestStyleB:
 # ---------------------------------------------------------------------------
 # Layer 2 — Style A  (tasks.<name>.prompts)
 # ---------------------------------------------------------------------------
+
 
 class TestStyleA:
     def test_style_a_overrides_global(self):
@@ -144,6 +148,7 @@ class TestStyleA:
 # Layer 1 — CLI overrides
 # ---------------------------------------------------------------------------
 
+
 class TestCliOverrides:
     def test_override_system_replaces_all(self):
         spec = _spec(
@@ -151,9 +156,7 @@ class TestCliOverrides:
             style_a_system="inline sys",
             global_user="{{ q }}",
         )
-        result = _build_prompt(
-            spec, "mytask", {"q": "z"}, override_system="cli sys"
-        )
+        result = _build_prompt(spec, "mytask", {"q": "z"}, override_system="cli sys")
         assert "cli sys" in result
         assert "global sys" not in result
         assert "inline sys" not in result
@@ -164,9 +167,7 @@ class TestCliOverrides:
             global_user="global {{ q }}",
             style_a_user="inline {{ q }}",
         )
-        result = _build_prompt(
-            spec, "mytask", {"q": "z"}, override_user="cli {{ q }}"
-        )
+        result = _build_prompt(spec, "mytask", {"q": "z"}, override_user="cli {{ q }}")
         assert "cli z" in result
         assert "global z" not in result
         assert "inline z" not in result
@@ -185,15 +186,14 @@ class TestCliOverrides:
     def test_override_system_none_does_not_replace(self):
         """Passing override_system=None must not suppress the spec prompt."""
         spec = _spec(global_system="global sys", global_user="{{ q }}")
-        result = _build_prompt(
-            spec, "mytask", {"q": "hi"}, override_system=None
-        )
+        result = _build_prompt(spec, "mytask", {"q": "hi"}, override_system=None)
         assert "global sys" in result
 
 
 # ---------------------------------------------------------------------------
 # Template interpolation
 # ---------------------------------------------------------------------------
+
 
 class TestTemplateInterpolation:
     def test_double_brace_placeholder(self):
@@ -215,6 +215,7 @@ class TestTemplateInterpolation:
 # ---------------------------------------------------------------------------
 # run_task_from_spec: overrides flow end-to-end (no real LLM call)
 # ---------------------------------------------------------------------------
+
 
 class TestRunTaskFromSpecOverrides:
     """Verify overrides reach _build_prompt through run_task_from_spec.
@@ -259,6 +260,7 @@ class TestRunTaskFromSpecOverrides:
 # Gap 2 — response_format: text
 # ---------------------------------------------------------------------------
 
+
 def _text_spec(response_format: str = "text") -> dict:
     """Minimal spec with response_format on the task."""
     return {
@@ -285,7 +287,9 @@ class TestResponseFormatText:
             "oas_cli.runner.invoke_intelligence",
             lambda p, c: "This is plain prose output.",
         )
-        result = run_task_from_spec(_text_spec(), task_name="prose", input_data={"topic": "cats"})
+        result = run_task_from_spec(
+            _text_spec(), task_name="prose", input_data={"topic": "cats"}
+        )
         assert result["output"] == "This is plain prose output."
 
     def test_text_mode_skips_json_parsing(self, monkeypatch):
@@ -294,14 +298,18 @@ class TestResponseFormatText:
             "oas_cli.runner.invoke_intelligence",
             lambda p, c: "Not JSON at all { broken",
         )
-        result = run_task_from_spec(_text_spec(), task_name="prose", input_data={"topic": "x"})
+        result = run_task_from_spec(
+            _text_spec(), task_name="prose", input_data={"topic": "x"}
+        )
         assert result["output"] == "Not JSON at all { broken"
 
     def test_text_mode_does_not_parse_fenced_json(self, monkeypatch):
         """Even fenced JSON should be returned as-is in text mode (no fence stripping)."""
-        raw = "```json\n{\"key\": \"val\"}\n```"
+        raw = '```json\n{"key": "val"}\n```'
         monkeypatch.setattr("oas_cli.runner.invoke_intelligence", lambda p, c: raw)
-        result = run_task_from_spec(_text_spec(), task_name="prose", input_data={"topic": "x"})
+        result = run_task_from_spec(
+            _text_spec(), task_name="prose", input_data={"topic": "x"}
+        )
         assert result["output"] == raw
 
     def test_json_mode_still_parses(self, monkeypatch):
@@ -310,7 +318,9 @@ class TestResponseFormatText:
             "oas_cli.runner.invoke_intelligence",
             lambda p, c: '{"result": "ok"}',
         )
-        result = run_task_from_spec(_text_spec("json"), task_name="prose", input_data={"topic": "x"})
+        result = run_task_from_spec(
+            _text_spec("json"), task_name="prose", input_data={"topic": "x"}
+        )
         assert result["output"] == {"result": "ok"}
 
     def test_json_mode_default_when_field_absent(self, monkeypatch):
@@ -328,9 +338,12 @@ class TestResponseFormatText:
 # Gap 5 — OARunError.to_dict()
 # ---------------------------------------------------------------------------
 
+
 class TestOARunError:
     def test_to_dict_includes_required_fields(self):
-        err = OARunError("Task 'x' not found", code="TASK_NOT_FOUND", stage="routing", task="x")
+        err = OARunError(
+            "Task 'x' not found", code="TASK_NOT_FOUND", stage="routing", task="x"
+        )
         d = err.to_dict()
         assert d["error"] == "Task 'x' not found"
         assert d["code"] == "TASK_NOT_FOUND"
@@ -354,6 +367,7 @@ class TestOARunError:
     def test_invoke_error_wrapped_in_oa_run_error(self, monkeypatch):
         def bad_invoke(p, c):
             raise RuntimeError("network timeout")
+
         monkeypatch.setattr("oas_cli.runner.invoke_intelligence", bad_invoke)
         spec = _spec(global_system="s", global_user="{{ q }}")
         with pytest.raises(OARunError) as exc_info:
@@ -367,6 +381,7 @@ class TestOARunError:
 # ---------------------------------------------------------------------------
 # Gap 6 — depends_on linear chaining
 # ---------------------------------------------------------------------------
+
 
 def _chain_spec(*, add_text_format: bool = False) -> dict:
     """Spec with two tasks where summarize depends_on extract."""
@@ -444,14 +459,20 @@ class TestDependsOn:
         monkeypatch.setattr("oas_cli.runner.invoke_intelligence", fake_invoke)
         spec = _chain_spec()
         # Caller provides facts; dep should win.
-        run_task_from_spec(spec, task_name="summarize", input_data={"facts": "from caller"})
+        run_task_from_spec(
+            spec, task_name="summarize", input_data={"facts": "from caller"}
+        )
         assert "from dep" in prompts_seen[1]
         assert "from caller" not in prompts_seen[1]
 
     def test_chain_result_includes_intermediate(self, monkeypatch):
         monkeypatch.setattr(
             "oas_cli.runner.invoke_intelligence",
-            lambda p, c: '{"facts": "x"}' if "extract" in c.get("model", "") or len(p) < 100 else '{"summary": "y"}',
+            lambda p, c: (
+                '{"facts": "x"}'
+                if "extract" in c.get("model", "") or len(p) < 100
+                else '{"summary": "y"}'
+            ),
         )
         calls = {"n": 0}
 
@@ -495,7 +516,7 @@ class TestDependsOn:
         spec["tasks"]["extract"]["depends_on"] = ["summarize"]
         monkeypatch.setattr(
             "oas_cli.runner.invoke_intelligence",
-            lambda p, c: '{}',
+            lambda p, c: "{}",
         )
         with pytest.raises(OARunError) as exc_info:
             run_task_from_spec(spec, task_name="summarize", input_data={})
@@ -505,7 +526,7 @@ class TestDependsOn:
         """If required fields are still missing after merge, fail fast."""
         monkeypatch.setattr(
             "oas_cli.runner.invoke_intelligence",
-            lambda p, c: '{}',  # dep returns empty output
+            lambda p, c: "{}",  # dep returns empty output
         )
         spec = _chain_spec()
         # extract output missing 'facts', summarize needs nothing required — swap:
