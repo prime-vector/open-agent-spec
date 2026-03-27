@@ -11,7 +11,7 @@
 #   oa run --spec .agents/ci-failure-repair.yaml --task diagnose_and_remediate \
 #     --input "$(jq -n --rawfile log log.txt '{workflow_name:"CI",branch:"main",job_log:$log}')" --quiet
 #
-open_agent_spec: "1.2.9"
+open_agent_spec: "1.3.0"
 
 agent:
   name: ci-failure-repair-agent

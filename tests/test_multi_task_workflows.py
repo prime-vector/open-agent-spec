@@ -1,7 +1,7 @@
 """Exhaustive multi-task / multi-prompt workflow tests for Open Agent Spec.
 
 Covers:
-  A. Prompt resolution — all four layers × system/user independently
+  A. Prompt resolution — all four layers system/user independently
   B. Multi-task routing — default, explicit, invalid, all-multi-step
   C. Template interpolation — {{ field }}, {{ input.field }}, edge cases
   D. Output normalisation — JSON, fenced JSON, non-JSON, dict passthrough
@@ -98,7 +98,7 @@ def _spec(
         prompts.update(style_b)
 
     s: dict = {
-        "open_agent_spec": "1.2.9",
+        "open_agent_spec": "1.3.0",
         "agent": {"name": "test-agent", "description": "test agent"},
         "intelligence": intelligence or _base_intelligence(),
         "tasks": tasks,
@@ -168,7 +168,7 @@ class TestPromptResolutionLayers:
     def test_no_prompts_section_at_all(self):
         """Spec without any prompts key (per-task or global) runs without error."""
         spec = {
-            "open_agent_spec": "1.2.9",
+            "open_agent_spec": "1.3.0",
             "agent": {"name": "a", "description": "b"},
             "intelligence": _base_intelligence(),
             "tasks": {"t": _task(system="task-sys", user="{{ q }}")},
@@ -658,7 +658,7 @@ class TestSpecShapePermutations:
     def test_per_task_only_no_global_prompts(self):
         """Spec with no top-level prompts section; each task has its own."""
         spec = {
-            "open_agent_spec": "1.2.9",
+            "open_agent_spec": "1.3.0",
             "agent": {"name": "a", "description": "b"},
             "intelligence": _base_intelligence(),
             "tasks": {
@@ -672,7 +672,7 @@ class TestSpecShapePermutations:
         assert "t2-sys" in t2["_captured_prompt"]
 
     def test_global_only_no_per_task_prompts(self):
-        """Classic pre-1.2.9 style: all tasks share the global prompt."""
+        """Classic pre-1.3.0 style: all tasks share the global prompt."""
         spec = _spec(
             {
                 "greet": _task("greet"),
@@ -861,7 +861,7 @@ class TestCodeAssistantScenario:
 # ===========================================================================
 
 _CLI_SPEC_YAML = """\
-open_agent_spec: "1.2.9"
+open_agent_spec: "1.3.0"
 
 agent:
   name: cli-test-agent

@@ -79,7 +79,7 @@ def test_init_with_directory_spec_returns_clean_error(tmp_path):
 # ---------------------------------------------------------------------------
 
 _MINIMAL_SPEC = """\
-open_agent_spec: "1.2.9"
+open_agent_spec: "1.3.0"
 
 agent:
   name: test-agent

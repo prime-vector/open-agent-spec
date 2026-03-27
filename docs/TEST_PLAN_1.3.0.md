@@ -1,4 +1,4 @@
-# OA CLI 1.2.9 — manual test plan
+# OA CLI 1.3.0 — manual test plan
 
 **Purpose:** Step-by-step checks for **open-agent-spec** CLI (**`oa`** command) before sign-off.
 
@@ -11,8 +11,8 @@
 | Step | Action | Pass if |
 |------|--------|----------|
 | 0.1 | `python --version` | Shows 3.10 or newer |
-| 0.2 | Install the build under test | e.g. `pip install open-agent-spec==1.2.9` or `pip install .` from repo |
-| 0.3 | `oa --version` | Prints **1.2.9** (or `python -m oas_cli --version` if `oa` not on PATH) |
+| 0.2 | Install the build under test | e.g. `pip install open-agent-spec==1.3.0` or `pip install .` from repo |
+| 0.3 | `oa --version` | Prints **1.3.0** (or `python -m oas_cli --version` if `oa` not on PATH) |
 
 **Note:** The console script is **`oa`** (not `oas`). If `oa` is not found, use:
 
@@ -26,7 +26,7 @@ python -m oas_cli --version
 
 | # | Command | What to check |
 |---|---------|----------------|
-| 1.1 | `oa --version` | Exits 0; shows version **1.2.9** |
+| 1.1 | `oa --version` | Exits 0; shows version **1.3.0** |
 | 1.2 | `oa version` | Same as 1.1 (dedicated version command) |
 | 1.3 | `oa --help` | Lists commands: `init`, `run`, `update`, `version` |
 | 1.4 | `oa init --help` | Shows `--spec`, `--output`, `--template`, `--dry-run`, `--verbose` |
@@ -114,7 +114,7 @@ python -m oas_cli --version
 
 ## Pass criteria
 
-- **§1** help/version all succeed; version reads **1.2.9**.
+- **§1** help/version all succeed; version reads **1.3.0**.
 - **§3** `oa init aac` creates `.agents/` as documented.
 - **§5–6** init produces expected tree; `--dry-run` does not write.
 - **§7** update works on existing dir; fails cleanly on missing dir.
