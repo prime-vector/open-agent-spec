@@ -1,6 +1,9 @@
 """Tests for the Open Agent Spec CLI commands."""
 
+import json
 import re
+from pathlib import Path
+from unittest.mock import patch
 
 from typer.testing import CliRunner
 
@@ -69,3 +72,162 @@ def test_init_with_directory_spec_returns_clean_error(tmp_path):
         or "Invalid spec" in result.output
         or "Invalid YAML" in result.output
     )
+
+
+# ---------------------------------------------------------------------------
+# oa run --system-prompt / --user-prompt CLI flag tests
+# ---------------------------------------------------------------------------
+
+_MINIMAL_SPEC = """\
+open_agent_spec: "1.2.9"
+
+agent:
+  name: test-agent
+  description: test agent
+
+intelligence:
+  type: llm
+  engine: openai
+  model: gpt-4o
+
+tasks:
+  greet:
+    description: say hello
+    output:
+      type: object
+      properties:
+        response: { type: string }
+      required: [response]
+    prompts:
+      system: "spec system prompt"
+      user: "Hello {{ name }}"
+
+prompts:
+  system: "global system prompt"
+  user: "{{ name }}"
+"""
+
+
+def _write_spec(tmp_path: Path) -> Path:
+    spec_file = tmp_path / "agent.yaml"
+    spec_file.write_text(_MINIMAL_SPEC)
+    return spec_file
+
+
+def test_run_system_prompt_override_reaches_runner(tmp_path):
+    """--system-prompt passed to oa run replaces the spec system prompt."""
+    spec_file = _write_spec(tmp_path)
+    captured: dict = {}
+
+    def fake_invoke(prompt: str, config: dict) -> str:
+        captured["prompt"] = prompt
+        return '{"response": "hi"}'
+
+    with patch("oas_cli.runner.invoke_intelligence", fake_invoke):
+        result = runner.invoke(
+            app,
+            [
+                "run",
+                "--spec",
+                str(spec_file),
+                "--task",
+                "greet",
+                "--input",
+                '{"name": "Alice"}',
+                "--system-prompt",
+                "override sys",
+                "--quiet",
+            ],
+        )
+
+    assert result.exit_code == 0, result.output
+    assert "override sys" in captured["prompt"]
+    assert "spec system prompt" not in captured["prompt"]
+    assert "global system prompt" not in captured["prompt"]
+
+
+def test_run_user_prompt_override_reaches_runner(tmp_path):
+    """--user-prompt passed to oa run replaces the spec user template."""
+    spec_file = _write_spec(tmp_path)
+    captured: dict = {}
+
+    def fake_invoke(prompt: str, config: dict) -> str:
+        captured["prompt"] = prompt
+        return '{"response": "hi"}'
+
+    with patch("oas_cli.runner.invoke_intelligence", fake_invoke):
+        result = runner.invoke(
+            app,
+            [
+                "run",
+                "--spec",
+                str(spec_file),
+                "--task",
+                "greet",
+                "--input",
+                '{"name": "Alice"}',
+                "--user-prompt",
+                "custom user {{ name }}",
+                "--quiet",
+            ],
+        )
+
+    assert result.exit_code == 0, result.output
+    assert "custom user Alice" in captured["prompt"]
+    assert "Hello Alice" not in captured["prompt"]
+
+
+def test_run_no_overrides_uses_per_task_prompt(tmp_path):
+    """Without overrides, the per-task prompts.system is used (Style A)."""
+    spec_file = _write_spec(tmp_path)
+    captured: dict = {}
+
+    def fake_invoke(prompt: str, config: dict) -> str:
+        captured["prompt"] = prompt
+        return '{"response": "hi"}'
+
+    with patch("oas_cli.runner.invoke_intelligence", fake_invoke):
+        result = runner.invoke(
+            app,
+            [
+                "run",
+                "--spec",
+                str(spec_file),
+                "--task",
+                "greet",
+                "--input",
+                '{"name": "Alice"}',
+                "--quiet",
+            ],
+        )
+
+    assert result.exit_code == 0, result.output
+    assert "spec system prompt" in captured["prompt"]
+    assert "global system prompt" not in captured["prompt"]
+
+
+def test_run_output_is_valid_json_in_quiet_mode(tmp_path):
+    """oa run --quiet outputs valid JSON."""
+    spec_file = _write_spec(tmp_path)
+
+    def fake_invoke(prompt: str, config: dict) -> str:
+        return '{"response": "Hello Alice!"}'
+
+    with patch("oas_cli.runner.invoke_intelligence", fake_invoke):
+        result = runner.invoke(
+            app,
+            [
+                "run",
+                "--spec",
+                str(spec_file),
+                "--task",
+                "greet",
+                "--input",
+                '{"name": "Alice"}',
+                "--quiet",
+            ],
+        )
+
+    assert result.exit_code == 0, result.output
+    parsed = json.loads(result.output)
+    assert parsed.get("response") == "Hello Alice!"

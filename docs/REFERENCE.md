@@ -43,6 +43,221 @@ behavioural_contract:
   allowed_tools: []
 ```
 
+## Per-task prompts
+
+Each task can define its own `prompts` block directly inside the task definition. This keeps system and user prompts co-located with the task they belong to, making multi-task agents much easier to reason about.
+
+### Style A — per-task prompts (preferred)
+
+```yaml
+tasks:
+  edit:
+    description: Apply targeted edits to code
+    prompts:
+      system: |
+        You are a precise code editor. Apply only the requested changes.
+        Output a unified diff.
+      user: "{{ instructions }}"
+    input:
+      type: object
+      properties:
+        instructions: { type: string }
+      required: [instructions]
+    output:
+      type: object
+      properties:
+        diff: { type: string }
+      required: [diff]
+
+  ask:
+    description: Answer a question about the codebase
+    prompts:
+      system: |
+        You are a helpful code assistant. Be concise and accurate.
+      user: "{{ question }}"
+    input:
+      type: object
+      properties:
+        question: { type: string }
+      required: [question]
+    output:
+      type: object
+      properties:
+        answer: { type: string }
+      required: [answer]
+
+# Global fallback — used only when a task has no per-task prompts
+prompts:
+  system: "You are a general-purpose agent."
+  user: "{{ input }}"
+```
+
+The `prompts` section at the top level becomes an **optional fallback** for any task that doesn't declare its own prompts.
+
+### Resolution order
+
+For each run, the system and user prompt are resolved in this priority order (highest wins):
+
+| Priority | Source | How |
+|---|---|---|
+| 1 (highest) | CLI override | `--system-prompt` / `--user-prompt` flag |
+| 2 | Per-task inline | `tasks.<name>.prompts.system` / `.user` |
+| 3 | Per-task map (legacy) | `prompts.<name>.system` / `.user` |
+| 4 (fallback) | Global | `prompts.system` / `prompts.user` |
+
+Each prompt dimension (system, user) resolves independently — you can override just the system prompt and let the user template fall through from the task or global block.
+
+### CLI prompt overrides
+
+`oa run` accepts two runtime override flags:
+
+```
+--system-prompt TEXT    Replace the system prompt for this invocation
+--user-prompt TEXT      Replace the user prompt template for this invocation
+```
+
+Supports the same `{{ field }}` placeholders as spec-defined user templates.
+
+**Examples:**
+
+```bash
+# Run a task using its own per-task system prompt (no override needed)
+oa run --spec .agents/code-assistant.yaml --task edit \
+  --input '{"instructions":"Remove all debug print statements"}' --quiet
+
+# Override the system prompt for a one-off targeted instruction
+oa run --spec .agents/code-assistant.yaml --task ask \
+  --input '{"question":"What does the auth module do?"}' \
+  --system-prompt "You are a senior Go engineer. Be terse." --quiet
+
+# Load a long system prompt from a file
+oa run --spec .agents/code-assistant.yaml --task edit \
+  --input '{"instructions":"..."}' \
+  --system-prompt "$(cat .prompts/edit-system.txt)" --quiet
+```
+
+---
+
+## response_format: text
+
+By default every task expects the model to return valid JSON, which the runner parses and validates against the task's `output` schema. For tasks where the desired output is natural prose (explanations, summaries, diffs, etc.) you can opt out of JSON parsing entirely:
+
+```yaml
+tasks:
+  explain:
+    description: Explain what this function does
+    response_format: text          # raw string output, no JSON parsing
+    output:
+      type: object
+      properties:
+        explanation: { type: string }
+    prompts:
+      system: |
+        You are a helpful code explainer. Be concise.
+      user: "{{ code }}"
+    input:
+      type: object
+      properties:
+        code: { type: string }
+      required: [code]
+```
+
+When `response_format: text`:
+- The model's raw output string is returned directly as `result["output"]`
+- Output schema validation is **skipped** — the task author owns the contract
+- Markdown fences and JSON-parsing are both bypassed
+- Default is `"json"` (or omitting the field entirely)
+
+---
+
+## Structured errors
+
+When `oa run --quiet` encounters a failure it emits a machine-readable JSON object to **stderr** (stdout stays clean for piping). Example:
+
+```json
+{"error": "Task 'explain' not found in spec", "code": "TASK_NOT_FOUND", "stage": "routing", "task": "explain"}
+```
+
+### Error codes
+
+| `code` | `stage` | Trigger |
+|---|---|---|
+| `SPEC_LOAD_ERROR` | `load` | File not found, YAML parse error |
+| `TASK_NOT_FOUND` | `routing` | `--task` name absent from spec, or unknown `depends_on` reference |
+| `RUN_ERROR` | `run` | `invoke_intelligence` raises an exception |
+| `CHAIN_CYCLE_ERROR` | `routing` | Circular `depends_on` chain detected |
+| `CHAIN_INPUT_MISSING` | `input_validation` | Required input field missing after dependency merge |
+
+Verbose mode (`oa run` without `--quiet`) prints the error to the terminal as plain text, unchanged from prior behaviour.
+
+---
+
+## depends_on — linear task chaining
+
+A task can declare that it needs the output of another task before it can run:
+
+```yaml
+tasks:
+  extract:
+    description: Extract key facts from a document
+    output:
+      type: object
+      properties:
+        facts: { type: string }
+      required: [facts]
+    prompts:
+      system: "Extract the three most important facts."
+      user: "{{ document }}"
+    input:
+      type: object
+      properties:
+        document: { type: string }
+      required: [document]
+
+  summarize:
+    description: Summarize the extracted facts
+    depends_on: [extract]          # runs extract first
+    output:
+      type: object
+      properties:
+        summary: { type: string }
+    prompts:
+      system: "Summarize the following facts in one sentence."
+      user: "{{ facts }}"          # facts injected from extract's output
+```
+
+### Execution rules
+
+1. **Dependencies run first**, in the order listed in `depends_on`
+2. **Output is merged into input** — previous task output wins on key collision:
+   ```
+   merged = {**caller_input, **dep1_output, **dep2_output, ...}
+   ```
+3. **Fail fast** — required input fields are validated *after* the merge; missing fields raise `CHAIN_INPUT_MISSING` before the model is called
+4. **Linear chains only** — no branching, no conditions, no loops
+5. **Cycle detection** — circular references raise `CHAIN_CYCLE_ERROR` at run time
+
+### Result envelope
+
+The final result includes all intermediate results in a `chain` key:
+
+```json
+{
+  "task": "summarize",
+  "output": {"summary": "The sky is blue, water is wet, and ice is cold."},
+  "chain": {
+    "extract": {
+      "task": "extract",
+      "output": {"facts": "sky=blue; water=wet; ice=cold"}
+    }
+  }
+}
+```
+
+Tasks with no `depends_on` do not include a `chain` key.
+
+---
+
 ## Engines (quick)
 
 | Engine | Env var (typical) |

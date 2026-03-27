@@ -18,7 +18,7 @@ from .banner import ASCII_TITLE
 from .core import generate_files as core_generate_files
 from .core import validate_spec_file
 from .exceptions import AgentGenerationError
-from .runner import _choose_task, _load_spec, run_task_from_file
+from .runner import OARunError, _choose_task, _load_spec, run_task_from_file
 
 app = typer.Typer(help="Open Agent (OA) CLI")
 console = Console()
@@ -572,6 +572,22 @@ def run(
         "-i",
         help="Optional JSON object with input fields for the task",
     ),
+    system_prompt: str | None = typer.Option(
+        None,
+        "--system-prompt",
+        help=(
+            "Override the system prompt for this invocation only. "
+            "Replaces the spec's system prompt (global or per-task)."
+        ),
+    ),
+    user_prompt: str | None = typer.Option(
+        None,
+        "--user-prompt",
+        help=(
+            "Override the user prompt template for this invocation only. "
+            "Supports the same {{ field }} placeholders as the spec."
+        ),
+    ),
     verbose: bool = typer.Option(
         False, "--verbose", "-v", help="Enable verbose logging"
     ),
@@ -648,7 +664,13 @@ def run(
             real_stdout = sys.stdout
             sys.stdout = sys.stderr
         try:
-            result = run_task_from_file(spec, task_name=task, input_data=input_data)
+            result = run_task_from_file(
+                spec,
+                task_name=task,
+                input_data=input_data,
+                override_system=system_prompt,
+                override_user=user_prompt,
+            )
         finally:
             if quiet:
                 sys.stdout = real_stdout
@@ -658,10 +680,25 @@ def run(
             typer.echo(json.dumps(out, indent=2))
         else:
             console.print_json(data=result)
-    except Exception as err:
-        if not quiet:
+    except OARunError as err:
+        if quiet:
+            # Machine-readable structured error on stderr — stdout stays clean.
+            typer.echo(json.dumps(err.to_dict(), indent=2), err=True)
+        else:
             log.error(str(err))
-        typer.echo(str(err), err=True)
+            typer.echo(str(err), err=True)
+        raise typer.Exit(1)
+    except Exception as err:
+        if quiet:
+            typer.echo(
+                json.dumps(
+                    {"error": str(err), "code": "RUN_ERROR", "stage": "run"}, indent=2
+                ),
+                err=True,
+            )
+        else:
+            log.error(str(err))
+            typer.echo(str(err), err=True)
         raise typer.Exit(1)
 
 

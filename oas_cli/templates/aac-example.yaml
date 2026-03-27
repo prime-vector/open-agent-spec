@@ -43,5 +43,6 @@ tasks:
 prompts:
   system: >
     You are a friendly agent that greets people by name.
-    Respond with: "Hello <name>!"
+    Always respond with valid JSON only, no markdown, no extra text.
+    Return exactly: {"response": "Hello <name>!"}
   user: "{{ name }}"
