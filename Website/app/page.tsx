@@ -86,7 +86,7 @@ export default function HomePage() {
                   Open source · MIT
                 </span>
                 <span className="rounded-full border border-stone-400/50 bg-white/60 px-3 py-1 text-[10px] font-medium text-stone-700 backdrop-blur-sm">
-                  Spec v1.2.9
+                  Spec v1.3.0
                 </span>
               </div>
             </div>
@@ -123,7 +123,7 @@ export default function HomePage() {
             <div className="mt-8">
               <div className="mb-3 flex flex-wrap items-baseline gap-2">
                 <span className="inline-block rounded bg-stone-900 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-stone-100">
-                  New in 1.2.9
+                  New in 1.3.0
                 </span>
                 <p className="text-sm font-semibold text-stone-900">
                   NEW!! Multi-step agent workflows, no framework required.{" "}
@@ -343,7 +343,7 @@ export default function HomePage() {
                 Open source · MIT
               </span>
               <span className="rounded-full border border-stone-400/50 bg-stone-100/80 px-3 py-1">
-                Spec v1.2.9
+                Spec v1.3.0
               </span>
             </div>
           </section>
