@@ -52,70 +52,74 @@ def _validate_agent(spec_data: dict) -> None:
         )
 
 
-def _validate_behavioural_contract(spec_data: dict) -> None:
-    """Validate the behavioural contract section, if present.
+def _validate_single_contract(contract: dict, location: str) -> None:
+    """Validate one behavioural_contract block at the given spec location.
 
-    Specs that do not use behavioural contracts should not fail validation.
+    ``location`` is used in error messages, e.g. ``'behavioural_contract'`` or
+    ``"tasks.summarize.behavioural_contract"``.
     """
-    contract = spec_data.get("behavioural_contract")
-    if contract is None:
-        # Behavioural contracts are optional; nothing to validate.
-        return
-
     if not isinstance(contract, dict):
-        actual_type = type(contract).__name__
         raise ValueError(
-            f"Field 'behavioural_contract' must be a dictionary (object), got {actual_type}."
+            f"Field '{location}' must be a dictionary (object), "
+            f"got {type(contract).__name__}."
         )
 
     if not isinstance(contract.get("version"), str):
-        actual_type = (
-            type(contract.get("version")).__name__
-            if "version" in contract
-            else "missing"
+        actual = (
+            type(contract["version"]).__name__ if "version" in contract else "missing"
         )
         raise ValueError(
-            f"Field 'behavioural_contract.version' must be a string, got {actual_type}. "
-            f'Example: behavioural_contract:\n  version: "1.0"'
+            f"Field '{location}.version' must be a string, got {actual}. "
+            f'Example: version: "1.0"'
         )
     if not isinstance(contract.get("description"), str):
-        actual_type = (
-            type(contract.get("description")).__name__
+        actual = (
+            type(contract["description"]).__name__
             if "description" in contract
             else "missing"
         )
         raise ValueError(
-            f"Field 'behavioural_contract.description' must be a string, got {actual_type}. "
-            f"Provide a description of the agent's behavior."
+            f"Field '{location}.description' must be a string, got {actual}. "
+            f"Provide a description of the task's behaviour."
         )
 
-    # Optional fields - only validate if present
-    if "behavioural_flags" in contract and not isinstance(
-        contract["behavioural_flags"], dict
+    for opt_field in (
+        "behavioural_flags",
+        "response_contract",
+        "policy",
+        "teardown_policy",
     ):
-        actual_type = type(contract["behavioural_flags"]).__name__
-        raise ValueError(
-            f"Field 'behavioural_contract.behavioural_flags' must be a dictionary (object), got {actual_type}."
-        )
-    if "response_contract" in contract and not isinstance(
-        contract["response_contract"], dict
-    ):
-        actual_type = type(contract["response_contract"]).__name__
-        raise ValueError(
-            f"Field 'behavioural_contract.response_contract' must be a dictionary (object), got {actual_type}."
-        )
-    if "policy" in contract and not isinstance(contract["policy"], dict):
-        actual_type = type(contract["policy"]).__name__
-        raise ValueError(
-            f"Field 'behavioural_contract.policy' must be a dictionary (object), got {actual_type}."
-        )
-    if "teardown_policy" in contract and not isinstance(
-        contract["teardown_policy"], dict
-    ):
-        actual_type = type(contract["teardown_policy"]).__name__
-        raise ValueError(
-            f"Field 'behavioural_contract.teardown_policy' must be a dictionary (object), got {actual_type}."
-        )
+        if opt_field in contract and not isinstance(contract[opt_field], dict):
+            raise ValueError(
+                f"Field '{location}.{opt_field}' must be a dictionary (object), "
+                f"got {type(contract[opt_field]).__name__}."
+            )
+
+
+def _validate_behavioural_contract(spec_data: dict) -> None:
+    """Validate all behavioural_contract blocks in the spec.
+
+    Checks the optional top-level block and any per-task blocks declared under
+    ``tasks.<name>.behavioural_contract``.  Missing contracts are fine — they
+    are optional at every level.
+    """
+    # Top-level contract
+    global_contract = spec_data.get("behavioural_contract")
+    if global_contract is not None:
+        _validate_single_contract(global_contract, "behavioural_contract")
+
+    # Per-task contracts
+    tasks = spec_data.get("tasks") or {}
+    if not isinstance(tasks, dict):
+        return
+    for task_name, task_def in tasks.items():
+        if not isinstance(task_def, dict):
+            continue
+        task_contract = task_def.get("behavioural_contract")
+        if task_contract is not None:
+            _validate_single_contract(
+                task_contract, f"tasks.{task_name}.behavioural_contract"
+            )
 
 
 def _validate_tools(spec_data: dict) -> None:

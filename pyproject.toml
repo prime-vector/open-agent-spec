@@ -48,9 +48,13 @@ dev = [
     "types-setuptools>=69.0.0",
     "types-toml>=0.10.0",
     "types-jsonschema",
-    "behavioural-contracts==0.1.2",
+    # behavioural-contracts is optional at runtime; pinned here for dev/CI
+    "behavioural-contracts==0.1.3",
     # dacp is a runtime dependency above; listed in dev for tests that pin versions
     "dacp>=0.3.3",
+]
+contracts = [
+    "behavioural-contracts>=0.1.3",
 ]
 
 [project.scripts]
