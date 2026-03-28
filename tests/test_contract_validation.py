@@ -1,11 +1,14 @@
 """Test behavioral contract validation across engines."""
 
+import importlib.util
 import json
 from unittest.mock import MagicMock, patch
 
 import pytest
 
 pytestmark = pytest.mark.contract
+
+_anthropic_available = importlib.util.find_spec("anthropic") is not None
 
 
 class TestContractValidation:
@@ -43,6 +46,10 @@ class TestContractValidation:
         assert isinstance(content["confidence_level"], int | float)
         assert 0.0 <= content["confidence_level"] <= 1.0
 
+    @pytest.mark.skipif(
+        not _anthropic_available,
+        reason="anthropic SDK not installed (pip install open-agent-spec[sdks])",
+    )
     @patch("anthropic.Anthropic")
     def test_claude_valid_response(
         self, mock_anthropic, mock_claude_response, sample_threat_data

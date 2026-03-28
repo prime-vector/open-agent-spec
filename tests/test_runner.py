@@ -233,8 +233,8 @@ class TestRunTaskFromSpecOverrides:
     def test_override_system_reaches_invoke(self, monkeypatch):
         captured: dict = {}
 
-        def fake_invoke(prompt: str, config: dict) -> str:
-            captured["prompt"] = prompt
+        def fake_invoke(system: str, user: str, config: dict) -> str:
+            captured["prompt"] = f"{system}\n\n{user}"
             return '{"result": "ok"}'
 
         monkeypatch.setattr("oas_cli.runner.invoke_intelligence", fake_invoke)
@@ -252,8 +252,8 @@ class TestRunTaskFromSpecOverrides:
     def test_no_override_uses_spec_prompt(self, monkeypatch):
         captured: dict = {}
 
-        def fake_invoke(prompt: str, config: dict) -> str:
-            captured["prompt"] = prompt
+        def fake_invoke(system: str, user: str, config: dict) -> str:
+            captured["prompt"] = f"{system}\n\n{user}"
             return '{"result": "ok"}'
 
         monkeypatch.setattr("oas_cli.runner.invoke_intelligence", fake_invoke)
@@ -292,7 +292,7 @@ class TestResponseFormatText:
     def test_text_mode_returns_raw_string(self, monkeypatch):
         monkeypatch.setattr(
             "oas_cli.runner.invoke_intelligence",
-            lambda p, c: "This is plain prose output.",
+            lambda s, u, c: "This is plain prose output.",
         )
         result = run_task_from_spec(
             _text_spec(), task_name="prose", input_data={"topic": "cats"}
@@ -303,7 +303,7 @@ class TestResponseFormatText:
         """Raw output that is NOT valid JSON must be returned unchanged in text mode."""
         monkeypatch.setattr(
             "oas_cli.runner.invoke_intelligence",
-            lambda p, c: "Not JSON at all { broken",
+            lambda s, u, c: "Not JSON at all { broken",
         )
         result = run_task_from_spec(
             _text_spec(), task_name="prose", input_data={"topic": "x"}
@@ -313,7 +313,7 @@ class TestResponseFormatText:
     def test_text_mode_does_not_parse_fenced_json(self, monkeypatch):
         """Even fenced JSON should be returned as-is in text mode (no fence stripping)."""
         raw = '```json\n{"key": "val"}\n```'
-        monkeypatch.setattr("oas_cli.runner.invoke_intelligence", lambda p, c: raw)
+        monkeypatch.setattr("oas_cli.runner.invoke_intelligence", lambda s, u, c: raw)
         result = run_task_from_spec(
             _text_spec(), task_name="prose", input_data={"topic": "x"}
         )
@@ -323,7 +323,7 @@ class TestResponseFormatText:
         """response_format: json (default) still parses JSON as before."""
         monkeypatch.setattr(
             "oas_cli.runner.invoke_intelligence",
-            lambda p, c: '{"result": "ok"}',
+            lambda s, u, c: '{"result": "ok"}',
         )
         result = run_task_from_spec(
             _text_spec("json"), task_name="prose", input_data={"topic": "x"}
@@ -335,7 +335,7 @@ class TestResponseFormatText:
         spec = _spec(global_system="sys", global_user="{{ q }}")
         monkeypatch.setattr(
             "oas_cli.runner.invoke_intelligence",
-            lambda p, c: '{"result": "fine"}',
+            lambda s, u, c: '{"result": "fine"}',
         )
         result = run_task_from_spec(spec, task_name="mytask", input_data={"q": "hi"})
         assert result["output"] == {"result": "fine"}
@@ -372,7 +372,7 @@ class TestOARunError:
         assert err.task == "missing"
 
     def test_invoke_error_wrapped_in_oa_run_error(self, monkeypatch):
-        def bad_invoke(p, c):
+        def bad_invoke(s, u, c):
             raise RuntimeError("network timeout")
 
         monkeypatch.setattr("oas_cli.runner.invoke_intelligence", bad_invoke)
@@ -423,8 +423,8 @@ class TestDependsOn:
     def test_chain_executes_dependency_first(self, monkeypatch):
         calls: list[str] = []
 
-        def fake_invoke(prompt: str, config: dict) -> str:
-            if "extract" in prompt or calls == []:
+        def fake_invoke(system: str, user: str, config: dict) -> str:
+            if "extract" in user or calls == []:
                 calls.append("extract")
                 return '{"facts": "the sky is blue"}'
             calls.append("summarize")
@@ -441,8 +441,8 @@ class TestDependsOn:
         """Facts from extract must appear in summarize's prompt."""
         prompts_seen: list[str] = []
 
-        def fake_invoke(prompt: str, config: dict) -> str:
-            prompts_seen.append(prompt)
+        def fake_invoke(system: str, user: str, config: dict) -> str:
+            prompts_seen.append(f"{system}\n\n{user}")
             if len(prompts_seen) == 1:
                 return '{"facts": "the sky is blue"}'
             return '{"summary": "sky"}'
@@ -457,8 +457,8 @@ class TestDependsOn:
         """When both base input and dep output have the same key, dep output wins."""
         prompts_seen: list[str] = []
 
-        def fake_invoke(prompt: str, config: dict) -> str:
-            prompts_seen.append(prompt)
+        def fake_invoke(system: str, user: str, config: dict) -> str:
+            prompts_seen.append(f"{system}\n\n{user}")
             if len(prompts_seen) == 1:
                 return '{"facts": "from dep"}'
             return '{"summary": "ok"}'
@@ -473,17 +473,9 @@ class TestDependsOn:
         assert "from caller" not in prompts_seen[1]
 
     def test_chain_result_includes_intermediate(self, monkeypatch):
-        monkeypatch.setattr(
-            "oas_cli.runner.invoke_intelligence",
-            lambda p, c: (
-                '{"facts": "x"}'
-                if "extract" in c.get("model", "") or len(p) < 100
-                else '{"summary": "y"}'
-            ),
-        )
         calls = {"n": 0}
 
-        def fake_invoke(prompt: str, config: dict) -> str:
+        def fake_invoke(system: str, user: str, config: dict) -> str:
             calls["n"] += 1
             if calls["n"] == 1:
                 return '{"facts": "extracted facts"}'
@@ -499,7 +491,7 @@ class TestDependsOn:
         """Tasks with no depends_on must NOT add a chain key."""
         monkeypatch.setattr(
             "oas_cli.runner.invoke_intelligence",
-            lambda p, c: '{"facts": "x"}',
+            lambda s, u, c: '{"facts": "x"}',
         )
         spec = _chain_spec()
         result = run_task_from_spec(spec, task_name="extract", input_data={})
@@ -511,7 +503,7 @@ class TestDependsOn:
         spec["tasks"]["summarize"]["depends_on"] = ["nonexistent"]
         monkeypatch.setattr(
             "oas_cli.runner.invoke_intelligence",
-            lambda p, c: '{"facts": "x"}',
+            lambda s, u, c: '{"facts": "x"}',
         )
         with pytest.raises(OARunError) as exc_info:
             run_task_from_spec(spec, task_name="summarize", input_data={})
@@ -523,7 +515,7 @@ class TestDependsOn:
         spec["tasks"]["extract"]["depends_on"] = ["summarize"]
         monkeypatch.setattr(
             "oas_cli.runner.invoke_intelligence",
-            lambda p, c: "{}",
+            lambda s, u, c: "{}",
         )
         with pytest.raises(OARunError) as exc_info:
             run_task_from_spec(spec, task_name="summarize", input_data={})
@@ -533,7 +525,7 @@ class TestDependsOn:
         """If required fields are still missing after merge, fail fast."""
         monkeypatch.setattr(
             "oas_cli.runner.invoke_intelligence",
-            lambda p, c: "{}",  # dep returns empty output
+            lambda s, u, c: "{}",  # dep returns empty output
         )
         spec = _chain_spec()
         # extract output missing 'facts', summarize needs nothing required — swap:
@@ -699,7 +691,7 @@ class TestContractEnforcementLive:
     def test_valid_output_passes(self, monkeypatch):
         monkeypatch.setattr(
             "oas_cli.runner.invoke_intelligence",
-            lambda p, c: '{"summary": "all good", "confidence": "high"}',
+            lambda s, u, c: '{"summary": "all good", "confidence": "high"}',
         )
         spec = self._contract_spec(["summary", "confidence"])
         result = run_task_from_spec(spec, task_name="mytask", input_data={"q": "hi"})
@@ -708,7 +700,7 @@ class TestContractEnforcementLive:
     def test_missing_required_field_raises_contract_violation(self, monkeypatch):
         monkeypatch.setattr(
             "oas_cli.runner.invoke_intelligence",
-            lambda p, c: '{"summary": "ok"}',  # missing 'confidence'
+            lambda s, u, c: '{"summary": "ok"}',  # missing 'confidence'
         )
         spec = self._contract_spec(["summary", "confidence"])
         with pytest.raises(OARunError) as exc_info:
@@ -723,7 +715,7 @@ class TestContractEnforcementLive:
         """response_format: text must never raise CONTRACT_VIOLATION."""
         monkeypatch.setattr(
             "oas_cli.runner.invoke_intelligence",
-            lambda p, c: "plain prose — no fields at all",
+            lambda s, u, c: "plain prose — no fields at all",
         )
         spec = self._contract_spec(["summary"], response_format="text")
         result = run_task_from_spec(spec, task_name="mytask", input_data={"q": "hi"})
@@ -733,7 +725,7 @@ class TestContractEnforcementLive:
         """Top-level contract applies when task has none of its own."""
         monkeypatch.setattr(
             "oas_cli.runner.invoke_intelligence",
-            lambda p, c: '{"summary": "ok"}',  # missing global 'confidence'
+            lambda s, u, c: '{"summary": "ok"}',  # missing global 'confidence'
         )
         spec = {
             "open_agent_spec": "1.3.0",
@@ -765,8 +757,8 @@ class TestContractEnforcementLive:
         """Contract violation on a dependency must halt the chain before the main task runs."""
         calls: list[str] = []
 
-        def fake_invoke(prompt: str, config: dict) -> str:
-            calls.append(prompt)
+        def fake_invoke(system: str, user: str, config: dict) -> str:
+            calls.append(f"{system}\n\n{user}")
             return '{"wrong_field": "oops"}'  # missing 'facts'
 
         monkeypatch.setattr("oas_cli.runner.invoke_intelligence", fake_invoke)
