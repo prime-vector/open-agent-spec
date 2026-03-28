@@ -34,7 +34,9 @@ class OpenAIProvider(IntelligenceProvider):
 
         endpoint = config.get("endpoint", _DEFAULT_ENDPOINT)
         # Accept bare base URL (e.g. https://api.openai.com/v1) — append path.
-        if not endpoint.endswith("/chat/completions") and not endpoint.endswith("/responses"):
+        if not endpoint.endswith("/chat/completions") and not endpoint.endswith(
+            "/responses"
+        ):
             endpoint = endpoint.rstrip("/") + "/chat/completions"
 
         model = config.get("model", _DEFAULT_MODEL)
@@ -48,7 +50,9 @@ class OpenAIProvider(IntelligenceProvider):
                 system, user, model, temperature, max_tokens
             )
 
-        return _http_post(endpoint, payload, headers={"Authorization": f"Bearer {api_key}"})
+        return _http_post(
+            endpoint, payload, headers={"Authorization": f"Bearer {api_key}"}
+        )
 
 
 def _build_chat_completions_payload(

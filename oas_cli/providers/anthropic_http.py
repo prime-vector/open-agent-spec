@@ -69,6 +69,4 @@ class AnthropicProvider(IntelligenceProvider):
         try:
             return data["content"][0]["text"]
         except (KeyError, IndexError, TypeError) as exc:
-            raise ProviderError(
-                f"Unexpected Anthropic response shape: {data}"
-            ) from exc
+            raise ProviderError(f"Unexpected Anthropic response shape: {data}") from exc
