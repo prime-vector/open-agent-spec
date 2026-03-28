@@ -187,6 +187,7 @@ When `oa run --quiet` encounters a failure it emits a machine-readable JSON obje
 | `RUN_ERROR` | `run` | `invoke_intelligence` raises an exception |
 | `CHAIN_CYCLE_ERROR` | `routing` | Circular `depends_on` chain detected |
 | `CHAIN_INPUT_MISSING` | `input_validation` | Required input field missing after dependency merge |
+| `CONTRACT_VIOLATION` | `contract` | Task output failed behavioural contract validation |
 
 Verbose mode (`oa run` without `--quiet`) prints the error to the terminal as plain text, unchanged from prior behaviour.
 
@@ -255,6 +256,99 @@ The final result includes all intermediate results in a `chain` key:
 ```
 
 Tasks with no `depends_on` do not include a `chain` key.
+
+---
+
+## Behavioural contracts (optional BCE integration)
+
+Behavioural contracts let you declare constraints on a task's output — required fields, policy rules, behavioural flags — and have them enforced automatically at run time by the [`behavioural-contracts`](https://pypi.org/project/behavioural-contracts/) library.
+
+Contracts are **entirely optional**. Specs without them run exactly as before. When the library is not installed, OA logs a hard warning and continues.
+
+### Install
+
+```bash
+pip install 'open-agent-spec[contracts]'
+```
+
+### Per-task contract (preferred)
+
+Declare a `behavioural_contract` block inside any task definition:
+
+```yaml
+tasks:
+  summarize:
+    description: Summarise extracted facts
+    depends_on: [extract]
+    behavioural_contract:
+      version: "1.0"
+      description: "Summarize task must always return a summary field"
+      response_contract:
+        output_format:
+          required_fields: [summary]
+    output:
+      type: object
+      properties:
+        summary: { type: string }
+```
+
+### Global contract + per-task contract — merge semantics
+
+A top-level `behavioural_contract` block acts as a baseline that applies to every task. Per-task contracts are **merged on top** — not replaced. Arrays (like `required_fields`) are **unioned**; scalars use per-task-wins.
+
+```yaml
+# Global: every task must output 'confidence'
+behavioural_contract:
+  version: "1.0"
+  description: "Global baseline"
+  response_contract:
+    output_format:
+      required_fields: [confidence]
+
+tasks:
+  summarize:
+    behavioural_contract:
+      version: "1.0"
+      description: "Also requires summary"
+      response_contract:
+        output_format:
+          required_fields: [summary]
+    # Effective required_fields for this task: [confidence, summary]
+```
+
+This lets you enforce cross-cutting guarantees (e.g. every task must include `confidence`) in one place without repeating them per task.
+
+### Contract resolution order
+
+| Priority | Source |
+|---|---|
+| Base | Top-level `behavioural_contract` |
+| Override (merged) | `tasks.<name>.behavioural_contract` |
+
+### Where validation runs
+
+Contracts are enforced **after output parsing, before the result is returned** — and for chain dependencies, before the dep output is merged into the next task's input:
+
+```
+extract → [parse] → [contract check] → merge into summarize input
+summarize → [parse] → [contract check] → return result
+```
+
+A contract violation on a dependency stops the chain immediately and raises `CONTRACT_VIOLATION` before the dependent task ever runs.
+
+### Skipped cases (with warning)
+
+| Condition | Behaviour |
+|---|---|
+| `response_format: text` | Validation skipped — field checks are meaningless on raw strings |
+| `behavioural-contracts` not installed | Hard warning logged; execution continues |
+| Output is not a dict (JSON parse failed) | Validation skipped with warning |
+
+### Error on violation
+
+```json
+{"error": "Missing required field: 'confidence'", "code": "CONTRACT_VIOLATION", "stage": "contract", "task": "summarize"}
+```
 
 ---
 

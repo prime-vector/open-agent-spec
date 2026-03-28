@@ -8,6 +8,7 @@ underlying intelligence provider via the runtime abstraction.
 from __future__ import annotations
 
 import json
+import logging
 import re
 from pathlib import Path
 from typing import Any
@@ -15,6 +16,15 @@ from typing import Any
 import yaml
 
 from .runtime import invoke_intelligence
+
+logger = logging.getLogger(__name__)
+
+# Optional BCE integration — degrades gracefully when library is not installed.
+try:
+    from behavioural_contracts import validate_task_output  # type: ignore[import]
+    CONTRACTS_ENABLED = True
+except ImportError:
+    CONTRACTS_ENABLED = False
 
 
 class OARunError(Exception):
@@ -257,6 +267,55 @@ def _resolve_chain(
     return merged, chain
 
 
+def _merge_contracts(
+    base: dict[str, Any], override: dict[str, Any]
+) -> dict[str, Any]:
+    """Merge two behavioural contract dicts.
+
+    Merge rules:
+    - Arrays: unioned (order preserved, duplicates removed)
+    - Dicts:  merged recursively using the same rules
+    - Scalars: override wins
+
+    This ensures global constraints (e.g. required_fields: [confidence]) are
+    preserved when a task adds its own fields, rather than silently dropped.
+    """
+    merged = dict(base)
+    for key, val in override.items():
+        if key in merged:
+            base_val = merged[key]
+            if isinstance(base_val, list) and isinstance(val, list):
+                merged[key] = list(dict.fromkeys(base_val + val))
+            elif isinstance(base_val, dict) and isinstance(val, dict):
+                merged[key] = _merge_contracts(base_val, val)
+            else:
+                merged[key] = val
+        else:
+            merged[key] = val
+    return merged
+
+
+def _resolve_contract(
+    spec_data: dict[str, Any], task_name: str
+) -> dict[str, Any] | None:
+    """Resolve the effective behavioural contract for a task.
+
+    Priority:
+      global behavioural_contract  ← base
+      tasks.<name>.behavioural_contract  ← merged on top (arrays unioned)
+
+    Returns None when no contract is declared at either level.
+    """
+    global_contract: dict[str, Any] = spec_data.get("behavioural_contract") or {}
+    tasks = spec_data.get("tasks") or {}
+    task_contract: dict[str, Any] = (
+        (tasks.get(task_name) or {}).get("behavioural_contract") or {}
+    )
+    if not global_contract and not task_contract:
+        return None
+    return _merge_contracts(global_contract, task_contract)
+
+
 def _run_single_task(
     spec_data: dict[str, Any],
     task_name: str,
@@ -317,6 +376,41 @@ def _run_single_task(
             parsed_output = raw_output
     else:
         parsed_output = raw_output
+
+    # Behavioural contract validation — AFTER parsing, BEFORE returning.
+    # Runs for every task including chain dependencies, so a bad dep output is
+    # caught before it can be merged into the next task's input.
+    contract = _resolve_contract(spec_data, task_name)
+    if contract is not None:
+        if response_format == "text":
+            logger.warning(
+                "[warning] Contract validation skipped for task '%s': "
+                "response_format is 'text' — field validation is meaningless on raw strings.",
+                task_name,
+            )
+        elif not isinstance(parsed_output, dict):
+            logger.warning(
+                "[warning] Contract validation skipped for task '%s': "
+                "output could not be parsed as a dict.",
+                task_name,
+            )
+        elif not CONTRACTS_ENABLED:
+            logger.warning(
+                "[warning] behavioural-contracts not installed — "
+                "contract validation for task '%s' will be skipped. "
+                "Install with: pip install 'open-agent-spec[contracts]'",
+                task_name,
+            )
+        else:
+            try:
+                validate_task_output(parsed_output, contract)
+            except Exception as exc:
+                raise OARunError(
+                    str(exc),
+                    code="CONTRACT_VIOLATION",
+                    stage="contract",
+                    task=task_name,
+                ) from exc
 
     return {
         "task": task_name,

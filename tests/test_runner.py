@@ -1,8 +1,15 @@
-"""Tests for prompt resolution order in runner._build_prompt."""
+"""Tests for prompt resolution order in runner._build_prompt and BCE contracts."""
 
 import pytest
 
-from oas_cli.runner import OARunError, _build_prompt, run_task_from_spec
+from oas_cli.runner import (
+    CONTRACTS_ENABLED,
+    OARunError,
+    _build_prompt,
+    _merge_contracts,
+    _resolve_contract,
+    run_task_from_spec,
+)
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -541,3 +548,230 @@ class TestDependsOn:
             run_task_from_spec(spec, task_name="summarize", input_data={})
         assert exc_info.value.code == "CHAIN_INPUT_MISSING"
         assert exc_info.value.stage == "input_validation"
+
+
+# ---------------------------------------------------------------------------
+# Behavioural contract — _merge_contracts and _resolve_contract unit tests
+# ---------------------------------------------------------------------------
+
+class TestMergeContracts:
+    def test_no_overlap_combines_keys(self):
+        base = {"version": "1.0", "description": "base"}
+        override = {"policy": {"pii": False}}
+        merged = _merge_contracts(base, override)
+        assert merged["version"] == "1.0"
+        assert merged["policy"] == {"pii": False}
+
+    def test_arrays_are_unioned(self):
+        base = {"response_contract": {"output_format": {"required_fields": ["confidence"]}}}
+        override = {"response_contract": {"output_format": {"required_fields": ["summary"]}}}
+        merged = _merge_contracts(base, override)
+        fields = merged["response_contract"]["output_format"]["required_fields"]
+        assert set(fields) == {"confidence", "summary"}
+
+    def test_array_union_preserves_order_no_duplicates(self):
+        base = {"response_contract": {"output_format": {"required_fields": ["a", "b"]}}}
+        override = {"response_contract": {"output_format": {"required_fields": ["b", "c"]}}}
+        merged = _merge_contracts(base, override)
+        fields = merged["response_contract"]["output_format"]["required_fields"]
+        assert fields == ["a", "b", "c"]
+
+    def test_scalar_override_wins(self):
+        base = {"version": "1.0", "description": "base desc"}
+        override = {"version": "2.0"}
+        merged = _merge_contracts(base, override)
+        assert merged["version"] == "2.0"
+        assert merged["description"] == "base desc"
+
+    def test_empty_base_returns_override(self):
+        assert _merge_contracts({}, {"version": "1.0"}) == {"version": "1.0"}
+
+    def test_empty_override_returns_base(self):
+        assert _merge_contracts({"version": "1.0"}, {}) == {"version": "1.0"}
+
+
+class TestResolveContract:
+    def _spec_with_contracts(
+        self,
+        *,
+        global_fields: list[str] | None = None,
+        task_fields: list[str] | None = None,
+    ) -> dict:
+        spec: dict = {
+            "open_agent_spec": "1.3.0",
+            "agent": {"name": "ta", "description": "ta"},
+            "intelligence": {"type": "llm", "engine": "openai", "model": "gpt-4o"},
+            "tasks": {
+                "mytask": {
+                    "description": "test",
+                    "output": {"type": "object", "properties": {"r": {"type": "string"}}},
+                }
+            },
+            "prompts": {"system": "sys", "user": "{{ q }}"},
+        }
+        if global_fields is not None:
+            spec["behavioural_contract"] = {
+                "version": "1.0",
+                "description": "global",
+                "response_contract": {"output_format": {"required_fields": global_fields}},
+            }
+        if task_fields is not None:
+            spec["tasks"]["mytask"]["behavioural_contract"] = {
+                "version": "1.0",
+                "description": "task",
+                "response_contract": {"output_format": {"required_fields": task_fields}},
+            }
+        return spec
+
+    def test_no_contract_returns_none(self):
+        spec = self._spec_with_contracts()
+        assert _resolve_contract(spec, "mytask") is None
+
+    def test_global_only(self):
+        spec = self._spec_with_contracts(global_fields=["confidence"])
+        contract = _resolve_contract(spec, "mytask")
+        assert contract is not None
+        fields = contract["response_contract"]["output_format"]["required_fields"]
+        assert fields == ["confidence"]
+
+    def test_task_only(self):
+        spec = self._spec_with_contracts(task_fields=["summary"])
+        contract = _resolve_contract(spec, "mytask")
+        fields = contract["response_contract"]["output_format"]["required_fields"]
+        assert fields == ["summary"]
+
+    def test_global_plus_task_merged(self):
+        spec = self._spec_with_contracts(global_fields=["confidence"], task_fields=["summary"])
+        contract = _resolve_contract(spec, "mytask")
+        fields = set(contract["response_contract"]["output_format"]["required_fields"])
+        assert fields == {"confidence", "summary"}
+
+
+# ---------------------------------------------------------------------------
+# Behavioural contract — runtime enforcement in _run_single_task
+# (only run when the library is installed)
+# ---------------------------------------------------------------------------
+
+@pytest.mark.skipif(not CONTRACTS_ENABLED, reason="behavioural-contracts not installed")
+class TestContractEnforcementLive:
+    """Tests that require the actual behavioural-contracts library."""
+
+    def _contract_spec(self, required_fields: list[str], response_format: str = "json") -> dict:
+        task: dict = {
+            "description": "test",
+            "response_format": response_format,
+            "output": {"type": "object", "properties": {"r": {"type": "string"}}},
+            "behavioural_contract": {
+                "version": "1.0",
+                "description": "test contract",
+                "response_contract": {
+                    "output_format": {"required_fields": required_fields}
+                },
+            },
+        }
+        return {
+            "open_agent_spec": "1.3.0",
+            "agent": {"name": "ta", "description": "ta"},
+            "intelligence": {"type": "llm", "engine": "openai", "model": "gpt-4o"},
+            "tasks": {"mytask": task},
+            "prompts": {"system": "sys", "user": "{{ q }}"},
+        }
+
+    def test_valid_output_passes(self, monkeypatch):
+        monkeypatch.setattr(
+            "oas_cli.runner.invoke_intelligence",
+            lambda p, c: '{"summary": "all good", "confidence": "high"}',
+        )
+        spec = self._contract_spec(["summary", "confidence"])
+        result = run_task_from_spec(spec, task_name="mytask", input_data={"q": "hi"})
+        assert result["output"]["summary"] == "all good"
+
+    def test_missing_required_field_raises_contract_violation(self, monkeypatch):
+        monkeypatch.setattr(
+            "oas_cli.runner.invoke_intelligence",
+            lambda p, c: '{"summary": "ok"}',  # missing 'confidence'
+        )
+        spec = self._contract_spec(["summary", "confidence"])
+        with pytest.raises(OARunError) as exc_info:
+            run_task_from_spec(spec, task_name="mytask", input_data={"q": "hi"})
+        err = exc_info.value
+        assert err.code == "CONTRACT_VIOLATION"
+        assert err.stage == "contract"
+        assert err.task == "mytask"
+        assert "confidence" in str(err)
+
+    def test_text_mode_skips_contract(self, monkeypatch):
+        """response_format: text must never raise CONTRACT_VIOLATION."""
+        monkeypatch.setattr(
+            "oas_cli.runner.invoke_intelligence",
+            lambda p, c: "plain prose — no fields at all",
+        )
+        spec = self._contract_spec(["summary"], response_format="text")
+        result = run_task_from_spec(spec, task_name="mytask", input_data={"q": "hi"})
+        assert result["output"] == "plain prose — no fields at all"
+
+    def test_global_contract_enforced_on_task(self, monkeypatch):
+        """Top-level contract applies when task has none of its own."""
+        monkeypatch.setattr(
+            "oas_cli.runner.invoke_intelligence",
+            lambda p, c: '{"summary": "ok"}',  # missing global 'confidence'
+        )
+        spec = {
+            "open_agent_spec": "1.3.0",
+            "agent": {"name": "ta", "description": "ta"},
+            "intelligence": {"type": "llm", "engine": "openai", "model": "gpt-4o"},
+            "tasks": {
+                "mytask": {
+                    "description": "test",
+                    "output": {"type": "object", "properties": {"r": {"type": "string"}}},
+                }
+            },
+            "prompts": {"system": "sys", "user": "{{ q }}"},
+            "behavioural_contract": {
+                "version": "1.0",
+                "description": "global",
+                "response_contract": {"output_format": {"required_fields": ["confidence"]}},
+            },
+        }
+        with pytest.raises(OARunError) as exc_info:
+            run_task_from_spec(spec, task_name="mytask", input_data={"q": "hi"})
+        assert exc_info.value.code == "CONTRACT_VIOLATION"
+
+    def test_chain_dep_violation_stops_chain(self, monkeypatch):
+        """Contract violation on a dependency must halt the chain before the main task runs."""
+        calls: list[str] = []
+
+        def fake_invoke(prompt: str, config: dict) -> str:
+            calls.append(prompt)
+            return '{"wrong_field": "oops"}'  # missing 'facts'
+
+        monkeypatch.setattr("oas_cli.runner.invoke_intelligence", fake_invoke)
+        spec = {
+            "open_agent_spec": "1.3.0",
+            "agent": {"name": "ta", "description": "ta"},
+            "intelligence": {"type": "llm", "engine": "openai", "model": "gpt-4o"},
+            "tasks": {
+                "extract": {
+                    "description": "extract",
+                    "output": {"type": "object", "properties": {"facts": {"type": "string"}}},
+                    "behavioural_contract": {
+                        "version": "1.0",
+                        "description": "extract contract",
+                        "response_contract": {"output_format": {"required_fields": ["facts"]}},
+                    },
+                },
+                "summarize": {
+                    "description": "summarize",
+                    "depends_on": ["extract"],
+                    "output": {"type": "object", "properties": {"summary": {"type": "string"}}},
+                },
+            },
+            "prompts": {"system": "sys", "user": "{{ q }}"},
+        }
+        with pytest.raises(OARunError) as exc_info:
+            run_task_from_spec(spec, task_name="summarize", input_data={"q": "hi"})
+        err = exc_info.value
+        assert err.code == "CONTRACT_VIOLATION"
+        assert err.task == "extract"
+        # Only one LLM call was made — summarize never ran
+        assert len(calls) == 1

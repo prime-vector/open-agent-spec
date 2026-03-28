@@ -329,6 +329,10 @@
                 "type": "array",
                 "items": { "type": "string" },
                 "description": "List of task names that must run before this task. Their outputs are merged into this task's input (later entries win on key collision). Linear chains only — no branching or conditions."
+              },
+              "behavioural_contract": {
+                "type": "object",
+                "description": "Per-task behavioural contract. Merged with the top-level behavioural_contract (arrays are unioned, scalars use per-task-wins). Install behavioural-contracts to enable runtime enforcement."
               }
             },
             "required": [
