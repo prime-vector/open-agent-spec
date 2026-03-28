@@ -65,7 +65,9 @@ def _validate_single_contract(contract: dict, location: str) -> None:
         )
 
     if not isinstance(contract.get("version"), str):
-        actual = type(contract["version"]).__name__ if "version" in contract else "missing"
+        actual = (
+            type(contract["version"]).__name__ if "version" in contract else "missing"
+        )
         raise ValueError(
             f"Field '{location}.version' must be a string, got {actual}. "
             f'Example: version: "1.0"'
@@ -81,7 +83,12 @@ def _validate_single_contract(contract: dict, location: str) -> None:
             f"Provide a description of the task's behaviour."
         )
 
-    for opt_field in ("behavioural_flags", "response_contract", "policy", "teardown_policy"):
+    for opt_field in (
+        "behavioural_flags",
+        "response_contract",
+        "policy",
+        "teardown_policy",
+    ):
         if opt_field in contract and not isinstance(contract[opt_field], dict):
             raise ValueError(
                 f"Field '{location}.{opt_field}' must be a dictionary (object), "

@@ -554,6 +554,7 @@ class TestDependsOn:
 # Behavioural contract — _merge_contracts and _resolve_contract unit tests
 # ---------------------------------------------------------------------------
 
+
 class TestMergeContracts:
     def test_no_overlap_combines_keys(self):
         base = {"version": "1.0", "description": "base"}
@@ -563,15 +564,21 @@ class TestMergeContracts:
         assert merged["policy"] == {"pii": False}
 
     def test_arrays_are_unioned(self):
-        base = {"response_contract": {"output_format": {"required_fields": ["confidence"]}}}
-        override = {"response_contract": {"output_format": {"required_fields": ["summary"]}}}
+        base = {
+            "response_contract": {"output_format": {"required_fields": ["confidence"]}}
+        }
+        override = {
+            "response_contract": {"output_format": {"required_fields": ["summary"]}}
+        }
         merged = _merge_contracts(base, override)
         fields = merged["response_contract"]["output_format"]["required_fields"]
         assert set(fields) == {"confidence", "summary"}
 
     def test_array_union_preserves_order_no_duplicates(self):
         base = {"response_contract": {"output_format": {"required_fields": ["a", "b"]}}}
-        override = {"response_contract": {"output_format": {"required_fields": ["b", "c"]}}}
+        override = {
+            "response_contract": {"output_format": {"required_fields": ["b", "c"]}}
+        }
         merged = _merge_contracts(base, override)
         fields = merged["response_contract"]["output_format"]["required_fields"]
         assert fields == ["a", "b", "c"]
@@ -604,7 +611,10 @@ class TestResolveContract:
             "tasks": {
                 "mytask": {
                     "description": "test",
-                    "output": {"type": "object", "properties": {"r": {"type": "string"}}},
+                    "output": {
+                        "type": "object",
+                        "properties": {"r": {"type": "string"}},
+                    },
                 }
             },
             "prompts": {"system": "sys", "user": "{{ q }}"},
@@ -613,13 +623,17 @@ class TestResolveContract:
             spec["behavioural_contract"] = {
                 "version": "1.0",
                 "description": "global",
-                "response_contract": {"output_format": {"required_fields": global_fields}},
+                "response_contract": {
+                    "output_format": {"required_fields": global_fields}
+                },
             }
         if task_fields is not None:
             spec["tasks"]["mytask"]["behavioural_contract"] = {
                 "version": "1.0",
                 "description": "task",
-                "response_contract": {"output_format": {"required_fields": task_fields}},
+                "response_contract": {
+                    "output_format": {"required_fields": task_fields}
+                },
             }
         return spec
 
@@ -641,7 +655,9 @@ class TestResolveContract:
         assert fields == ["summary"]
 
     def test_global_plus_task_merged(self):
-        spec = self._spec_with_contracts(global_fields=["confidence"], task_fields=["summary"])
+        spec = self._spec_with_contracts(
+            global_fields=["confidence"], task_fields=["summary"]
+        )
         contract = _resolve_contract(spec, "mytask")
         fields = set(contract["response_contract"]["output_format"]["required_fields"])
         assert fields == {"confidence", "summary"}
@@ -652,11 +668,14 @@ class TestResolveContract:
 # (only run when the library is installed)
 # ---------------------------------------------------------------------------
 
+
 @pytest.mark.skipif(not CONTRACTS_ENABLED, reason="behavioural-contracts not installed")
 class TestContractEnforcementLive:
     """Tests that require the actual behavioural-contracts library."""
 
-    def _contract_spec(self, required_fields: list[str], response_format: str = "json") -> dict:
+    def _contract_spec(
+        self, required_fields: list[str], response_format: str = "json"
+    ) -> dict:
         task: dict = {
             "description": "test",
             "response_format": response_format,
@@ -723,14 +742,19 @@ class TestContractEnforcementLive:
             "tasks": {
                 "mytask": {
                     "description": "test",
-                    "output": {"type": "object", "properties": {"r": {"type": "string"}}},
+                    "output": {
+                        "type": "object",
+                        "properties": {"r": {"type": "string"}},
+                    },
                 }
             },
             "prompts": {"system": "sys", "user": "{{ q }}"},
             "behavioural_contract": {
                 "version": "1.0",
                 "description": "global",
-                "response_contract": {"output_format": {"required_fields": ["confidence"]}},
+                "response_contract": {
+                    "output_format": {"required_fields": ["confidence"]}
+                },
             },
         }
         with pytest.raises(OARunError) as exc_info:
@@ -753,17 +777,25 @@ class TestContractEnforcementLive:
             "tasks": {
                 "extract": {
                     "description": "extract",
-                    "output": {"type": "object", "properties": {"facts": {"type": "string"}}},
+                    "output": {
+                        "type": "object",
+                        "properties": {"facts": {"type": "string"}},
+                    },
                     "behavioural_contract": {
                         "version": "1.0",
                         "description": "extract contract",
-                        "response_contract": {"output_format": {"required_fields": ["facts"]}},
+                        "response_contract": {
+                            "output_format": {"required_fields": ["facts"]}
+                        },
                     },
                 },
                 "summarize": {
                     "description": "summarize",
                     "depends_on": ["extract"],
-                    "output": {"type": "object", "properties": {"summary": {"type": "string"}}},
+                    "output": {
+                        "type": "object",
+                        "properties": {"summary": {"type": "string"}},
+                    },
                 },
             },
             "prompts": {"system": "sys", "user": "{{ q }}"},

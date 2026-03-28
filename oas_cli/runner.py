@@ -22,6 +22,7 @@ logger = logging.getLogger(__name__)
 # Optional BCE integration — degrades gracefully when library is not installed.
 try:
     from behavioural_contracts import validate_task_output  # type: ignore[import]
+
     CONTRACTS_ENABLED = True
 except ImportError:
     CONTRACTS_ENABLED = False
@@ -267,9 +268,7 @@ def _resolve_chain(
     return merged, chain
 
 
-def _merge_contracts(
-    base: dict[str, Any], override: dict[str, Any]
-) -> dict[str, Any]:
+def _merge_contracts(base: dict[str, Any], override: dict[str, Any]) -> dict[str, Any]:
     """Merge two behavioural contract dicts.
 
     Merge rules:
@@ -308,9 +307,9 @@ def _resolve_contract(
     """
     global_contract: dict[str, Any] = spec_data.get("behavioural_contract") or {}
     tasks = spec_data.get("tasks") or {}
-    task_contract: dict[str, Any] = (
-        (tasks.get(task_name) or {}).get("behavioural_contract") or {}
-    )
+    task_contract: dict[str, Any] = (tasks.get(task_name) or {}).get(
+        "behavioural_contract"
+    ) or {}
     if not global_contract and not task_contract:
         return None
     return _merge_contracts(global_contract, task_contract)
