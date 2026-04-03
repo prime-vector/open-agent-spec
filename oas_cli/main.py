@@ -715,6 +715,11 @@ def orchestrate(
         "--workers",
         help="Comma-separated paths to worker agent specs",
     ),
+    concierge: str = typer.Option(
+        ".agents/personas/concierge.yaml",
+        "--concierge",
+        help="Path to the concierge agent spec (user-facing). Use '' to disable.",
+    ),
     dashboard: bool = typer.Option(
         False, "--dashboard", help="Launch the web dashboard instead of running inline"
     ),
@@ -734,9 +739,12 @@ def orchestrate(
 
     worker_list = [w.strip() for w in workers.split(",") if w.strip()]
 
+    concierge_path = concierge.strip() if concierge.strip() else None
+
     loop = OrchestrationLoop(
         manager_spec=manager,
         worker_specs=worker_list,
+        concierge_spec=concierge_path,
     )
 
     if dashboard:

@@ -1,0 +1,141 @@
+open_agent_spec: "1.3.0"
+
+agent:
+  name: concierge-agent
+  role: chat
+
+intelligence:
+  type: llm
+  engine: openai
+  model: gpt-4o
+  config:
+    temperature: 0.7
+    max_tokens: 1500
+
+tasks:
+  greet:
+    description: >
+      Welcome the user and help them understand what the agent team
+      can do.  Provide a friendly, conversational introduction.
+    input:
+      type: object
+      properties:
+        user_name:
+          type: string
+          description: The user's name, if known.
+      required: []
+    output:
+      type: object
+      properties:
+        message:
+          type: string
+      required: [message]
+    prompts:
+      system: |
+        You are a friendly concierge agent for an AI agent team.  You greet
+        users, explain what the team can help with, and guide them to
+        describe their objective clearly.
+
+        The team has these specialist agents available:
+        - Researcher (analyst): deep research and structured analysis
+        - Writer: drafting content, articles, emails, summaries
+        - Reviewer: quality review with approve/revise/reject decisions
+
+        Be warm, concise, and helpful.  Respond with valid JSON.
+      user: |
+        User name: {{ user_name }}
+
+  clarify:
+    description: >
+      Take a raw user request and turn it into a clear, well-scoped
+      objective that the manager agent can decompose into tasks.
+    input:
+      type: object
+      properties:
+        user_request:
+          type: string
+          description: The raw request from the user.
+        conversation_history:
+          type: string
+          description: Prior conversation context, if any.
+      required: [user_request]
+    output:
+      type: object
+      properties:
+        objective:
+          type: string
+          description: A clear, actionable objective for the manager.
+        clarification_needed:
+          type: boolean
+          description: Whether more info is needed from the user.
+        follow_up_question:
+          type: string
+          description: Question to ask if clarification is needed.
+        scope_notes:
+          type: string
+          description: Any assumptions or scope boundaries noted.
+      required: [objective, clarification_needed]
+    prompts:
+      system: |
+        You are a concierge agent that translates user requests into
+        clear objectives for an AI agent team.
+
+        Your job is to:
+        1. Understand what the user actually wants.
+        2. If the request is clear enough, produce a well-scoped objective.
+        3. If it's ambiguous, set clarification_needed to true and provide
+           a specific follow_up_question.
+        4. Note any assumptions in scope_notes.
+
+        The team can research, write, and review — but cannot execute code,
+        access external systems, or take real-world actions.
+
+        Respond with valid JSON matching the output schema.
+      user: |
+        User request: {{ user_request }}
+        Prior context: {{ conversation_history }}
+
+  summarise:
+    description: >
+      Take the results from a completed orchestration run and present
+      them to the user in a friendly, readable format.
+    input:
+      type: object
+      properties:
+        objective:
+          type: string
+          description: The original objective.
+        task_results:
+          type: string
+          description: JSON string of completed task results.
+      required: [objective, task_results]
+    output:
+      type: object
+      properties:
+        summary:
+          type: string
+          description: Human-friendly summary of what was accomplished.
+        highlights:
+          type: array
+          items:
+            type: string
+          description: Key highlights or deliverables.
+        next_steps:
+          type: array
+          items:
+            type: string
+          description: Suggested follow-up actions.
+      required: [summary]
+    prompts:
+      system: |
+        You are a concierge agent presenting results to a user.  Take the
+        raw task results from the agent team and present them in a warm,
+        readable format.  Highlight what was accomplished, call out key
+        deliverables, and suggest logical next steps.
+
+        Respond with valid JSON matching the output schema.
+      user: |
+        Original objective: {{ objective }}
+
+        Task results:
+        {{ task_results }}
