@@ -27,9 +27,9 @@ import logging
 import time
 from typing import Any, Callable, Dict, List, Optional
 
-from .board import TaskBoard, TaskPriority, TaskStatus
-from .registry import AgentRegistry
-from .runner import AgentRunner
+from board import TaskBoard, TaskPriority, TaskStatus
+from registry import AgentRegistry
+from runner import AgentRunner
 
 logger = logging.getLogger(__name__)
 

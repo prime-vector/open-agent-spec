@@ -1,16 +1,24 @@
-"""Tests for the orchestration module."""
+"""Tests for the multi-agent orchestration example."""
 
 from __future__ import annotations
 
 import json
+import os
+import sys
 from unittest.mock import patch
 
 import pytest
 
-from oas_cli.orchestration.board import TaskBoard, TaskPriority, TaskStatus
-from oas_cli.orchestration.registry import AgentRegistry
-from oas_cli.orchestration.runner import AgentRunner
-from oas_cli.orchestration.loop import OrchestrationLoop
+# Add the example directory to the path so we can import directly.
+EXAMPLE_DIR = os.path.join(os.path.dirname(__file__), "..", "examples", "multi-agent")
+sys.path.insert(0, os.path.abspath(EXAMPLE_DIR))
+
+from board import TaskBoard, TaskPriority, TaskStatus  # noqa: E402
+from registry import AgentRegistry  # noqa: E402
+from runner import AgentRunner  # noqa: E402
+from loop import OrchestrationLoop  # noqa: E402
+
+PERSONAS_DIR = os.path.join(EXAMPLE_DIR, "personas")
 
 
 # ---------------------------------------------------------------------------
@@ -117,18 +125,18 @@ class TestAgentRegistry:
 
 class TestAgentRunner:
     def test_loads_spec(self) -> None:
-        runner = AgentRunner(".agents/personas/manager.yaml")
+        runner = AgentRunner(os.path.join(PERSONAS_DIR, "manager.yaml"))
         assert runner.agent_name == "manager-agent"
         assert runner.agent_role == "planner"
         assert "decompose" in runner.task_names
 
     def test_loads_worker_spec(self) -> None:
-        runner = AgentRunner(".agents/personas/researcher.yaml")
+        runner = AgentRunner(os.path.join(PERSONAS_DIR, "researcher.yaml"))
         assert runner.agent_role == "analyst"
         assert "analyse" in runner.task_names
 
     def test_loads_concierge_spec(self) -> None:
-        runner = AgentRunner(".agents/personas/concierge.yaml")
+        runner = AgentRunner(os.path.join(PERSONAS_DIR, "concierge.yaml"))
         assert runner.agent_name == "concierge-agent"
         assert runner.agent_role == "chat"
         assert "clarify" in runner.task_names
@@ -144,11 +152,11 @@ class TestAgentRunner:
 class TestOrchestrationLoop:
     def _make_loop(self) -> OrchestrationLoop:
         return OrchestrationLoop(
-            manager_spec=".agents/personas/manager.yaml",
+            manager_spec=os.path.join(PERSONAS_DIR, "manager.yaml"),
             worker_specs=[
-                ".agents/personas/researcher.yaml",
-                ".agents/personas/writer.yaml",
-                ".agents/personas/reviewer.yaml",
+                os.path.join(PERSONAS_DIR, "researcher.yaml"),
+                os.path.join(PERSONAS_DIR, "writer.yaml"),
+                os.path.join(PERSONAS_DIR, "reviewer.yaml"),
             ],
         )
 
@@ -174,7 +182,7 @@ class TestOrchestrationLoop:
         assert len(loop.board.available_tasks("writer")) == 0
         assert len(loop.board.available_tasks("analyst")) == 1
 
-    @patch("oas_cli.orchestration.runner.AgentRunner.run_task")
+    @patch("runner.AgentRunner.run_task")
     def test_full_run_mocked(self, mock_run_task) -> None:
         """Test the full loop with mocked LLM calls."""
         loop = self._make_loop()
@@ -214,13 +222,13 @@ class TestOrchestrationLoop:
 
     def _make_loop_with_concierge(self) -> OrchestrationLoop:
         return OrchestrationLoop(
-            manager_spec=".agents/personas/manager.yaml",
+            manager_spec=os.path.join(PERSONAS_DIR, "manager.yaml"),
             worker_specs=[
-                ".agents/personas/researcher.yaml",
-                ".agents/personas/writer.yaml",
-                ".agents/personas/reviewer.yaml",
+                os.path.join(PERSONAS_DIR, "researcher.yaml"),
+                os.path.join(PERSONAS_DIR, "writer.yaml"),
+                os.path.join(PERSONAS_DIR, "reviewer.yaml"),
             ],
-            concierge_spec=".agents/personas/concierge.yaml",
+            concierge_spec=os.path.join(PERSONAS_DIR, "concierge.yaml"),
         )
 
     def test_concierge_registers(self) -> None:
@@ -230,7 +238,7 @@ class TestOrchestrationLoop:
         assert "chat" in summary["by_role"]
         assert loop._concierge_runner is not None
 
-    @patch("oas_cli.orchestration.runner.AgentRunner.run_task")
+    @patch("runner.AgentRunner.run_task")
     def test_full_run_with_concierge(self, mock_run_task) -> None:
         """Test concierge clarify → plan → execute → summarise flow."""
         loop = self._make_loop_with_concierge()
