@@ -1,4 +1,4 @@
-"""Multi-agent orchestration for Open Agent Spec.
+"""Multi-agent orchestration example for Open Agent Spec.
 
 This package provides a runtime-agnostic orchestration layer that lets
 OA Spec agents participate in multi-agent workflows.  A manager agent
@@ -9,20 +9,6 @@ The default implementation runs everything in-process with no external
 dependencies.  The interfaces are deliberately thin so that the board,
 runner, and registry can be backed by Redis, SQLite, Temporal, or
 anything else.
+
+This is a reference implementation — not part of the OA Spec core.
 """
-
-from .board import TaskBoard, Task, TaskStatus, TaskPriority
-from .registry import AgentEntry, AgentRegistry
-from .runner import AgentRunner
-from .loop import OrchestrationLoop
-
-__all__ = [
-    "TaskBoard",
-    "Task",
-    "TaskStatus",
-    "TaskPriority",
-    "AgentEntry",
-    "AgentRegistry",
-    "AgentRunner",
-    "OrchestrationLoop",
-]
