@@ -44,6 +44,7 @@ class OrchestrationLoop:
         self,
         manager_spec: str,
         worker_specs: List[str],
+        concierge_spec: Optional[str] = None,
         max_iterations: int = 50,
     ) -> None:
         self.board = TaskBoard()
@@ -52,6 +53,17 @@ class OrchestrationLoop:
         self._event_listeners: List[EventCallback] = []
         self.max_iterations = max_iterations
         self.events: List[Dict[str, Any]] = []
+
+        # Load the concierge (optional — user-facing agent).
+        self._concierge_runner: Optional[AgentRunner] = None
+        if concierge_spec:
+            self._concierge_runner = AgentRunner(concierge_spec)
+            self.registry.register(
+                agent_id=self._concierge_runner.agent_name,
+                role=self._concierge_runner.agent_role,
+                spec_path=concierge_spec,
+            )
+            self.runners[self._concierge_runner.agent_name] = self._concierge_runner
 
         # Load the manager.
         self._manager_runner = AgentRunner(manager_spec)
@@ -86,6 +98,74 @@ class OrchestrationLoop:
             except Exception:
                 pass
 
+    # -- Phase 0: Concierge clarifies the request --
+
+    def _clarify(self, user_request: str) -> str:
+        """Use the concierge to refine a raw user request into a clear objective."""
+        if not self._concierge_runner:
+            return user_request
+
+        self._emit("clarify_start", {"user_request": user_request})
+
+        result = self._concierge_runner.run_task(
+            task_name="clarify",
+            input_data={
+                "user_request": user_request,
+                "conversation_history": "",
+            },
+        )
+
+        if "error" in result:
+            self._emit("clarify_error", {"error": result["error"]})
+            return user_request  # Fall back to raw request.
+
+        output = result.get("output", {})
+        if isinstance(output, str):
+            try:
+                output = json.loads(output)
+            except json.JSONDecodeError:
+                return user_request
+
+        objective = output.get("objective", user_request)
+        self._emit("clarify_complete", {
+            "objective": objective,
+            "clarification_needed": output.get("clarification_needed", False),
+            "scope_notes": output.get("scope_notes", ""),
+        })
+        return objective
+
+    def _summarise(self, objective: str, tasks: List[Dict[str, Any]]) -> Optional[Dict[str, Any]]:
+        """Use the concierge to produce a user-friendly summary of results."""
+        if not self._concierge_runner:
+            return None
+
+        self._emit("summarise_start", {"objective": objective})
+
+        result = self._concierge_runner.run_task(
+            task_name="summarise",
+            input_data={
+                "objective": objective,
+                "task_results": json.dumps(
+                    [{"title": t.get("title"), "result": t.get("result")} for t in tasks],
+                    default=str,
+                )[:3000],  # Truncate to stay within token limits.
+            },
+        )
+
+        if "error" in result:
+            self._emit("summarise_error", {"error": result["error"]})
+            return None
+
+        output = result.get("output", {})
+        if isinstance(output, str):
+            try:
+                output = json.loads(output)
+            except json.JSONDecodeError:
+                return None
+
+        self._emit("summarise_complete", {"summary": str(output.get("summary", ""))[:200]})
+        return output
+
     # -- Phase 1: Ask the manager to plan --
 
     def _plan(self, objective: str) -> List[Dict[str, Any]]:
@@ -95,7 +175,7 @@ class OrchestrationLoop:
                 {
                     e.role
                     for e in self.registry.all_agents()
-                    if e.role != "planner"
+                    if e.role not in ("planner", "chat")
                 }
             )
         )
@@ -173,7 +253,7 @@ class OrchestrationLoop:
         """Try to execute one task.  Returns True if work was done."""
         # Scan all roles for available work.
         for entry in self.registry.all_agents():
-            if entry.role == "planner":
+            if entry.role in ("planner", "chat"):
                 continue
             runner = self.runners.get(entry.id)
             if not runner:
@@ -249,17 +329,18 @@ class OrchestrationLoop:
         """
         self._emit("orchestration_start", {"objective": objective})
 
-        # Plan.
-        planned = self._plan(objective)
+        # Phase 0 — Concierge clarifies the raw request into a scoped objective.
+        refined_objective = self._clarify(objective)
+
+        # Phase 1 — Manager plans.
+        planned = self._plan(refined_objective)
         self._populate_board(planned)
 
-        # Execute until the board is done or we hit the iteration limit.
+        # Phase 2 — Workers execute until the board is done.
         iterations = 0
         while not self.board.is_complete() and iterations < self.max_iterations:
             did_work = self._execute_one()
             if not did_work:
-                # No work available but board isn't complete — might have
-                # unsatisfiable dependencies.  Break to avoid infinite loop.
                 self._emit("orchestration_stalled", {
                     "reason": "No available tasks but board is not complete",
                     "board_summary": self.board.summary(),
@@ -267,19 +348,27 @@ class OrchestrationLoop:
                 break
             iterations += 1
 
+        # Phase 3 — Concierge summarises the results.
+        task_dicts = [t.to_dict() for t in self.board.all_tasks()]
+        summary = self._summarise(refined_objective, task_dicts)
+
         self._emit("orchestration_complete", {
             "iterations": iterations,
             "board_summary": self.board.summary(),
         })
 
-        return {
+        result: Dict[str, Any] = {
             "objective": objective,
+            "refined_objective": refined_objective,
             "board": self.board.summary(),
-            "tasks": [t.to_dict() for t in self.board.all_tasks()],
+            "tasks": task_dicts,
             "agents": [e.to_dict() for e in self.registry.all_agents()],
             "events": self.events,
             "iterations": iterations,
         }
+        if summary:
+            result["summary"] = summary
+        return result
 
     def status(self) -> Dict[str, Any]:
         """Snapshot of current state (for the dashboard)."""
