@@ -1,0 +1,53 @@
+open_agent_spec: "1.3.0"
+
+agent:
+  name: researcher-agent
+  role: analyst
+
+intelligence:
+  type: llm
+  engine: openai
+  model: gpt-4o
+  config:
+    temperature: 0.5
+    max_tokens: 1500
+
+tasks:
+  analyse:
+    description: >
+      Research and analyse a topic, producing structured findings
+      with key insights and recommendations.
+    input:
+      type: object
+      properties:
+        topic:
+          type: string
+          description: What to research or analyse.
+        context:
+          type: string
+          description: Additional context or constraints.
+      required: [topic]
+    output:
+      type: object
+      properties:
+        findings:
+          type: string
+        key_points:
+          type: array
+          items:
+            type: string
+        recommendations:
+          type: array
+          items:
+            type: string
+        confidence:
+          type: number
+      required: [findings, key_points]
+    prompts:
+      system: |
+        You are a research analyst agent.  You are thorough, objective,
+        and cite your reasoning.  Produce structured findings in JSON
+        matching the output schema.
+      user: |
+        Research topic: {{ topic }}
+        Context: {{ context }}

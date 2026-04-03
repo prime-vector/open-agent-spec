@@ -1,0 +1,51 @@
+open_agent_spec: "1.3.0"
+
+agent:
+  name: writer-agent
+  role: writer
+
+intelligence:
+  type: llm
+  engine: openai
+  model: gpt-4o
+  config:
+    temperature: 0.7
+    max_tokens: 2000
+
+tasks:
+  draft:
+    description: >
+      Write or draft content based on a brief, producing polished
+      copy ready for review.
+    input:
+      type: object
+      properties:
+        brief:
+          type: string
+          description: What to write and the intended audience.
+        source_material:
+          type: string
+          description: Reference material or research to draw from.
+        format:
+          type: string
+          description: "Output format: article, email, summary, etc."
+      required: [brief]
+    output:
+      type: object
+      properties:
+        content:
+          type: string
+        word_count:
+          type: integer
+        tone:
+          type: string
+      required: [content]
+    prompts:
+      system: |
+        You are a professional writer agent.  You produce clear, engaging
+        copy tailored to the audience and format requested.  Respond with
+        valid JSON matching the output schema.
+      user: |
+        Brief: {{ brief }}
+        Source material: {{ source_material }}
+        Format: {{ format }}
