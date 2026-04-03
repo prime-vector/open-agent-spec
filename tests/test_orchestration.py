@@ -298,3 +298,202 @@ class TestOrchestrationLoop:
         loop.on_event(lambda t, d: events_received.append(t))
         loop._emit("test_event", {"hello": "world"})
         assert "test_event" in events_received
+
+    def test_status_snapshot(self) -> None:
+        loop = self._make_loop()
+        loop._populate_board([
+            {"title": "A", "description": "a", "required_role": "analyst", "priority": 2},
+        ])
+        status = loop.status()
+        assert "board" in status
+        assert "tasks" in status
+        assert "agents" in status
+        assert "events" in status
+        assert len(status["tasks"]) == 1
+
+    @patch("runner.AgentRunner.run_task")
+    def test_max_iterations_limit(self, mock_run_task) -> None:
+        """Loop should stop after max_iterations even if board isn't complete."""
+        loop = OrchestrationLoop(
+            manager_spec=os.path.join(PERSONAS_DIR, "manager.yaml"),
+            worker_specs=[os.path.join(PERSONAS_DIR, "researcher.yaml")],
+            max_iterations=1,
+        )
+        # Manager plans two tasks — but we cap at 1 iteration.
+        manager_response = {
+            "output": {
+                "tasks": [
+                    {"title": "Task A", "description": "a", "required_role": "analyst", "priority": 2},
+                    {"title": "Task B", "description": "b", "required_role": "analyst", "priority": 2},
+                ],
+                "summary": "Two tasks.",
+            }
+        }
+        analyst_response = {"output": {"findings": "done", "key_points": ["ok"]}}
+        mock_run_task.side_effect = [manager_response, analyst_response]
+
+        result = loop.run("Do two things")
+        assert result["iterations"] <= 1
+
+    @patch("runner.AgentRunner.run_task")
+    def test_worker_failure_recorded(self, mock_run_task) -> None:
+        """A worker returning an error should mark the task as failed."""
+        loop = self._make_loop()
+
+        manager_response = {
+            "output": {
+                "tasks": [
+                    {"title": "Bad task", "description": "will fail",
+                     "required_role": "analyst", "priority": 2},
+                ],
+                "summary": "One task.",
+            }
+        }
+        mock_run_task.side_effect = [
+            manager_response,
+            {"error": "LLM timeout", "code": "RUN_ERROR", "stage": "run"},
+        ]
+
+        result = loop.run("Do something")
+        assert result["board"]["by_status"].get("failed") == 1
+        failed_task = [t for t in result["tasks"] if t["status"] == "failed"]
+        assert len(failed_task) == 1
+        assert "LLM timeout" in failed_task[0]["error"]
+
+    @patch("runner.AgentRunner.run_task")
+    def test_unmatched_role_stalls(self, mock_run_task) -> None:
+        """Tasks requiring a role with no worker should cause the loop to stall."""
+        loop = self._make_loop()
+
+        manager_response = {
+            "output": {
+                "tasks": [
+                    {"title": "Deploy app", "description": "push to prod",
+                     "required_role": "devops", "priority": 4},
+                ],
+                "summary": "One task.",
+            }
+        }
+        mock_run_task.side_effect = [manager_response]
+
+        result = loop.run("Deploy the app")
+        assert result["board"]["by_status"].get("pending") == 1
+        stall_events = [e for e in result["events"] if e["type"] == "orchestration_stalled"]
+        assert len(stall_events) == 1
+
+    @patch("runner.AgentRunner.run_task")
+    def test_clarify_error_falls_back(self, mock_run_task) -> None:
+        """If the concierge fails to clarify, the raw objective passes through."""
+        loop = self._make_loop_with_concierge()
+
+        clarify_error = {"error": "API key missing"}
+        manager_response = {
+            "output": {
+                "tasks": [
+                    {"title": "Do it", "description": "just do it",
+                     "required_role": "analyst", "priority": 2},
+                ],
+                "summary": "One task.",
+            }
+        }
+        analyst_response = {"output": {"findings": "done", "key_points": ["ok"]}}
+        # summarise also errors — should still complete
+        summarise_error = {"error": "API key missing"}
+
+        mock_run_task.side_effect = [
+            clarify_error,
+            manager_response,
+            analyst_response,
+            summarise_error,
+        ]
+
+        result = loop.run("raw objective")
+        # Should fall back to the raw objective.
+        assert result["refined_objective"] == "raw objective"
+        assert result["board"]["by_status"]["completed"] == 1
+        # No summary key when summarise fails.
+        assert "summary" not in result
+
+
+# ---------------------------------------------------------------------------
+# Serialization
+# ---------------------------------------------------------------------------
+
+
+class TestSerialization:
+    def test_task_to_dict(self) -> None:
+        board = TaskBoard()
+        task = board.post_task("Title", "Desc", "analyst", {"key": "val"}, priority=TaskPriority.HIGH)
+        d = task.to_dict()
+        assert d["id"] == task.id
+        assert d["title"] == "Title"
+        assert d["description"] == "Desc"
+        assert d["required_role"] == "analyst"
+        assert d["input_data"] == {"key": "val"}
+        assert d["priority"] == 3
+        assert d["status"] == "pending"
+        assert d["assigned_to"] is None
+        assert d["depends_on"] == []
+        assert d["source"] == "manager"
+        assert isinstance(d["created_at"], float)
+
+    def test_agent_entry_to_dict(self) -> None:
+        from registry import AgentEntry
+        entry = AgentEntry(id="a1", role="analyst", spec_path="s.yaml")
+        d = entry.to_dict()
+        assert d["id"] == "a1"
+        assert d["role"] == "analyst"
+        assert d["spec_path"] == "s.yaml"
+        assert d["tasks_completed"] == 0
+        assert d["tasks_failed"] == 0
+        assert isinstance(d["registered_at"], float)
+
+    def test_board_summary_structure(self) -> None:
+        board = TaskBoard()
+        board.post_task("A", "a", "analyst", {})
+        t2 = board.post_task("B", "b", "writer", {})
+        board.claim_task(t2.id, "w1")
+        board.complete_task(t2.id, {})
+        s = board.summary()
+        assert s["total"] == 2
+        assert s["by_status"]["pending"] == 1
+        assert s["by_status"]["completed"] == 1
+
+    def test_registry_summary_structure(self) -> None:
+        reg = AgentRegistry()
+        reg.register("a", "analyst", "s.yaml")
+        reg.register("b", "analyst", "s2.yaml")
+        reg.register("c", "writer", "s3.yaml")
+        s = reg.summary()
+        assert s["total"] == 3
+        assert s["by_role"]["analyst"] == 2
+        assert s["by_role"]["writer"] == 1
+
+
+# ---------------------------------------------------------------------------
+# AgentRunner edge cases
+# ---------------------------------------------------------------------------
+
+
+class TestAgentRunnerEdgeCases:
+    def test_spec_data_property(self) -> None:
+        runner = AgentRunner(os.path.join(PERSONAS_DIR, "manager.yaml"))
+        assert isinstance(runner.spec_data, dict)
+        assert "agent" in runner.spec_data
+        assert "tasks" in runner.spec_data
+
+    def test_load_missing_file_raises(self) -> None:
+        with pytest.raises(FileNotFoundError):
+            AgentRunner("/nonexistent/path/to/spec.yaml")
+
+    def test_load_invalid_yaml_raises(self, tmp_path) -> None:
+        bad = tmp_path / "bad.yaml"
+        bad.write_text("not: a: valid: {yaml: [")
+        with pytest.raises(Exception):
+            AgentRunner(str(bad))
+
+    def test_load_non_dict_raises(self, tmp_path) -> None:
+        bad = tmp_path / "list.yaml"
+        bad.write_text("- item1\n- item2\n")
+        with pytest.raises(ValueError, match="did not parse to a dict"):
+            AgentRunner(str(bad))

@@ -235,6 +235,7 @@ OA deliberately does not prescribe:
 |----------|----------|
 | [openagentspec.dev](https://www.openagentspec.dev/) | Project website |
 | [docs/REFERENCE.md](https://github.com/prime-vector/open-agent-spec/blob/main/docs/REFERENCE.md) | Spec structure, engines, templates, `.agents/` usage |
+| [examples/multi-agent](https://github.com/prime-vector/open-agent-spec/tree/main/examples/multi-agent) | Multi-agent orchestration example — manager, workers, task board, dashboard |
 | [Repository](https://github.com/prime-vector/open-agent-spec) | Source, issues, workflows |
 
 ## Notes
