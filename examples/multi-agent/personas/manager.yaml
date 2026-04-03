@@ -69,9 +69,14 @@ tasks:
         Rules:
         - Each task must have a title, description, required_role, and
           priority (1-4, where 4 is urgent).
+        - CRITICAL: required_role MUST be one of the available worker roles
+          listed above — do not invent new roles like "editor", "researcher",
+          "proofreader", etc.  Only use the exact role names provided.
         - Include input_data with any context the worker will need.
         - Use depends_on_titles to express ordering constraints.
         - Keep tasks focused — one clear deliverable per task.
         - Respond with valid JSON matching the output schema.
       user: |
         Objective: {{ objective }}
+
+        Reminder: only assign tasks to these roles: {{ available_roles }}

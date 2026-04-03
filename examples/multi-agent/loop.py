@@ -202,6 +202,19 @@ class OrchestrationLoop:
 
         tasks = output.get("tasks", [])
         summary = output.get("summary", "")
+
+        # Guard: clamp any role the manager hallucinated to the nearest valid one.
+        valid_roles = set(available_roles.split(", "))
+        for t in tasks:
+            if t.get("required_role") not in valid_roles and valid_roles:
+                original = t.get("required_role")
+                t["required_role"] = sorted(valid_roles)[0]
+                logger.warning(
+                    "Manager assigned unknown role %r; clamping to %r",
+                    original,
+                    t["required_role"],
+                )
+
         self._emit("plan_complete", {"summary": summary, "task_count": len(tasks)})
         return tasks
 
