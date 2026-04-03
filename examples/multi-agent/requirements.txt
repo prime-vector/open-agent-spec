@@ -1,0 +1,4 @@
+# Dependencies for the multi-agent orchestration example.
+# The core OA Spec CLI is also required: pip install -e ../..
+fastapi>=0.100.0
+uvicorn>=0.20.0
