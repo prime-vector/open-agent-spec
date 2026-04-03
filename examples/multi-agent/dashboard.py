@@ -29,8 +29,14 @@ def _get_app():  # noqa: ANN202
     if _app is not None:
         return _app
 
-    from fastapi import FastAPI
-    from fastapi.responses import HTMLResponse, JSONResponse
+    try:
+        from fastapi import FastAPI
+        from fastapi.responses import HTMLResponse, JSONResponse
+    except ImportError:
+        raise ImportError(
+            "The dashboard requires fastapi and uvicorn.\n"
+            "Install them with: pip install -r examples/multi-agent/requirements.txt"
+        )
 
     _app = FastAPI(title="OA Spec Orchestration Dashboard")
 

@@ -28,6 +28,9 @@ layer is ~400 lines of Python with no external dependencies beyond the OA CLI.
 # From the repo root — install OA Spec if you haven't
 pip install -e .
 
+# Install example dependencies (FastAPI + uvicorn for the dashboard)
+pip install -r examples/multi-agent/requirements.txt
+
 # Run inline
 cd examples/multi-agent
 python run.py "Write a blog post about AI agent frameworks"
@@ -35,6 +38,9 @@ python run.py "Write a blog post about AI agent frameworks"
 # Or launch the dashboard
 python run.py --dashboard
 ```
+
+> **Note:** The dashboard requires `fastapi` and `uvicorn`.  The inline mode
+> (`python run.py "..."`) works without them.
 
 ## Components
 
