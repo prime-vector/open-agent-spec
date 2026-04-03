@@ -126,7 +126,7 @@ class OrchestrationLoop:
             except json.JSONDecodeError:
                 return user_request
 
-        objective = output.get("objective", user_request)
+        objective = output.get("objective") or user_request
         self._emit("clarify_complete", {
             "objective": objective,
             "clarification_needed": output.get("clarification_needed", False),
