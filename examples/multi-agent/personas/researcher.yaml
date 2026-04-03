@@ -6,8 +6,8 @@ agent:
 
 intelligence:
   type: llm
-  engine: openai
-  model: gpt-4o
+  engine: anthropic
+  model: claude-sonnet-4-20250514
   config:
     temperature: 0.5
     max_tokens: 1500
