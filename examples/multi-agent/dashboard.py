@@ -54,6 +54,8 @@ def _get_app():  # noqa: ANN202
                 "objective": _last_result.get("objective"),
                 "iterations": _last_result.get("iterations"),
                 "board": _last_result.get("board"),
+                "summary": _last_result.get("summary"),
+                "tasks": _last_result.get("tasks", []),
             }
         data["running"] = _run_thread is not None and _run_thread.is_alive()
         return data
@@ -183,6 +185,37 @@ _DASHBOARD_HTML = """\
   .event-log .ev { padding: 2px 0; border-bottom: 1px solid var(--border); }
   .event-log .ev-type { color: var(--purple); font-weight: 600; }
   .event-log .ev-time { color: var(--muted); margin-right: 8px; }
+
+  .section-toggle {
+    background: none; border: 1px solid var(--border); color: var(--muted);
+    border-radius: 6px; padding: 4px 12px; font-size: 0.8rem; cursor: pointer;
+    float: right; margin-top: -2px;
+  }
+  .section-toggle:hover { color: var(--text); border-color: var(--text); }
+
+  .results-panel { margin-bottom: 24px; }
+  .results-summary {
+    background: rgba(74,222,128,0.07); border: 1px solid rgba(74,222,128,0.2);
+    border-radius: 8px; padding: 14px 16px; margin-bottom: 16px;
+    font-size: 0.9rem; line-height: 1.6; white-space: pre-wrap;
+  }
+  .task-result { margin-bottom: 8px; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
+  .task-result-header {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 10px 14px; background: var(--surface); cursor: pointer;
+    font-size: 0.85rem;
+  }
+  .task-result-header:hover { background: rgba(255,255,255,0.03); }
+  .task-result-header .role-badge {
+    font-size: 0.75rem; color: var(--blue); background: rgba(96,165,250,0.1);
+    padding: 2px 8px; border-radius: 4px;
+  }
+  .task-result-body {
+    padding: 12px 14px; border-top: 1px solid var(--border);
+    font-size: 0.82rem; font-family: 'JetBrains Mono', monospace;
+    white-space: pre-wrap; word-break: break-word; line-height: 1.6;
+    display: none;
+  }
 </style>
 </head>
 <body>
@@ -224,9 +257,15 @@ _DASHBOARD_HTML = """\
   </div>
 </div>
 
+<div id="results-section" class="results-panel card" style="display:none">
+  <h3>Results</h3>
+  <div id="results-summary" class="results-summary" style="display:none"></div>
+  <div id="task-results"></div>
+</div>
+
 <div class="card">
-  <h3>Event Log</h3>
-  <div id="event-log" class="event-log"></div>
+  <h3>Event Log <button class="section-toggle" onclick="toggleEventLog()">Show</button></h3>
+  <div id="event-log" class="event-log" style="display:none"></div>
 </div>
 
 <script>
@@ -280,7 +319,52 @@ async function poll() {
         .map(k => `${k}=${JSON.stringify(e[k]).slice(0,80)}`).join(' ');
       return `<div class="ev"><span class="ev-time">${t}</span><span class="ev-type">${e.type}</span> ${esc(extra)}</div>`;
     }).reverse().join('');
+
+    // Results panel — show when run is complete and we have a last_result
+    const lr = d.last_result;
+    const resultsSection = document.getElementById('results-section');
+    if (lr && !d.running) {
+      resultsSection.style.display = '';
+
+      // Concierge summary
+      const summaryEl = document.getElementById('results-summary');
+      const summaryText = lr.summary?.summary;
+      if (summaryText) {
+        summaryEl.style.display = '';
+        summaryEl.textContent = summaryText;
+      } else {
+        summaryEl.style.display = 'none';
+      }
+
+      // Per-task results (only worker tasks with a result)
+      const workerTasks = (lr.tasks || []).filter(t =>
+        t.result && !['planner','chat'].includes(t.required_role)
+      );
+      document.getElementById('task-results').innerHTML = workerTasks.map((t, i) => `
+        <div class="task-result">
+          <div class="task-result-header" onclick="toggleTask(${i})">
+            <span>${esc(t.title)}</span>
+            <span class="role-badge">${esc(t.required_role)}</span>
+          </div>
+          <div class="task-result-body" id="task-result-body-${i}">${esc(JSON.stringify(t.result, null, 2))}</div>
+        </div>`).join('');
+    } else if (!lr) {
+      resultsSection.style.display = 'none';
+    }
   } catch(e) {}
+}
+
+function toggleEventLog() {
+  const el = document.getElementById('event-log');
+  const btn = document.querySelector('.section-toggle');
+  const visible = el.style.display !== 'none';
+  el.style.display = visible ? 'none' : '';
+  btn.textContent = visible ? 'Show' : 'Hide';
+}
+
+function toggleTask(i) {
+  const body = document.getElementById('task-result-body-' + i);
+  body.style.display = body.style.display === 'none' ? '' : 'none';
 }
 
 function esc(s) { const d = document.createElement('div'); d.textContent = s || ''; return d.innerHTML; }
