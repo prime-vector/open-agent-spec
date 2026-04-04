@@ -7,7 +7,7 @@ agent:
 intelligence:
   type: llm
   engine: anthropic
-  model: claude-sonnet-4-20250514
+  model: claude-haiku-4-5-20251001
   config:
     temperature: 0.5
     max_tokens: 1500
