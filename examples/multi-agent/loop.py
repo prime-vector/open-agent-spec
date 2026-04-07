@@ -161,6 +161,10 @@ class OrchestrationLoop:
                 return user_request
 
         objective = output.get("objective") or user_request
+        # Track concierge activity in agent stats.
+        concierge_entry = self.registry.get("concierge-agent")
+        if concierge_entry:
+            concierge_entry.tasks_completed += 1
         self._emit("clarify_complete", {
             "objective": objective,
             "clarification_needed": output.get("clarification_needed", False),
@@ -197,6 +201,10 @@ class OrchestrationLoop:
             except json.JSONDecodeError:
                 return None
 
+        # Track concierge summarise activity.
+        concierge_entry = self.registry.get("concierge-agent")
+        if concierge_entry:
+            concierge_entry.tasks_completed += 1
         self._emit("summarise_complete", {"summary": str(output.get("summary", ""))[:200]})
         return output
 
@@ -250,6 +258,10 @@ class OrchestrationLoop:
                     t["required_role"],
                 )
 
+        # Track manager activity in agent stats.
+        manager_entry = self.registry.get("manager-agent")
+        if manager_entry:
+            manager_entry.tasks_completed += 1
         self._emit("plan_complete", {"summary": summary, "task_count": len(tasks)})
         return tasks
 
