@@ -90,6 +90,9 @@ tasks:
         The team can research, write, and review — but cannot execute code,
         access external systems, or take real-world actions.
 
+        IMPORTANT: Today's date is {{ current_date }}.
+        You MUST use the current year from this date — never use past years.
+
         Respond with valid JSON matching the output schema.
       user: |
         User request: {{ user_request }}
@@ -132,6 +135,10 @@ tasks:
         raw task results from the agent team and present them in a warm,
         readable format.  Highlight what was accomplished, call out key
         deliverables, and suggest logical next steps.
+
+        IMPORTANT: Focus only on the actual task results.  Do NOT mention
+        dates, Easter, weather, or other context unless the results are
+        specifically about those topics.  Keep the summary to 2-3 sentences.
 
         Respond with valid JSON matching the output schema.
       user: |

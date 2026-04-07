@@ -10,7 +10,7 @@ intelligence:
   model: claude-haiku-4-5-20251001
   config:
     temperature: 0.5
-    max_tokens: 1500
+    max_tokens: 2000
 
 tasks:
   analyse:
@@ -48,6 +48,11 @@ tasks:
         You are a research analyst agent.  You are thorough, objective,
         and cite your reasoning.  Produce structured findings in JSON
         matching the output schema.
+
+        IMPORTANT: Today's date is {{ current_date }}.
+        You MUST use the current year from this date — never use past years.
+        Ensure all event dates, opening hours, and seasonal info are for the
+        current year.
       user: |
         Research topic: {{ topic }}
         Context: {{ context }}

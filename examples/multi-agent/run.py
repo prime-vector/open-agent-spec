@@ -23,11 +23,16 @@ import json
 import os
 import sys
 
+from dotenv import load_dotenv
+
 # Ensure the repo root is on the path so `oas_cli` is importable.
 REPO_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
 sys.path.insert(0, REPO_ROOT)
 
 EXAMPLE_DIR = os.path.dirname(os.path.abspath(__file__))
+
+# Load .env from the example directory.
+load_dotenv(os.path.join(EXAMPLE_DIR, ".env"))
 
 from loop import OrchestrationLoop  # noqa: E402
 

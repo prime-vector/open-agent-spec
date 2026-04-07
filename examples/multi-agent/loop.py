@@ -25,7 +25,40 @@ from __future__ import annotations
 import json
 import logging
 import time
+from datetime import date, timedelta
 from typing import Any, Callable, Dict, List, Optional
+
+
+def _easter_sunday(year: int) -> date:
+    """Compute Easter Sunday for a given year (Anonymous Gregorian algorithm)."""
+    a = year % 19
+    b, c = divmod(year, 100)
+    d, e = divmod(b, 4)
+    f = (b + 8) // 25
+    g = (b - f + 1) // 3
+    h = (19 * a + b - d - g + 15) % 30
+    i, k = divmod(c, 4)
+    l = (32 + 2 * e + 2 * i - h - k) % 7  # noqa: E741
+    m = (a + 11 * h + 22 * l) // 451
+    month, day = divmod(h + l - 7 * m + 114, 31)
+    return date(year, month, day + 1)
+
+
+def _date_context() -> str:
+    """Build a date context string with today and upcoming Easter dates."""
+    today = date.today()
+    easter = _easter_sunday(today.year)
+    good_friday = easter - timedelta(days=2)
+    easter_saturday = easter - timedelta(days=1)
+    easter_monday = easter + timedelta(days=1)
+    return (
+        f"Today is {today.strftime('%A %d %B %Y')}. "
+        f"Easter {today.year}: "
+        f"Good Friday {good_friday.strftime('%d %B')}, "
+        f"Saturday {easter_saturday.strftime('%d %B')}, "
+        f"Easter Sunday {easter.strftime('%d %B')}, "
+        f"Easter Monday {easter_monday.strftime('%d %B')}."
+    )
 
 from board import TaskBoard, TaskPriority, TaskStatus
 from registry import AgentRegistry
@@ -112,6 +145,7 @@ class OrchestrationLoop:
             input_data={
                 "user_request": user_request,
                 "conversation_history": "",
+                "current_date": _date_context(),
             },
         )
 
@@ -186,6 +220,7 @@ class OrchestrationLoop:
             input_data={
                 "objective": objective,
                 "available_roles": available_roles,
+                "current_date": _date_context(),
             },
         )
 
@@ -289,6 +324,7 @@ class OrchestrationLoop:
 
             # Build input: task's own input_data + description as context.
             input_data = dict(task.input_data)
+            input_data.setdefault("current_date", date.today().strftime("%A %d %B %Y"))
             input_data.setdefault("topic", task.description)
             input_data.setdefault("brief", task.description)
             input_data.setdefault("content", task.description)
@@ -340,10 +376,25 @@ class OrchestrationLoop:
 
         Returns a summary with the board state, agent stats, and event log.
         """
+        # Only prepend date context when the objective is time-sensitive.
+        time_words = {"today", "tomorrow", "yesterday", "weekend", "week",
+                      "month", "easter", "christmas", "holiday", "season",
+                      "spring", "summer", "autumn", "winter", "date",
+                      "april", "march", "january", "february", "may",
+                      "june", "july", "august", "september", "october",
+                      "november", "december", "schedule", "upcoming",
+                      "current", "recent", "latest", "now", "2024", "2025", "2026"}
+        obj_lower = objective.lower()
+        if any(w in obj_lower for w in time_words):
+            date_ctx = _date_context()
+            objective_with_date = f"[{date_ctx}] {objective}"
+        else:
+            objective_with_date = objective
+
         self._emit("orchestration_start", {"objective": objective})
 
         # Phase 0 — Concierge clarifies the raw request into a scoped objective.
-        refined_objective = self._clarify(objective)
+        refined_objective = self._clarify(objective_with_date)
 
         # Phase 1 — Manager plans.
         planned = self._plan(refined_objective)
@@ -361,9 +412,10 @@ class OrchestrationLoop:
                 break
             iterations += 1
 
-        # Phase 3 — Concierge summarises the results.
+        # Phase 3 — Concierge summarises the results (using the original
+        # objective without the date prefix to avoid leaking context noise).
         task_dicts = [t.to_dict() for t in self.board.all_tasks()]
-        summary = self._summarise(refined_objective, task_dicts)
+        summary = self._summarise(objective, task_dicts)
 
         self._emit("orchestration_complete", {
             "iterations": iterations,

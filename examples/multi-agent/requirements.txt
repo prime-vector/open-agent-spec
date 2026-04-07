@@ -2,3 +2,4 @@
 # The core OA Spec CLI is also required: pip install -e ../..
 fastapi>=0.100.0
 uvicorn>=0.20.0
+python-dotenv>=0.19.0

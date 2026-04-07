@@ -7,7 +7,7 @@ agent:
 intelligence:
   type: llm
   engine: anthropic
-  model: claude-opus-4-6
+  model: claude-sonnet-4-6
   config:
     temperature: 0.4
     max_tokens: 2000
@@ -67,6 +67,8 @@ tasks:
         Available worker roles: {{ available_roles }}
 
         Rules:
+        - Create 3-5 tasks MAXIMUM.  Fewer tasks is better — combine related
+          work into single tasks rather than splitting into many small ones.
         - Each task must have a title, description, required_role, and
           priority (1-4, where 4 is urgent).
         - CRITICAL: required_role MUST be one of the available worker roles
@@ -76,6 +78,9 @@ tasks:
         - Use depends_on_titles to express ordering constraints.
         - Keep tasks focused — one clear deliverable per task.
         - Respond with valid JSON matching the output schema.
+
+        IMPORTANT: Today's date is {{ current_date }}.
+        You MUST use the current year from this date — never use past years.
       user: |
         Objective: {{ objective }}
 
