@@ -30,7 +30,7 @@ _OPENAI_COMPAT_DEFAULTS: dict[str, dict] = {
     # These expose an OpenAI-compatible API; no key required by default.
     "local": {
         "endpoint": "http://localhost:11434/v1",
-        "api_key_env": None,   # no auth for local servers
+        "api_key_env": None,  # no auth for local servers
         "model": "llama3.2",
     },
     # Cortex — user-hosted or enterprise; user must supply endpoint in spec.
@@ -100,7 +100,9 @@ def invoke_intelligence(system: str, user: str, config: dict) -> str:
     # Spec values always win: defaults fill gaps, never override explicit config.
     resolved = {**defaults, **config}
     provider = get_provider(resolved)
-    return _with_retry(lambda: provider.invoke(system=system, user=user, config=resolved))
+    return _with_retry(
+        lambda: provider.invoke(system=system, user=user, config=resolved)
+    )
 
 
 def _with_retry(fn: Callable[[], str], retries: int = 2, delay: float = 1.0) -> str:

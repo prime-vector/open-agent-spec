@@ -14,7 +14,6 @@ from oas_cli.providers.custom import CustomProvider
 from oas_cli.providers.openai_http import OpenAIProvider
 from oas_cli.providers.registry import _OPENAI_COMPAT_DEFAULTS, invoke_intelligence
 
-
 # ---------------------------------------------------------------------------
 # get_provider routing
 # ---------------------------------------------------------------------------
@@ -22,20 +21,33 @@ from oas_cli.providers.registry import _OPENAI_COMPAT_DEFAULTS, invoke_intellige
 
 class TestGetProvider:
     def test_openai(self):
-        assert isinstance(get_provider({"engine": "openai", "model": "gpt-4o"}), OpenAIProvider)
+        assert isinstance(
+            get_provider({"engine": "openai", "model": "gpt-4o"}), OpenAIProvider
+        )
 
     def test_anthropic(self):
-        assert isinstance(get_provider({"engine": "anthropic", "model": "claude-3-5-sonnet-20241022"}), AnthropicProvider)
+        assert isinstance(
+            get_provider(
+                {"engine": "anthropic", "model": "claude-3-5-sonnet-20241022"}
+            ),
+            AnthropicProvider,
+        )
 
     def test_codex(self):
-        assert isinstance(get_provider({"engine": "codex", "model": "gpt-4.1-codex"}), CodexProvider)
+        assert isinstance(
+            get_provider({"engine": "codex", "model": "gpt-4.1-codex"}), CodexProvider
+        )
 
     @pytest.mark.parametrize("engine", ["grok", "xai", "local", "cortex"])
     def test_openai_compat_engines_route_to_openai_provider(self, engine):
-        assert isinstance(get_provider({"engine": engine, "model": "any"}), OpenAIProvider)
+        assert isinstance(
+            get_provider({"engine": engine, "model": "any"}), OpenAIProvider
+        )
 
     def test_custom_routes_to_custom_provider(self):
-        assert isinstance(get_provider({"engine": "custom", "model": "any"}), CustomProvider)
+        assert isinstance(
+            get_provider({"engine": "custom", "model": "any"}), CustomProvider
+        )
 
     def test_unknown_engine_raises(self):
         with pytest.raises(EngineNotSupportedError):
@@ -45,8 +57,12 @@ class TestGetProvider:
         assert isinstance(get_provider({"model": "gpt-4o"}), OpenAIProvider)
 
     def test_engine_name_is_case_insensitive(self):
-        assert isinstance(get_provider({"engine": "OPENAI", "model": "gpt-4o"}), OpenAIProvider)
-        assert isinstance(get_provider({"engine": "Grok", "model": "grok-3-latest"}), OpenAIProvider)
+        assert isinstance(
+            get_provider({"engine": "OPENAI", "model": "gpt-4o"}), OpenAIProvider
+        )
+        assert isinstance(
+            get_provider({"engine": "Grok", "model": "grok-3-latest"}), OpenAIProvider
+        )
 
 
 # ---------------------------------------------------------------------------
@@ -130,9 +146,14 @@ class TestOpenAIProviderAuth:
             return '{"choices": [{"message": {"content": "hi"}}]}'
 
         with patch.dict("os.environ", env_vars, clear=False):
-            with patch("oas_cli.providers.openai_http._http_post", side_effect=fake_http_post):
+            with patch(
+                "oas_cli.providers.openai_http._http_post", side_effect=fake_http_post
+            ):
                 provider = OpenAIProvider()
-                config: dict = {"model": "gpt-4o", "endpoint": "https://api.openai.com/v1"}
+                config: dict = {
+                    "model": "gpt-4o",
+                    "endpoint": "https://api.openai.com/v1",
+                }
                 if api_key_env is not None:
                     config["api_key_env"] = api_key_env
                 provider.invoke(system="sys", user="usr", config=config)
@@ -155,7 +176,9 @@ class TestOpenAIProviderAuth:
             captured_headers.update(headers)
             return '{"choices": [{"message": {"content": "hi"}}]}'
 
-        with patch("oas_cli.providers.openai_http._http_post", side_effect=fake_http_post):
+        with patch(
+            "oas_cli.providers.openai_http._http_post", side_effect=fake_http_post
+        ):
             provider = OpenAIProvider()
             provider.invoke(
                 system="sys",
@@ -199,14 +222,17 @@ class TestCustomProvider:
             result = provider.invoke(
                 system="s",
                 user="u",
-                config={"engine": "custom", "model": "my-model", "endpoint": "http://x/v1"},
+                config={
+                    "engine": "custom",
+                    "model": "my-model",
+                    "endpoint": "http://x/v1",
+                },
             )
 
         assert result == '{"result": "ok"}'
 
     def test_module_class_is_called(self, tmp_path, monkeypatch):
         """A user-supplied class in sys.path is instantiated and run."""
-        import sys
 
         # Write a tiny router class to a temp file on sys.path
         router_file = tmp_path / "my_router.py"
@@ -244,7 +270,6 @@ class TestCustomProvider:
             provider.invoke(system="s", user="u", config={"module": "NoDotsHere"})
 
     def test_class_not_found_raises(self, tmp_path, monkeypatch):
-        import sys
 
         mod_file = tmp_path / "empty_mod.py"
         mod_file.write_text("# nothing here\n")
