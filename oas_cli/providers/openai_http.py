@@ -24,12 +24,16 @@ class OpenAIProvider(IntelligenceProvider):
     """
 
     def invoke(self, *, system: str, user: str, config: dict) -> str:
-        api_key_env = config.get("api_key_env", "OPENAI_API_KEY")
-        api_key = os.environ.get(api_key_env)
-        if not api_key:
+        api_key_env: str | None = config.get("api_key_env", "OPENAI_API_KEY")
+        api_key: str | None = os.environ.get(api_key_env) if api_key_env else None
+
+        # Require a key only when the config explicitly names an env var and it's absent.
+        # Local / anonymous endpoints (api_key_env=None or "") skip this check.
+        if api_key_env and not api_key:
             raise ProviderError(
-                f"OpenAI API key not set — export {api_key_env} or set "
-                "intelligence.config.api_key_env in your spec."
+                f"API key not set — export {api_key_env} or set "
+                "intelligence.config.api_key_env in your spec. "
+                "For local/unauthenticated endpoints set api_key_env to null."
             )
 
         endpoint = config.get("endpoint", _DEFAULT_ENDPOINT)
@@ -50,9 +54,11 @@ class OpenAIProvider(IntelligenceProvider):
                 system, user, model, temperature, max_tokens
             )
 
-        return _http_post(
-            endpoint, payload, headers={"Authorization": f"Bearer {api_key}"}
-        )
+        extra_headers: dict[str, str] = {}
+        if api_key:
+            extra_headers["Authorization"] = f"Bearer {api_key}"
+
+        return _http_post(endpoint, payload, headers=extra_headers)
 
 
 def _build_chat_completions_payload(
