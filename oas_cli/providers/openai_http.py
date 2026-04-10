@@ -14,7 +14,10 @@ from .base import IntelligenceProvider, ProviderError
 # to switch to the Responses API (https://api.openai.com/v1/responses) or a
 # compatible endpoint (Azure, local proxy, etc.).
 _DEFAULT_ENDPOINT = "https://api.openai.com/v1/chat/completions"
+# TODO: model names go stale — consider requiring specs to always declare
+#       intelligence.model explicitly and dropping this fallback entirely.
 _DEFAULT_MODEL = "gpt-4o"
+_DEFAULT_TIMEOUT = 60
 
 
 class OpenAIProvider(IntelligenceProvider):
@@ -46,6 +49,7 @@ class OpenAIProvider(IntelligenceProvider):
         model = config.get("model", _DEFAULT_MODEL)
         temperature = float(config.get("temperature", 0.7))
         max_tokens = int(config.get("max_tokens", 1000))
+        timeout = int(config.get("timeout", _DEFAULT_TIMEOUT))
 
         if endpoint.endswith("/responses"):
             payload = _build_responses_payload(system, user, model, temperature)
@@ -58,7 +62,7 @@ class OpenAIProvider(IntelligenceProvider):
         if api_key:
             extra_headers["Authorization"] = f"Bearer {api_key}"
 
-        return _http_post(endpoint, payload, headers=extra_headers)
+        return _http_post(endpoint, payload, headers=extra_headers, timeout=timeout)
 
 
 def _build_chat_completions_payload(
@@ -88,7 +92,7 @@ def _build_responses_payload(
     }
 
 
-def _http_post(url: str, payload: dict, headers: dict) -> str:
+def _http_post(url: str, payload: dict, headers: dict, timeout: int = _DEFAULT_TIMEOUT) -> str:
     all_headers = {
         "Content-Type": "application/json",
         **headers,
@@ -96,7 +100,7 @@ def _http_post(url: str, payload: dict, headers: dict) -> str:
     body = json.dumps(payload).encode()
     req = urllib.request.Request(url, data=body, headers=all_headers, method="POST")
     try:
-        with urllib.request.urlopen(req, timeout=60) as resp:
+        with urllib.request.urlopen(req, timeout=timeout) as resp:
             data = json.loads(resp.read().decode())
     except urllib.error.HTTPError as exc:
         detail = exc.read().decode(errors="replace")

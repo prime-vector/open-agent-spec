@@ -141,7 +141,7 @@ class TestOpenAIProviderAuth:
         """Run OpenAIProvider.invoke with a mocked HTTP call and return the request headers."""
         captured_headers: dict = {}
 
-        def fake_http_post(url, payload, headers):
+        def fake_http_post(url, payload, headers, timeout=60):
             captured_headers.update(headers)
             return '{"choices": [{"message": {"content": "hi"}}]}'
 
@@ -172,7 +172,7 @@ class TestOpenAIProviderAuth:
         """Local/anonymous endpoints — explicit api_key_env=None skips auth entirely."""
         captured_headers: dict = {}
 
-        def fake_http_post(url, payload, headers):
+        def fake_http_post(url, payload, headers, timeout=60):
             captured_headers.update(headers)
             return '{"choices": [{"message": {"content": "hi"}}]}'
 

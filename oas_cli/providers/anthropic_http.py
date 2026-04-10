@@ -11,7 +11,10 @@ from typing import Any
 from .base import IntelligenceProvider, ProviderError
 
 _DEFAULT_ENDPOINT = "https://api.anthropic.com/v1/messages"
+# TODO: model names go stale — consider requiring specs to always declare
+#       intelligence.model explicitly and dropping this fallback entirely.
 _DEFAULT_MODEL = "claude-3-5-sonnet-20241022"
+_DEFAULT_TIMEOUT = 60
 _ANTHROPIC_VERSION = "2023-06-01"
 
 
@@ -37,6 +40,7 @@ class AnthropicProvider(IntelligenceProvider):
         model = config.get("model", _DEFAULT_MODEL)
         temperature = float(config.get("temperature", 0.7))
         max_tokens = int(config.get("max_tokens", 1000))
+        timeout = int(config.get("timeout", _DEFAULT_TIMEOUT))
 
         payload: dict[str, Any] = {
             "model": model,
@@ -58,7 +62,7 @@ class AnthropicProvider(IntelligenceProvider):
             endpoint, data=body, headers=headers, method="POST"
         )
         try:
-            with urllib.request.urlopen(req, timeout=60) as resp:
+            with urllib.request.urlopen(req, timeout=timeout) as resp:
                 data = json.loads(resp.read().decode())
         except urllib.error.HTTPError as exc:
             detail = exc.read().decode(errors="replace")
