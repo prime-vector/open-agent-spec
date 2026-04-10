@@ -92,7 +92,9 @@ def _build_responses_payload(
     }
 
 
-def _http_post(url: str, payload: dict, headers: dict, timeout: int = _DEFAULT_TIMEOUT) -> str:
+def _http_post(
+    url: str, payload: dict, headers: dict, timeout: int = _DEFAULT_TIMEOUT
+) -> str:
     all_headers = {
         "Content-Type": "application/json",
         **headers,
