@@ -1,5 +1,6 @@
 """Test multi-engine compatibility and consistency."""
 
+import importlib.util
 import json
 from unittest.mock import MagicMock, patch
 
@@ -7,6 +8,8 @@ import pytest
 from pydantic import BaseModel, ValidationError
 
 pytestmark = pytest.mark.multi_engine
+
+_anthropic_available = importlib.util.find_spec("anthropic") is not None
 
 
 class MockAnalyzeThreatOutput(BaseModel):
@@ -103,6 +106,10 @@ class TestEngineCompatibility:
         assert "recommendations" in parsed
         assert "confidence_level" in parsed
 
+    @pytest.mark.skipif(
+        not _anthropic_available,
+        reason="anthropic SDK not installed (pip install open-agent-spec[sdks])",
+    )
     @patch("anthropic.Anthropic")
     def test_claude_api_integration_mock(self, mock_anthropic_class):
         """Test Claude API integration with mocked responses."""

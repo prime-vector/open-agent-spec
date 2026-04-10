@@ -354,15 +354,17 @@ A contract violation on a dependency stops the chain immediately and raises `CON
 
 ## Engines (quick)
 
-| Engine | Env var (typical) |
-|--------|-------------------|
-| openai | `OPENAI_API_KEY` |
-| anthropic | `ANTHROPIC_API_KEY` |
-| grok | `XAI_API_KEY` |
-| cortex | `OPENAI_API_KEY`, `CLAUDE_API_KEY` + `cortex-intelligence` |
-| codex | Codex CLI (`codex` on PATH; `codex login`) |
-| local | placeholder |
-| custom | Your router class: `__init__(endpoint, model, config)`, `run(prompt, **kwargs)` → JSON string |
+| Engine | Env var | Notes |
+|--------|---------|-------|
+| `openai` | `OPENAI_API_KEY` | Chat Completions or Responses API |
+| `anthropic` | `ANTHROPIC_API_KEY` | Messages API |
+| `grok` / `xai` | `XAI_API_KEY` | OpenAI-compatible; routes to `api.x.ai` |
+| `cortex` | `OPENAI_API_KEY` | OpenAI-compatible; set `endpoint` in spec |
+| `local` | _(none)_ | OpenAI-compatible local server (Ollama, LM Studio, …) |
+| `codex` | Codex CLI on PATH | `codex login` required |
+| `custom` | _(user-defined)_ | HTTP endpoint or Python class via `module:` |
+
+All engines except `anthropic` and `codex` speak the OpenAI Chat Completions API. `oa run` uses raw HTTP — no SDK required.
 
 ### OpenAI
 
@@ -371,8 +373,8 @@ intelligence:
   type: "llm"
   engine: "openai"
   endpoint: "https://api.openai.com/v1"
-  model: "gpt-4"
-  config: { temperature: 0.7, max_tokens: 150 }
+  model: "gpt-4o"
+  config: { temperature: 0.7, max_tokens: 1000 }
 ```
 
 ### Anthropic
@@ -382,18 +384,64 @@ intelligence:
   type: "llm"
   engine: "anthropic"
   endpoint: "https://api.anthropic.com"
-  model: "claude-3-sonnet-20240229"
-  config: { temperature: 0.7, max_tokens: 150 }
+  model: "claude-3-5-sonnet-20241022"
+  config: { temperature: 0.7, max_tokens: 1000 }
 ```
 
-### Grok (xAI, OpenAI-compatible client)
+### Grok / xAI (OpenAI-compatible)
+
+`engine: grok` and `engine: xai` are aliases — both route to `https://api.x.ai/v1` with `XAI_API_KEY`. Endpoint and model can be overridden in the spec.
 
 ```yaml
 intelligence:
   type: "llm"
-  engine: "grok"
-  endpoint: "https://api.x.ai/v1"
-  model: "grok-3-latest"
+  engine: "grok"          # or "xai"
+  model: "grok-3-latest"  # default; override as needed
+```
+
+```bash
+export XAI_API_KEY=xai-...
+```
+
+### Cortex (OpenAI-compatible, user-hosted)
+
+`cortex` is treated as an OpenAI-compatible endpoint. Provide your `endpoint` in the spec; `OPENAI_API_KEY` is used by default but can be overridden via `config.api_key_env`.
+
+```yaml
+intelligence:
+  type: "llm"
+  engine: "cortex"
+  endpoint: "https://cortex.mycompany.com/v1"
+  model: "my-cortex-model"
+  config:
+    api_key_env: "CORTEX_API_KEY"
+```
+
+### Local LLM (Ollama, LM Studio, vLLM, …)
+
+`engine: local` points to a local OpenAI-compatible server. No API key is required. The default endpoint is `http://localhost:11434/v1` (Ollama). Override `endpoint` and `model` as needed.
+
+```yaml
+intelligence:
+  type: "llm"
+  engine: "local"
+  model: "llama3.2"     # default; match whatever model you have pulled
+```
+
+```bash
+# Start Ollama (example)
+ollama serve
+ollama pull llama3.2
+```
+
+To use a different local server (e.g. LM Studio on port 1234):
+
+```yaml
+intelligence:
+  type: "llm"
+  engine: "local"
+  endpoint: "http://localhost:1234/v1"
+  model: "mistral-7b"
 ```
 
 ### Codex
@@ -414,27 +462,51 @@ intelligence:
 
 ### Custom router
 
+Two modes:
+
+**HTTP mode** — no Python glue, just an OpenAI-compatible endpoint:
+
+```yaml
+intelligence:
+  type: "llm"
+  engine: "custom"
+  endpoint: "https://my-llm-proxy.internal/v1"
+  model: "my-model"
+```
+
+**Class mode** — point to a Python class for full control:
+
 ```yaml
 intelligence:
   type: "llm"
   engine: "custom"
   endpoint: "http://localhost:1234/invoke"
   model: "my-model"
-  module: "CustomLLMRouter.CustomLLMRouter"
+  module: "my_package.router.MyRouter"
 ```
 
-```python
-# CustomLLMRouter.py
-import json
+The class must implement:
 
-class CustomLLMRouter:
-    def __init__(self, endpoint: str, model: str, config: dict):
+```python
+class MyRouter:
+    def __init__(self, endpoint: str, model: str, config: dict): ...
+    def run(self, prompt: str, **kwargs) -> str: ...  # returns JSON string
+```
+
+Example:
+
+```python
+# my_package/router.py
+import json, requests
+
+class MyRouter:
+    def __init__(self, endpoint, model, config):
         self.endpoint = endpoint
         self.model = model
-        self.config = config
 
-    def run(self, prompt: str, **kwargs) -> str:
-        return json.dumps({"response": f"…"})
+    def run(self, prompt, **kwargs):
+        resp = requests.post(self.endpoint, json={"prompt": prompt, "model": self.model})
+        return resp.text  # must be a JSON string
 ```
 
 ## Agents as code (`.agents/`)

@@ -15,7 +15,7 @@ from typing import Any
 
 import yaml
 
-from .runtime import invoke_intelligence
+from .providers import ProviderError, invoke_intelligence
 
 logger = logging.getLogger(__name__)
 
@@ -120,20 +120,23 @@ def _choose_task(
     return first_name, tasks[first_name]
 
 
-def _build_prompt(
+def _resolve_prompts(
     spec_data: dict[str, Any],
     task_name: str,
     input_data: dict[str, Any],
     override_system: str | None = None,
     override_user: str | None = None,
-) -> str:
-    """Build the prompt for a task using a layered resolution order.
+) -> tuple[str, str]:
+    """Resolve the system and user prompts for a task (layered resolution).
 
     Priority (highest → lowest):
       1. CLI overrides  (override_system / override_user)
       2. Per-task inline prompts  tasks.<name>.prompts  (Style A — preferred)
       3. Per-task map prompts     prompts.<name>.system/user  (Style B — legacy)
       4. Global fallback          prompts.system / prompts.user
+
+    Returns:
+        (system, user) — both are plain strings, user already rendered.
     """
     # Style A — prompts block co-located inside the task definition
     tasks = spec_data.get("tasks") or {}
@@ -173,6 +176,24 @@ def _build_prompt(
         placeholder_input = "{{ input." + key + " }}"
         user = user.replace(placeholder_input, str(value))
 
+    return system, user
+
+
+def _build_prompt(
+    spec_data: dict[str, Any],
+    task_name: str,
+    input_data: dict[str, Any],
+    override_system: str | None = None,
+    override_user: str | None = None,
+) -> str:
+    """Return system and user merged into a single string (for backward compat).
+
+    Prefer ``_resolve_prompts`` for new code — it keeps the roles separate so
+    providers can pass them to the model API individually.
+    """
+    system, user = _resolve_prompts(
+        spec_data, task_name, input_data, override_system, override_user
+    )
     return f"{system}\n\n{user}".strip()
 
 
@@ -338,7 +359,7 @@ def _run_single_task(
             task=task_name,
         )
 
-    prompt = _build_prompt(
+    system, user = _resolve_prompts(
         spec_data,
         task_name,
         input_data,
@@ -348,7 +369,14 @@ def _run_single_task(
     intelligence_config = _build_intelligence_config(spec_data)
 
     try:
-        raw_output = invoke_intelligence(prompt, intelligence_config)
+        raw_output = invoke_intelligence(system, user, intelligence_config)
+    except ProviderError as exc:
+        raise OARunError(
+            str(exc),
+            code="PROVIDER_ERROR",
+            stage="run",
+            task=task_name,
+        ) from exc
     except Exception as exc:
         raise OARunError(
             str(exc),
@@ -414,7 +442,7 @@ def _run_single_task(
     return {
         "task": task_name,
         "input": input_data,
-        "prompt": prompt,
+        "prompt": f"{system}\n\n{user}".strip(),
         "engine": intelligence_config.get("engine"),
         "model": intelligence_config.get("model"),
         "raw_output": raw_output,
