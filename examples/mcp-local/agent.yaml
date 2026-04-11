@@ -1,0 +1,59 @@
+open_agent_spec: "1.3.0"
+
+agent:
+  name: text-analyser
+  description: >
+    Analyses text using tools provided by a local MCP server.
+    A self-contained demo — run server.py first, then oa run this spec.
+  role: analyst
+
+intelligence:
+  type: llm
+  engine: openai
+  model: gpt-4o-mini
+
+tools:
+  text_tools:
+    type: mcp
+    endpoint: "http://localhost:3000"
+    description: "Local text analysis tools (word_count, char_count, reverse_text)"
+
+tasks:
+  analyse:
+    description: >
+      Analyse a piece of text using the available MCP tools and return statistics.
+    tools:
+      - text_tools
+    prompts:
+      system: >
+        You are a text analysis assistant. Use the available tools to measure
+        the text provided by the user. Call each relevant tool and include the
+        results in your response. Respond with valid JSON matching the output schema.
+      user: "Analyse this text: {text}"
+    input:
+      type: object
+      properties:
+        text:
+          type: string
+          description: The text to analyse.
+      required:
+        - text
+    output:
+      type: object
+      properties:
+        word_count:
+          type: integer
+          description: Number of words in the text.
+        char_count:
+          type: integer
+          description: Number of characters in the text.
+        reversed:
+          type: string
+          description: The text reversed.
+        summary:
+          type: string
+          description: A one-sentence summary of the analysis.
+      required:
+        - word_count
+        - char_count
+        - summary

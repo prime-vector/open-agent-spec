@@ -1,0 +1,70 @@
+open_agent_spec: "1.3.0"
+
+agent:
+  name: mcp-researcher
+  description: >
+    A researcher agent that uses an MCP server for web search.
+    Demonstrates connecting OAS to any MCP-compatible tool server
+    with no SDK dependency — just HTTP.
+  role: analyst
+
+intelligence:
+  type: llm
+  engine: openai
+  model: gpt-4o-mini
+
+# ── Tool declarations ──────────────────────────────────────────────────────
+#
+# Point 'endpoint' at any running MCP server.  OAS calls tools/list on
+# startup to discover what tools it exposes, then tools/call at runtime.
+# No MCP library needed — it's plain JSON-RPC 2.0 over HTTP.
+#
+# Header values can reference environment variables with ${VAR_NAME}.
+
+tools:
+  brave_search:
+    type: mcp
+    endpoint: "http://localhost:3000"        # replace with your MCP server URL
+    description: "Search the web using Brave Search via MCP"
+    headers:
+      Authorization: "Bearer ${BRAVE_MCP_TOKEN}"   # set in your environment
+    timeout: 30
+
+tasks:
+  research:
+    description: >
+      Research a topic using web search and return a structured summary.
+    tools:
+      - brave_search
+    prompts:
+      system: >
+        You are a research assistant. Use the available search tools to find
+        accurate, up-to-date information. Always search before answering.
+        Respond with valid JSON matching the output schema.
+      user: "Research the following topic and summarise your findings: {topic}"
+    input:
+      type: object
+      properties:
+        topic:
+          type: string
+          description: The topic to research.
+      required:
+        - topic
+    output:
+      type: object
+      properties:
+        summary:
+          type: string
+          description: A concise summary of the findings.
+        sources:
+          type: array
+          items:
+            type: string
+          description: URLs or references used.
+        confidence:
+          type: string
+          enum: [high, medium, low]
+          description: Confidence level in the findings.
+      required:
+        - summary
+        - confidence

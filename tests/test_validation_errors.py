@@ -17,7 +17,7 @@ def _valid_spec(**overrides):
     spec = {
         "open_agent_spec": "1.0",
         "agent": {"name": "test", "role": "test"},
-        "tools": [],
+        "tools": {},
         "tasks": {
             "task1": {
                 "input": {"query": {"type": "string"}},
@@ -109,41 +109,38 @@ class TestBehaviouralContractErrors:
 
 class TestToolErrors:
     def test_tools_wrong_type(self):
-        spec = _valid_spec(tools="not a list")
-        with pytest.raises(ValueError, match=r"list.*got str"):
+        spec = _valid_spec(tools="not a dict")
+        with pytest.raises(ValueError, match=r"dictionary.*got str"):
             validate_spec(spec)
 
-    def test_tool_item_wrong_type(self):
-        spec = _valid_spec(tools=["not a dict"])
-        with pytest.raises(ValueError, match=r"tools\[0\]"):
+    def test_tool_declaration_wrong_type(self):
+        spec = _valid_spec(tools={"my_tool": "not a dict"})
+        with pytest.raises(ValueError, match=r"tools\.my_tool.*object"):
             validate_spec(spec)
 
-    def test_tool_id_wrong_type_shows_index(self):
-        spec = _valid_spec(
-            tools=[
-                {
-                    "id": "good",
-                    "type": "function",
-                    "description": "ok",
-                },
-                {
-                    "id": 123,
-                    "type": "function",
-                    "description": "bad",
-                },
-            ]
-        )
-        with pytest.raises(ValueError, match=r"tools\[1\]\.id.*int"):
+    def test_tool_missing_type_field(self):
+        spec = _valid_spec(tools={"my_tool": {"description": "does something"}})
+        with pytest.raises(ValueError, match=r"tools\.my_tool\.type"):
             validate_spec(spec)
 
-    def test_tool_missing_description(self):
-        spec = _valid_spec(tools=[{"id": "t1", "type": "function"}])
-        with pytest.raises(ValueError, match=r"tools\[0\]\.description.*missing"):
+    def test_tool_unsupported_type(self):
+        spec = _valid_spec(tools={"my_tool": {"type": "webhook"}})
+        with pytest.raises(ValueError, match=r"tools\.my_tool\.type"):
             validate_spec(spec)
 
-    def test_tool_missing_type(self):
-        spec = _valid_spec(tools=[{"id": "t1", "description": "desc"}])
-        with pytest.raises(ValueError, match=r"tools\[0\]\.type.*missing"):
+    def test_native_tool_missing_native_field(self):
+        spec = _valid_spec(tools={"my_tool": {"type": "native"}})
+        with pytest.raises(ValueError, match=r"'native' field"):
+            validate_spec(spec)
+
+    def test_native_tool_unknown_id(self):
+        spec = _valid_spec(tools={"my_tool": {"type": "native", "native": "magic.wand"}})
+        with pytest.raises(ValueError, match=r"magic\.wand.*not a recognised"):
+            validate_spec(spec)
+
+    def test_custom_tool_missing_module(self):
+        spec = _valid_spec(tools={"my_tool": {"type": "custom", "description": "x"}})
+        with pytest.raises(ValueError, match=r"'module' field"):
             validate_spec(spec)
 
 
@@ -163,21 +160,13 @@ class TestTaskErrors:
 
     def test_nonexistent_tool_lists_available(self):
         spec = _valid_spec(
-            tools=[
-                {
-                    "id": "tool1",
-                    "type": "function",
-                    "description": "T1",
-                },
-                {
-                    "id": "tool2",
-                    "type": "function",
-                    "description": "T2",
-                },
-            ],
+            tools={
+                "tool1": {"type": "native", "native": "file.read"},
+                "tool2": {"type": "native", "native": "env.read"},
+            },
             tasks={
                 "bad_task": {
-                    "tool": "nonexistent",
+                    "tools": ["nonexistent"],
                     "input": {},
                     "output": {},
                 }

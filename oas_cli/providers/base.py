@@ -3,6 +3,10 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from oas_cli.tool_providers.base import InvokeResult, ToolDefinition
 
 
 class ProviderError(RuntimeError):
@@ -35,3 +39,36 @@ class IntelligenceProvider(ABC):
         Raises:
             ProviderError: On any HTTP or response-shape failure.
         """
+
+    def supports_tools(self) -> bool:
+        """Return True if this provider natively supports multi-turn tool calling."""
+        return False
+
+    def invoke_with_tools(
+        self,
+        *,
+        system: str,
+        messages: list[dict[str, Any]],
+        tools: list[dict[str, Any]],
+        config: dict,
+    ) -> "InvokeResult":
+        """Single-turn invocation supporting tool use (function calling).
+
+        Args:
+            system:   System prompt.
+            messages: Full conversation history in OpenAI message format.
+            tools:    OpenAI-format tool definitions (``[{"type": "function", …}]``).
+            config:   Provider config dict.
+
+        Returns:
+            ``InvokeResult`` — either ``is_final=True`` with ``text``, or
+            ``is_final=False`` with ``tool_calls`` to execute.
+
+        Raises:
+            ProviderError: On transport or response-shape failure.
+            NotImplementedError: If the provider does not override this method.
+        """
+        raise NotImplementedError(
+            f"{type(self).__name__} does not support tool use. "
+            "Override invoke_with_tools() or use a provider that supports it."
+        )
