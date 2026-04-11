@@ -191,6 +191,42 @@ When `oa run --quiet` encounters a failure it emits a machine-readable JSON obje
 
 Verbose mode (`oa run` without `--quiet`) prints the error to the terminal as plain text, unchanged from prior behaviour.
 
+### `oa test` (eval cases)
+
+`oa test` loads a YAML file that points at a spec and lists **cases**. Each case runs one task (with the same `depends_on` resolution as `oa run`), then asserts on the parsed task **`output`** using `expect` rules. Use this for regression checks and CI gates; use `oa validate` for schema-only checks.
+
+```bash
+oa test path/to/agent.test.yaml
+oa test path/to/agent.test.yaml --quiet   # single JSON summary on stdout
+```
+
+**Test file shape**
+
+```yaml
+spec: ./agent.yaml          # relative to this file’s directory
+cases:
+  - name: optional label
+    task: greet             # optional; defaults like `oa run`
+    input: { name: "CI" }
+    expect:
+      output.response: { contains: "hello" }
+      output.items: { min_length: 1, type: array }
+      output.items[0].id: { type: string }
+```
+
+Keys under `expect` must be `output` or start with `output.`; the remainder is a dotted path with optional `[index]` segments (e.g. `output.questions[0]`).
+
+**Rules** (all rules under a path must pass):
+
+| Rule | Meaning |
+|---|---|
+| `min_length` / `max_length` | For strings or lists, `len(value)` bound |
+| `contains` | Substring (default case-insensitive; set `case_sensitive: true` otherwise) |
+| `equals` | Exact equality |
+| `type` | One of `string`, `number`, `boolean`, `object` / `dict`, `array` / `list` |
+
+Omit `expect` or use `{}` for a **smoke** case that only checks the task completes without error.
+
 ---
 
 ## depends_on — linear task chaining

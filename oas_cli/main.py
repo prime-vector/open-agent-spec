@@ -19,6 +19,7 @@ from .core import generate_files as core_generate_files
 from .core import validate_spec_file
 from .exceptions import AgentGenerationError
 from .runner import OARunError, _choose_task, _load_spec, run_task_from_file
+from .spec_test import SpecTestError, run_cases_from_file
 
 app = typer.Typer(help="Open Agent (OA) CLI")
 console = Console()
@@ -229,6 +230,16 @@ oa validate aac
 ```bash
 oa run --spec .agents/example.yaml --task greet --input '{"name": "CI"}' --quiet
 ```
+
+## Eval / regression tests (``oa test``)
+
+Declare cases in a ``*.test.yaml`` next to your spec (see ``docs/REFERENCE.md``), then:
+
+```bash
+oa test .agents/example.test.yaml
+```
+
+Use ``--quiet`` for a single JSON summary line in CI.
 
 ## Review a diff (code reviewer agent)
 
@@ -700,6 +711,90 @@ def run(
             log.error(str(err))
             typer.echo(str(err), err=True)
         raise typer.Exit(1)
+
+
+@app.command()
+def test(
+    test_file: Path = typer.Argument(
+        ...,
+        help="YAML file with `spec:` and `cases:` (e.g. agent.test.yaml)",
+        exists=True,
+        dir_okay=False,
+        readable=True,
+    ),
+    verbose: bool = typer.Option(
+        False, "--verbose", "-v", help="Enable verbose logging"
+    ),
+    quiet: bool = typer.Option(
+        False,
+        "--quiet",
+        "-q",
+        help="Print only a JSON summary to stdout (CI-friendly)",
+    ),
+):
+    """Run eval cases against a spec: real model calls plus assertions on task output.
+
+    The test file references a spec (path relative to the test file). Each case
+    runs ``oa run``-equivalent task execution, then checks ``expect`` rules on
+    ``output.*`` paths (min_length, contains, equals, type, …).
+    """
+    log = setup_logging(verbose)
+    if verbose:
+        log.setLevel(logging.DEBUG)
+    if quiet and not verbose:
+        logging.getLogger("oas").setLevel(logging.WARNING)
+
+    try:
+        results, spec_path = run_cases_from_file(test_file)
+    except SpecTestError as err:
+        typer.echo(str(err), err=True)
+        raise typer.Exit(2) from err
+    except ValueError as err:
+        typer.echo(str(err), err=True)
+        raise typer.Exit(2) from err
+
+    passed_n = sum(1 for r in results if r.passed)
+    failed_n = len(results) - passed_n
+
+    if quiet:
+        payload = {
+            "spec": str(spec_path),
+            "test_file": str(test_file.resolve()),
+            "passed": passed_n,
+            "failed": failed_n,
+            "cases": [
+                {
+                    "name": r.name,
+                    "task": r.task,
+                    "passed": r.passed,
+                    "errors": r.errors,
+                }
+                for r in results
+            ],
+        }
+        typer.echo(json.dumps(payload, indent=2))
+        raise typer.Exit(0 if failed_n == 0 else 1)
+
+    console.print(
+        Panel.fit(
+            f"[bold]Spec[/] {spec_path}\n[bold]Test file[/] {test_file.resolve()}",
+            title="[bold cyan]oa test[/]",
+        )
+    )
+    for r in results:
+        if r.passed:
+            console.print(f"[green]✔[/] [bold]{r.name}[/]  ([dim]{r.task}[/])")
+        else:
+            console.print(f"[red]✘[/] [bold]{r.name}[/]  ([dim]{r.task}[/])")
+            for line in r.errors:
+                console.print(f"    [red]{line}[/]")
+
+    summary = f"{passed_n} passed, {failed_n} failed"
+    if failed_n == 0:
+        console.print(f"\n[green]{summary}[/]")
+        raise typer.Exit(0)
+    console.print(f"\n[red]{summary}[/]")
+    raise typer.Exit(1)
 
 
 if __name__ == "__main__":
