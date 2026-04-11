@@ -8,8 +8,9 @@ import urllib.error
 import urllib.request
 from typing import Any
 
-from .base import IntelligenceProvider, ProviderError
 from oas_cli.tool_providers.base import InvokeResult, ToolCall
+
+from .base import IntelligenceProvider, ProviderError
 
 # Default to the Chat Completions API; set intelligence.endpoint in your spec
 # to switch to the Responses API (https://api.openai.com/v1/responses) or a
@@ -87,7 +88,9 @@ class OpenAIProvider(IntelligenceProvider):
         # Tool use is only supported on the Chat Completions endpoint.
         endpoint = config.get("endpoint", _DEFAULT_ENDPOINT)
         if not endpoint.endswith("/chat/completions"):
-            endpoint = endpoint.rstrip("/").removesuffix("/responses") + "/chat/completions"
+            endpoint = (
+                endpoint.rstrip("/").removesuffix("/responses") + "/chat/completions"
+            )
 
         model = config.get("model", _DEFAULT_MODEL)
         temperature = float(config.get("temperature", 0.7))

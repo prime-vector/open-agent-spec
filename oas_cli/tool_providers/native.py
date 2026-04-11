@@ -33,13 +33,16 @@ _NATIVE_TOOLS: dict[str, tuple[ToolDefinition, Any]] = {}
 
 def _register(tool_id: str, defn: ToolDefinition):
     """Decorator that registers a handler under *tool_id*."""
+
     def decorator(fn):
         _NATIVE_TOOLS[tool_id] = (defn, fn)
         return fn
+
     return decorator
 
 
 # ── file.read ─────────────────────────────────────────────────────────────────
+
 
 @_register(
     "file.read",
@@ -70,6 +73,7 @@ def _file_read(path: str) -> str:
 
 
 # ── file.write ────────────────────────────────────────────────────────────────
+
 
 @_register(
     "file.write",
@@ -106,6 +110,7 @@ def _file_write(path: str, content: str) -> str:
 
 # ── http.get ──────────────────────────────────────────────────────────────────
 
+
 @_register(
     "http.get",
     ToolDefinition(
@@ -139,6 +144,7 @@ def _http_get(url: str, headers: dict | None = None) -> str:
 
 
 # ── http.post ─────────────────────────────────────────────────────────────────
+
 
 @_register(
     "http.post",
@@ -180,6 +186,7 @@ def _http_post(url: str, body: dict, headers: dict | None = None) -> str:
 
 # ── env.read ──────────────────────────────────────────────────────────────────
 
+
 @_register(
     "env.read",
     ToolDefinition(
@@ -202,6 +209,7 @@ def _env_read(name: str) -> str:
 
 
 # ── Provider class ────────────────────────────────────────────────────────────
+
 
 class NativeToolProvider(ToolProvider):
     """Exposes a subset of native OAS tools declared in the spec.
@@ -234,7 +242,9 @@ class NativeToolProvider(ToolProvider):
                     raise
                 except Exception as exc:
                     raise ToolError(f"native tool '{tool_name}' raised: {exc}") from exc
-        raise ToolNotFoundError(f"Native tool '{tool_name}' is not enabled for this task.")
+        raise ToolNotFoundError(
+            f"Native tool '{tool_name}' is not enabled for this task."
+        )
 
 
 def available_native_tools() -> list[str]:

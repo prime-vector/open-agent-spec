@@ -18,8 +18,6 @@ import yaml
 from .providers import ProviderError, invoke_intelligence
 from .providers.registry import get_provider
 from .tool_providers import (
-    ToolCall,
-    ToolDefinition,
     ToolError,
     dispatch_tool_call,
     resolve_task_tools,
@@ -374,8 +372,7 @@ def _invoke_with_tools(
     if not provider.supports_tools():
         # Inject tool descriptions into the system prompt for text-only providers.
         tool_descriptions = "\n".join(
-            f"- {defn.name}: {defn.description}"
-            for _, defn in tools
+            f"- {defn.name}: {defn.description}" for _, defn in tools
         )
         augmented_system = (
             f"{system}\n\nYou have access to the following tools:\n{tool_descriptions}"
@@ -405,18 +402,23 @@ def _invoke_with_tools(
             return ""
 
         # Append the assistant's tool-call request to the history.
-        messages.append({
-            "role": "assistant",
-            "content": None,
-            "tool_calls": [
-                {
-                    "id": tc.id,
-                    "type": "function",
-                    "function": {"name": tc.name, "arguments": json.dumps(tc.arguments)},
-                }
-                for tc in result.tool_calls
-            ],
-        })
+        messages.append(
+            {
+                "role": "assistant",
+                "content": None,
+                "tool_calls": [
+                    {
+                        "id": tc.id,
+                        "type": "function",
+                        "function": {
+                            "name": tc.name,
+                            "arguments": json.dumps(tc.arguments),
+                        },
+                    }
+                    for tc in result.tool_calls
+                ],
+            }
+        )
 
         # Execute every tool call and append results.
         for tc in result.tool_calls:
@@ -425,11 +427,13 @@ def _invoke_with_tools(
             except ToolError as exc:
                 tool_result = f"[tool error] {exc}"
                 logger.warning("[tools] Tool '%s' raised: %s", tc.name, exc)
-            messages.append({
-                "role": "tool",
-                "tool_call_id": tc.id,
-                "content": tool_result,
-            })
+            messages.append(
+                {
+                    "role": "tool",
+                    "tool_call_id": tc.id,
+                    "content": tool_result,
+                }
+            )
 
     raise OARunError(
         f"Tool-call loop for task '{task_name}' exceeded {_MAX_TOOL_ITERATIONS} iterations.",
@@ -474,7 +478,9 @@ def _run_single_task(
     try:
         tools = resolve_task_tools(spec_data, task_name)
         if tools:
-            raw_output = _invoke_with_tools(system, user, tools, intelligence_config, task_name)
+            raw_output = _invoke_with_tools(
+                system, user, tools, intelligence_config, task_name
+            )
         else:
             raw_output = invoke_intelligence(system, user, intelligence_config)
     except (ProviderError, ToolError) as exc:

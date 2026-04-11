@@ -29,7 +29,9 @@ class ToolDefinition:
 
     name: str
     description: str
-    parameters: dict[str, Any] = field(default_factory=lambda: {"type": "object", "properties": {}})
+    parameters: dict[str, Any] = field(
+        default_factory=lambda: {"type": "object", "properties": {}}
+    )
 
     def to_openai_schema(self) -> dict[str, Any]:
         """Serialise to the OpenAI function-calling format."""

@@ -18,11 +18,9 @@ tools:
 The class at ``my_package.tools.Scorer`` must implement::
 
     class Scorer:
-        def describe(self) -> list[dict]:
-            ...  # list of OpenAI-compatible function schemas
+        def describe(self) -> list[dict]: ...  # list of OpenAI-compatible function schemas
 
-        def call(self, tool_name: str, arguments: dict) -> str:
-            ...  # execute the tool, return a string
+        def call(self, tool_name: str, arguments: dict) -> str: ...  # execute the tool, return a string
 
 If ``describe()`` is absent the provider synthesises a single-tool definition
 from the ``description`` and ``parameters`` fields in the spec.
@@ -33,7 +31,7 @@ from __future__ import annotations
 import importlib
 from typing import Any
 
-from .base import ToolDefinition, ToolError, ToolNotFoundError, ToolProvider
+from .base import ToolDefinition, ToolError, ToolProvider
 
 
 class CustomToolProvider(ToolProvider):
@@ -65,7 +63,9 @@ class CustomToolProvider(ToolProvider):
                 ToolDefinition(
                     name=d["name"],
                     description=d.get("description", ""),
-                    parameters=d.get("parameters", {"type": "object", "properties": {}}),
+                    parameters=d.get(
+                        "parameters", {"type": "object", "properties": {}}
+                    ),
                 )
                 for d in raw
             ]

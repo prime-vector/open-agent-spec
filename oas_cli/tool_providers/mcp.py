@@ -55,16 +55,19 @@ _ENV_VAR_RE = re.compile(r"\$\{([A-Za-z_][A-Za-z0-9_]*)\}")
 
 def _expand_env(value: str) -> str:
     """Replace ``${VAR_NAME}`` patterns with environment variable values."""
+
     def _replace(match: re.Match) -> str:
         var = match.group(1)
         resolved = os.environ.get(var, "")
         if not resolved:
             import warnings
+
             warnings.warn(
                 f"[mcp] Environment variable '{var}' referenced in tool config is not set.",
                 stacklevel=3,
             )
         return resolved
+
     return _ENV_VAR_RE.sub(_replace, value)
 
 
@@ -102,7 +105,9 @@ def _jsonrpc(
         **extra_headers,
     }
     body = json.dumps(payload).encode()
-    req = urllib.request.Request(endpoint, data=body, headers=all_headers, method="POST")
+    req = urllib.request.Request(
+        endpoint, data=body, headers=all_headers, method="POST"
+    )
 
     try:
         with urllib.request.urlopen(req, timeout=timeout) as resp:
@@ -179,10 +184,14 @@ class MCPToolProvider(ToolProvider):
             name = t.get("name", "")
             description = t.get("description", self._override_description or "")
             # MCP uses ``inputSchema``; fall back to an empty object schema.
-            parameters = t.get("inputSchema") or t.get("input_schema") or {
-                "type": "object",
-                "properties": {},
-            }
+            parameters = (
+                t.get("inputSchema")
+                or t.get("input_schema")
+                or {
+                    "type": "object",
+                    "properties": {},
+                }
+            )
             definitions.append(
                 ToolDefinition(
                     name=name,

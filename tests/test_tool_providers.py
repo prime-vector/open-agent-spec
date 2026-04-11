@@ -13,11 +13,6 @@ Covers:
 from __future__ import annotations
 
 import json
-import os
-import tempfile
-import unittest
-from pathlib import Path
-from typing import Any
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -25,7 +20,6 @@ import pytest
 from oas_cli.tool_providers.base import (
     InvokeResult,
     ToolCall,
-    ToolDefinition,
     ToolError,
     ToolNotFoundError,
     ToolTypeNotSupportedError,
@@ -37,7 +31,6 @@ from oas_cli.tool_providers.registry import (
     get_tool_provider,
     resolve_task_tools,
 )
-
 
 # ── NativeToolProvider ────────────────────────────────────────────────────────
 
@@ -130,7 +123,9 @@ class TestNativeToolProvider:
         response_mock.__enter__ = lambda s: response_mock
         response_mock.__exit__ = MagicMock(return_value=False)
         with patch("urllib.request.urlopen", return_value=response_mock):
-            result = p.call("http_post", {"url": "https://api.example.com", "body": {"k": "v"}})
+            result = p.call(
+                "http_post", {"url": "https://api.example.com", "body": {"k": "v"}}
+            )
         assert '{"status":"ok"}' in result
 
     # ── call routing ───────────────────────────────────────────────────────
@@ -256,7 +251,9 @@ class TestCustomToolProvider:
 
 class TestRegistry:
     def test_get_provider_native(self):
-        provider = get_tool_provider("read_file", {"type": "native", "native": "file.read"})
+        provider = get_tool_provider(
+            "read_file", {"type": "native", "native": "file.read"}
+        )
         assert isinstance(provider, NativeToolProvider)
 
     def test_get_provider_unknown_type_raises(self):
@@ -336,14 +333,21 @@ class TestInvokeWithToolsLoop:
             "tasks": {
                 "ask": {
                     "description": "Ask something",
-                    "output": {"type": "object", "properties": {"answer": {"type": "string"}}, "required": ["answer"]},
+                    "output": {
+                        "type": "object",
+                        "properties": {"answer": {"type": "string"}},
+                        "required": ["answer"],
+                    },
                     "tools": ["get_env"],
                 }
             },
             "tools": {
                 "get_env": {"type": "native", "native": "env.read"},
             },
-            "prompts": {"system": "You are a helpful assistant.", "user": "What is PATH?"},
+            "prompts": {
+                "system": "You are a helpful assistant.",
+                "user": "What is PATH?",
+            },
         }
 
     def test_single_turn_final_answer(self):
@@ -372,7 +376,9 @@ class TestInvokeWithToolsLoop:
         monkeypatch.setenv("MY_TEST_ENV", "42")
         spec = self._make_spec()
 
-        tool_call = ToolCall(id="call_1", name="env_read", arguments={"name": "MY_TEST_ENV"})
+        tool_call = ToolCall(
+            id="call_1", name="env_read", arguments={"name": "MY_TEST_ENV"}
+        )
         turn1 = InvokeResult(is_final=False, tool_calls=[tool_call])
         turn2 = InvokeResult(is_final=True, text='{"answer": "42"}')
 
@@ -392,7 +398,9 @@ class TestInvokeWithToolsLoop:
         assert result == '{"answer": "42"}'
         assert mock_provider.invoke_with_tools.call_count == 2
         # Verify the tool result was injected into the second call's messages
-        second_call_messages = mock_provider.invoke_with_tools.call_args_list[1][1]["messages"]
+        second_call_messages = mock_provider.invoke_with_tools.call_args_list[1][1][
+            "messages"
+        ]
         tool_msg = next(m for m in second_call_messages if m.get("role") == "tool")
         assert tool_msg["content"] == "42"
 
@@ -403,14 +411,22 @@ class TestInvokeWithToolsLoop:
         mock_provider = MagicMock()
         mock_provider.supports_tools.return_value = False
 
-        with patch("oas_cli.runner.get_provider", return_value=mock_provider), \
-             patch("oas_cli.runner.invoke_intelligence", return_value='{"answer":"ok"}') as mock_invoke:
+        with (
+            patch("oas_cli.runner.get_provider", return_value=mock_provider),
+            patch(
+                "oas_cli.runner.invoke_intelligence", return_value='{"answer":"ok"}'
+            ) as mock_invoke,
+        ):
             from oas_cli.runner import _invoke_with_tools
             from oas_cli.tool_providers.registry import resolve_task_tools
 
             tools = resolve_task_tools(spec, "ask")
             result = _invoke_with_tools(
-                "You are helpful.", "user", tools, {"engine": "codex", "model": "x"}, "ask"
+                "You are helpful.",
+                "user",
+                tools,
+                {"engine": "codex", "model": "x"},
+                "ask",
             )
 
         mock_invoke.assert_called_once()
@@ -419,7 +435,7 @@ class TestInvokeWithToolsLoop:
 
     def test_loop_cap_raises_run_error(self):
         """Loop exits with OARunError after _MAX_TOOL_ITERATIONS."""
-        from oas_cli.runner import OARunError, _MAX_TOOL_ITERATIONS
+        from oas_cli.runner import _MAX_TOOL_ITERATIONS, OARunError
 
         spec = self._make_spec()
         tool_call = ToolCall(id="call_1", name="env_read", arguments={"name": "X"})
@@ -436,7 +452,11 @@ class TestInvokeWithToolsLoop:
             tools = resolve_task_tools(spec, "ask")
             with pytest.raises(OARunError, match="exceeded"):
                 _invoke_with_tools(
-                    "system", "user", tools, {"engine": "openai", "model": "gpt-4o"}, "ask"
+                    "system",
+                    "user",
+                    tools,
+                    {"engine": "openai", "model": "gpt-4o"},
+                    "ask",
                 )
 
         assert mock_provider.invoke_with_tools.call_count == _MAX_TOOL_ITERATIONS
@@ -447,7 +467,6 @@ class TestInvokeWithToolsLoop:
 
 def _mock_urlopen(responses: list[dict]):
     """Return a context manager mock that yields JSON responses in order."""
-    import io
 
     call_count = {"n": 0}
 
@@ -502,11 +521,7 @@ _LIST_RESPONSE = {
 _CALL_RESPONSE = {
     "jsonrpc": "2.0",
     "id": 2,
-    "result": {
-        "content": [
-            {"type": "text", "text": "Paris is sunny and 22°C."}
-        ]
-    },
+    "result": {"content": [{"type": "text", "text": "Paris is sunny and 22°C."}]},
 }
 
 
@@ -529,7 +544,9 @@ class TestMCPToolProvider:
 
     def test_describe_calls_tools_list(self):
         p = self._provider()
-        with patch("urllib.request.urlopen", side_effect=_mock_urlopen([_LIST_RESPONSE])):
+        with patch(
+            "urllib.request.urlopen", side_effect=_mock_urlopen([_LIST_RESPONSE])
+        ):
             defs = p.describe()
 
         assert len(defs) == 2
@@ -549,7 +566,9 @@ class TestMCPToolProvider:
 
     def test_describe_parses_input_schema(self):
         p = self._provider()
-        with patch("urllib.request.urlopen", side_effect=_mock_urlopen([_LIST_RESPONSE])):
+        with patch(
+            "urllib.request.urlopen", side_effect=_mock_urlopen([_LIST_RESPONSE])
+        ):
             defs = p.describe()
 
         search = next(d for d in defs if d.name == "search_web")
@@ -558,7 +577,9 @@ class TestMCPToolProvider:
     def test_empty_tools_list_raises(self):
         p = self._provider()
         empty_response = {"jsonrpc": "2.0", "id": 1, "result": {"tools": []}}
-        with patch("urllib.request.urlopen", side_effect=_mock_urlopen([empty_response])):
+        with patch(
+            "urllib.request.urlopen", side_effect=_mock_urlopen([empty_response])
+        ):
             with pytest.raises(ToolError, match="no tools"):
                 p.describe()
 
@@ -576,7 +597,9 @@ class TestMCPToolProvider:
 
     def test_call_unknown_tool_raises(self):
         p = self._provider()
-        with patch("urllib.request.urlopen", side_effect=_mock_urlopen([_LIST_RESPONSE])):
+        with patch(
+            "urllib.request.urlopen", side_effect=_mock_urlopen([_LIST_RESPONSE])
+        ):
             with pytest.raises(ToolNotFoundError, match="magic_wand"):
                 p.call("magic_wand", {})
 
@@ -590,8 +613,12 @@ class TestMCPToolProvider:
             class _R:
                 def read(self):
                     return json.dumps(_CALL_RESPONSE).encode()
-                def __enter__(self): return self
-                def __exit__(self, *_): pass
+
+                def __enter__(self):
+                    return self
+
+                def __exit__(self, *_):
+                    pass
 
             return _R()
 
@@ -601,7 +628,9 @@ class TestMCPToolProvider:
             side_effect=[_mock_urlopen([_LIST_RESPONSE])("_"), _capture],
         ):
             # Seed the cache so only one HTTP round-trip happens
-            with patch("urllib.request.urlopen", side_effect=_mock_urlopen([_LIST_RESPONSE])):
+            with patch(
+                "urllib.request.urlopen", side_effect=_mock_urlopen([_LIST_RESPONSE])
+            ):
                 p.describe()
             with patch("urllib.request.urlopen", _capture):
                 p.call("get_weather", {"location": "Paris"})
@@ -620,7 +649,12 @@ class TestMCPToolProvider:
     def test_extract_content_block_list(self):
         from oas_cli.tool_providers.mcp import _extract_call_result
 
-        result = {"content": [{"type": "text", "text": "foo"}, {"type": "text", "text": "bar"}]}
+        result = {
+            "content": [
+                {"type": "text", "text": "foo"},
+                {"type": "text", "text": "bar"},
+            ]
+        }
         assert _extract_call_result(result, "t", "http://x") == "foo\nbar"
 
     def test_extract_content_string(self):
@@ -652,8 +686,12 @@ class TestMCPToolProvider:
             class _R:
                 def read(self):
                     return json.dumps(_LIST_RESPONSE).encode()
-                def __enter__(self): return self
-                def __exit__(self, *_): pass
+
+                def __enter__(self):
+                    return self
+
+                def __exit__(self, *_):
+                    pass
 
             return _R()
 
@@ -697,7 +735,9 @@ class TestMCPToolProvider:
             "id": 1,
             "error": {"code": -32601, "message": "Method not found"},
         }
-        with patch("urllib.request.urlopen", side_effect=_mock_urlopen([error_response])):
+        with patch(
+            "urllib.request.urlopen", side_effect=_mock_urlopen([error_response])
+        ):
             with pytest.raises(ToolError, match="Method not found"):
                 p.describe()
 
@@ -714,7 +754,9 @@ class TestMCPToolProvider:
 
     def test_to_openai_schema_shape(self):
         p = self._provider()
-        with patch("urllib.request.urlopen", side_effect=_mock_urlopen([_LIST_RESPONSE])):
+        with patch(
+            "urllib.request.urlopen", side_effect=_mock_urlopen([_LIST_RESPONSE])
+        ):
             defs = p.describe()
 
         schema = defs[0].to_openai_schema()

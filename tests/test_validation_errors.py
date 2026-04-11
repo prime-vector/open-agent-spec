@@ -134,7 +134,9 @@ class TestToolErrors:
             validate_spec(spec)
 
     def test_native_tool_unknown_id(self):
-        spec = _valid_spec(tools={"my_tool": {"type": "native", "native": "magic.wand"}})
+        spec = _valid_spec(
+            tools={"my_tool": {"type": "native", "native": "magic.wand"}}
+        )
         with pytest.raises(ValueError, match=r"magic\.wand.*not a recognised"):
             validate_spec(spec)
 

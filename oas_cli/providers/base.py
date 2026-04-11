@@ -6,7 +6,7 @@ from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
-    from oas_cli.tool_providers.base import InvokeResult, ToolDefinition
+    from oas_cli.tool_providers.base import InvokeResult
 
 
 class ProviderError(RuntimeError):
@@ -51,7 +51,7 @@ class IntelligenceProvider(ABC):
         messages: list[dict[str, Any]],
         tools: list[dict[str, Any]],
         config: dict,
-    ) -> "InvokeResult":
+    ) -> InvokeResult:
         """Single-turn invocation supporting tool use (function calling).
 
         Args:

@@ -4,7 +4,13 @@ from __future__ import annotations
 
 from typing import Any
 
-from .base import ToolDefinition, ToolError, ToolNotFoundError, ToolProvider, ToolTypeNotSupportedError
+from .base import (
+    ToolDefinition,
+    ToolError,
+    ToolNotFoundError,
+    ToolProvider,
+    ToolTypeNotSupportedError,
+)
 from .custom import CustomToolProvider
 from .mcp import MCPToolProvider
 from .native import NativeToolProvider, available_native_tools
@@ -90,6 +96,4 @@ def dispatch_tool_call(
     for provider, defn in providers_and_defs:
         if defn.name == tool_name:
             return provider.call(tool_name, arguments)
-    raise ToolNotFoundError(
-        f"No tool named '{tool_name}' is registered for this task."
-    )
+    raise ToolNotFoundError(f"No tool named '{tool_name}' is registered for this task.")

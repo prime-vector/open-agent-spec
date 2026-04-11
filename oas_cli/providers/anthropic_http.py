@@ -8,8 +8,9 @@ import urllib.error
 import urllib.request
 from typing import Any
 
-from .base import IntelligenceProvider, ProviderError
 from oas_cli.tool_providers.base import InvokeResult, ToolCall
+
+from .base import IntelligenceProvider, ProviderError
 
 _DEFAULT_ENDPOINT = "https://api.anthropic.com/v1/messages"
 # TODO: model names go stale — consider requiring specs to always declare
@@ -109,7 +110,9 @@ class AnthropicProvider(IntelligenceProvider):
             {
                 "name": t["function"]["name"],
                 "description": t["function"].get("description", ""),
-                "input_schema": t["function"].get("parameters", {"type": "object", "properties": {}}),
+                "input_schema": t["function"].get(
+                    "parameters", {"type": "object", "properties": {}}
+                ),
             }
             for t in tools
         ]
@@ -132,7 +135,9 @@ class AnthropicProvider(IntelligenceProvider):
         }
 
         body = json.dumps(payload).encode()
-        req = urllib.request.Request(endpoint, data=body, headers=headers, method="POST")
+        req = urllib.request.Request(
+            endpoint, data=body, headers=headers, method="POST"
+        )
         try:
             with urllib.request.urlopen(req, timeout=timeout) as resp:
                 data = json.loads(resp.read().decode())
@@ -156,5 +161,7 @@ class AnthropicProvider(IntelligenceProvider):
             return InvokeResult(is_final=False, tool_calls=tool_calls)
 
         # Extract text from the final response.
-        text_blocks = [b["text"] for b in data.get("content", []) if b.get("type") == "text"]
+        text_blocks = [
+            b["text"] for b in data.get("content", []) if b.get("type") == "text"
+        ]
         return InvokeResult(is_final=True, text="\n".join(text_blocks))
