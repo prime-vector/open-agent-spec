@@ -1,0 +1,55 @@
+open_agent_spec: "1.3.0"
+
+agent:
+  name: file-reader
+  description: >
+    Reads a file from disk and answers questions about its content.
+    Demonstrates the native file.read tool — no SDKs, no frameworks.
+  role: analyst
+
+intelligence:
+  type: llm
+  engine: openai
+  model: gpt-4o-mini
+
+# Declare the tools available to this agent.
+tools:
+  read_file:
+    type: native
+    native: file.read
+    description: "Read the contents of a text file from the local filesystem."
+
+tasks:
+  summarise:
+    description: >
+      Read a file and return a concise summary of its content.
+    tools:
+      - read_file
+    prompts:
+      system: >
+        You are a helpful assistant. When asked to summarise a file, use the
+        read_file tool to fetch its contents first, then write a clear, concise
+        summary. Respond with valid JSON matching the output schema.
+      user: "Please summarise the file at path: {path}"
+    input:
+      type: object
+      properties:
+        path:
+          type: string
+          description: Path to the file to read.
+      required:
+        - path
+    output:
+      type: object
+      properties:
+        summary:
+          type: string
+          description: A short summary of the file contents.
+        key_points:
+          type: array
+          items:
+            type: string
+          description: Bullet-point key takeaways.
+      required:
+        - summary
+        - key_points

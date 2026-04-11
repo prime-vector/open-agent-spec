@@ -1,0 +1,15 @@
+Project: Acme Platform
+Status: In progress
+
+Q1 priorities:
+- Finish authentication module
+- Add rate limiting to the API
+- Write integration tests for the payments service
+
+Blockers:
+- Waiting on design approval for the dashboard
+- Redis cluster not provisioned yet
+
+Notes from team standup (2026-03-19):
+Alice is picking up the Redis ticket.
+Bob to review the auth PR by end of day.

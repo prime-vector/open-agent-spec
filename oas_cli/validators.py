@@ -122,69 +122,73 @@ def _validate_behavioural_contract(spec_data: dict) -> None:
             )
 
 
+_VALID_TOOL_TYPES = {"native", "mcp", "custom"}
+_VALID_NATIVE_IDS = {"file.read", "file.write", "http.get", "http.post", "env.read"}
+
+
 def _validate_tools(spec_data: dict) -> None:
-    """Validate the tools section."""
-    tools = spec_data.get("tools", [])
-    if not isinstance(tools, list):
+    """Validate the top-level tools: block (dict of named tool declarations)."""
+    tools = spec_data.get("tools")
+    if tools is None:
+        return
+
+    if not isinstance(tools, dict):
         actual_type = type(tools).__name__
         raise ValueError(
-            f"Field 'tools' must be a list (array), got {actual_type}. "
-            "Example:\n  tools:\n    - id: tool1\n"
-            '      type: function\n      description: "..."'
+            f"Field 'tools' must be a dictionary (object), got {actual_type}. "
+            "Example:\n  tools:\n    read_file:\n      type: native\n"
+            "      native: file.read"
         )
 
-    for i, tool in enumerate(tools):
-        if not isinstance(tool, dict):
-            actual_type = type(tool).__name__
+    for tool_name, tool_cfg in tools.items():
+        if not isinstance(tool_cfg, dict):
             raise ValueError(
-                f"tools[{i}] must be a dictionary (object), "
-                f"got {actual_type}. "
-                "Each tool should have 'id', 'type', and "
-                "'description' fields."
+                f"tools.{tool_name} must be a dictionary (object), "
+                f"got {type(tool_cfg).__name__}."
             )
 
-        if not isinstance(tool.get("id"), str):
-            actual_type = type(tool.get("id")).__name__ if "id" in tool else "missing"
+        tool_type = tool_cfg.get("type")
+        if tool_type not in _VALID_TOOL_TYPES:
             raise ValueError(
-                f"tools[{i}].id must be a string, got {actual_type}. "
-                'Provide a unique identifier, e.g., id: "web_search"'
+                f"tools.{tool_name}.type must be one of "
+                f"{sorted(_VALID_TOOL_TYPES)}, got '{tool_type}'."
             )
 
-        if not isinstance(tool.get("description"), str):
-            actual_type = (
-                type(tool.get("description")).__name__
-                if "description" in tool
-                else "missing"
-            )
+        if tool_type == "native":
+            native_id = tool_cfg.get("native")
+            if not native_id:
+                raise ValueError(
+                    f"tools.{tool_name} has type 'native' but is missing the "
+                    f"'native' field. Available: {sorted(_VALID_NATIVE_IDS)}"
+                )
+            if native_id not in _VALID_NATIVE_IDS:
+                raise ValueError(
+                    f"tools.{tool_name}.native '{native_id}' is not a recognised "
+                    f"native tool. Available: {sorted(_VALID_NATIVE_IDS)}"
+                )
+
+        if tool_type == "mcp" and not tool_cfg.get("endpoint"):
             raise ValueError(
-                f"tools[{i}].description must be a string, "
-                f"got {actual_type}. "
-                "Provide a description of what this tool does."
+                f"tools.{tool_name} has type 'mcp' but is missing the "
+                "'endpoint' field (e.g. endpoint: http://localhost:3000)."
             )
 
-        if not isinstance(tool.get("type"), str):
-            actual_type = (
-                type(tool.get("type")).__name__ if "type" in tool else "missing"
-            )
+        if tool_type == "custom" and not tool_cfg.get("module"):
             raise ValueError(
-                f"tools[{i}].type must be a string, got {actual_type}. "
-                'Common values: "function", "api", "file_operation"'
+                f"tools.{tool_name} has type 'custom' but is missing the "
+                "'module' field (e.g. module: my_package.MyTool)."
             )
-
-        # Validate allowed_paths if present (for file operations)
-        if "allowed_paths" in tool:
-            if not isinstance(tool["allowed_paths"], list):
-                raise ValueError(f"tool {i}.allowed_paths must be a list")
-            for j, path in enumerate(tool["allowed_paths"]):
-                if not isinstance(path, str):
-                    raise ValueError(f"tool {i}.allowed_paths[{j}] must be a string")
 
 
 def _validate_tasks(spec_data: dict) -> None:
     """Validate the tasks section."""
     tasks = spec_data.get("tasks", {})
-    tools = spec_data.get("tools", [])
-    tool_ids = [tool["id"] for tool in tools]
+    tools = spec_data.get("tools") or {}
+    # Support both the new dict format and the legacy list format gracefully.
+    if isinstance(tools, dict):
+        tool_ids = list(tools.keys())
+    else:
+        tool_ids = [t["id"] for t in tools if isinstance(t, dict) and "id" in t]
 
     if not isinstance(tasks, dict):
         actual_type = type(tasks).__name__
@@ -205,7 +209,7 @@ def _validate_tasks(spec_data: dict) -> None:
                 "definitions."
             )
 
-        # Check if this task uses a tool
+        # Check if this task uses a tool (legacy single string)
         if "tool" in task_def:
             tool_id = task_def["tool"]
             if not isinstance(tool_id, str):
@@ -213,16 +217,37 @@ def _validate_tasks(spec_data: dict) -> None:
                 raise ValueError(
                     f"tasks.{task_name}.tool must be a string, got {actual_type}."
                 )
-            if tool_id not in tool_ids:
-                available = (
-                    ", ".join(f"'{tid}'" for tid in tool_ids) if tool_ids else "none"
-                )
+            if tool_ids and tool_id not in tool_ids:
+                available = ", ".join(f"'{tid}'" for tid in tool_ids)
                 raise ValueError(
                     f"tasks.{task_name} references non-existent "
                     f"tool '{tool_id}'. "
                     f"Available tools: {available}. "
                     "Check your 'tools' section."
                 )
+
+        # Check if this task uses tools (new list format)
+        if "tools" in task_def:
+            task_tools = task_def["tools"]
+            if not isinstance(task_tools, list):
+                raise ValueError(
+                    f"tasks.{task_name}.tools must be a list of tool names, "
+                    f"got {type(task_tools).__name__}."
+                )
+            for ref in task_tools:
+                if not isinstance(ref, str):
+                    raise ValueError(
+                        f"tasks.{task_name}.tools entries must be strings, "
+                        f"got {type(ref).__name__}."
+                    )
+                if tool_ids and ref not in tool_ids:
+                    available = ", ".join(f"'{tid}'" for tid in tool_ids)
+                    raise ValueError(
+                        f"tasks.{task_name}.tools references undeclared "
+                        f"tool '{ref}'. "
+                        f"Available tools: {available}. "
+                        "Check your top-level 'tools:' section."
+                    )
 
         # Check if this is a multi-step task
         is_multi_step = task_def.get("multi_step", False)
@@ -352,11 +377,17 @@ def _validate_integration(spec_data: dict) -> None:
 
 
 def _validate_prompts(spec_data: dict) -> None:
-    """Validate the prompts section."""
-    prompts = spec_data.get("prompts", {})
-    if not isinstance(prompts.get("system"), str):
+    """Validate the prompts section (global fallback — optional)."""
+    prompts = spec_data.get("prompts")
+    if not prompts:
+        return
+    if not isinstance(prompts, dict):
+        raise ValueError(
+            f"Field 'prompts' must be a dictionary, got {type(prompts).__name__}."
+        )
+    if "system" in prompts and not isinstance(prompts["system"], str):
         raise ValueError("prompts.system must be a string")
-    if not isinstance(prompts.get("user"), str):
+    if "user" in prompts and not isinstance(prompts["user"], str):
         raise ValueError("prompts.user must be a string")
 
 

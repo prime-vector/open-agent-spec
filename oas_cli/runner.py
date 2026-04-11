@@ -16,6 +16,13 @@ from typing import Any
 import yaml
 
 from .providers import ProviderError, invoke_intelligence
+from .providers.registry import get_provider
+from .tool_providers import (
+    ToolError,
+    dispatch_tool_call,
+    resolve_task_tools,
+)
+from .tool_providers.base import InvokeResult
 
 logger = logging.getLogger(__name__)
 
@@ -171,10 +178,12 @@ def _resolve_prompts(
 
     user = user_template
     for key, value in input_data.items():
-        placeholder = "{{ " + key + " }}"
-        user = user.replace(placeholder, str(value))
-        placeholder_input = "{{ input." + key + " }}"
-        user = user.replace(placeholder_input, str(value))
+        str_val = str(value)
+        # Single-brace Python style: {key}
+        user = user.replace(f"{{{key}}}", str_val)
+        # Double-brace Jinja style: {{ key }} and {{ input.key }}
+        user = user.replace("{{ " + key + " }}", str_val)
+        user = user.replace("{{ input." + key + " }}", str_val)
 
     return system, user
 
@@ -336,6 +345,104 @@ def _resolve_contract(
     return _merge_contracts(global_contract, task_contract)
 
 
+_MAX_TOOL_ITERATIONS = 10
+
+
+def _invoke_with_tools(
+    system: str,
+    user: str,
+    tools: list,
+    intelligence_config: dict[str, Any],
+    task_name: str,
+) -> str:
+    """Multi-turn tool-call loop.
+
+    Builds the initial message list, asks the provider to invoke (potentially
+    returning tool calls), executes those calls via the registered tool providers,
+    feeds results back, and repeats until the model returns a final answer or the
+    iteration cap is hit.
+
+    Falls back to a single ``invoke_intelligence`` call when the selected provider
+    does not support tool use natively (e.g. Codex adapter).
+    """
+    provider = get_provider(intelligence_config)
+
+    tool_defs = [defn.to_openai_schema() for _, defn in tools]
+
+    if not provider.supports_tools():
+        # Inject tool descriptions into the system prompt for text-only providers.
+        tool_descriptions = "\n".join(
+            f"- {defn.name}: {defn.description}" for _, defn in tools
+        )
+        augmented_system = (
+            f"{system}\n\nYou have access to the following tools:\n{tool_descriptions}"
+        )
+        return invoke_intelligence(augmented_system, user, intelligence_config)
+
+    messages: list[dict[str, Any]] = [{"role": "user", "content": user}]
+
+    for iteration in range(_MAX_TOOL_ITERATIONS):
+        result: InvokeResult = provider.invoke_with_tools(
+            system=system,
+            messages=messages,
+            tools=tool_defs,
+            config=intelligence_config,
+        )
+
+        if result.is_final:
+            return result.text
+
+        if not result.tool_calls:
+            logger.warning(
+                "[tools] Provider returned is_final=False with no tool_calls on task '%s' "
+                "(iteration %d). Treating as final with empty response.",
+                task_name,
+                iteration,
+            )
+            return ""
+
+        # Append the assistant's tool-call request to the history.
+        messages.append(
+            {
+                "role": "assistant",
+                "content": None,
+                "tool_calls": [
+                    {
+                        "id": tc.id,
+                        "type": "function",
+                        "function": {
+                            "name": tc.name,
+                            "arguments": json.dumps(tc.arguments),
+                        },
+                    }
+                    for tc in result.tool_calls
+                ],
+            }
+        )
+
+        # Execute every tool call and append results.
+        for tc in result.tool_calls:
+            try:
+                tool_result = dispatch_tool_call(tc.name, tc.arguments, tools)
+            except ToolError as exc:
+                tool_result = f"[tool error] {exc}"
+                logger.warning("[tools] Tool '%s' raised: %s", tc.name, exc)
+            messages.append(
+                {
+                    "role": "tool",
+                    "tool_call_id": tc.id,
+                    "content": tool_result,
+                }
+            )
+
+    raise OARunError(
+        f"Tool-call loop for task '{task_name}' exceeded {_MAX_TOOL_ITERATIONS} iterations.",
+        code="RUN_ERROR",
+        stage="run",
+        task=task_name,
+    )
+
+
 def _run_single_task(
     spec_data: dict[str, Any],
     task_name: str,
@@ -369,8 +476,14 @@ def _run_single_task(
     intelligence_config = _build_intelligence_config(spec_data)
 
     try:
-        raw_output = invoke_intelligence(system, user, intelligence_config)
-    except ProviderError as exc:
+        tools = resolve_task_tools(spec_data, task_name)
+        if tools:
+            raw_output = _invoke_with_tools(
+                system, user, tools, intelligence_config, task_name
+            )
+        else:
+            raw_output = invoke_intelligence(system, user, intelligence_config)
+    except (ProviderError, ToolError) as exc:
         raise OARunError(
             str(exc),
             code="PROVIDER_ERROR",
