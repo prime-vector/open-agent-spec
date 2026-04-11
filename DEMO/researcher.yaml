@@ -1,0 +1,154 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# Open Agent Spec — Researcher Demo
+#
+# A three-stage research agent that runs entirely from this YAML file.
+# No framework. No Python. Just `oa run`.
+#
+# Stage 1  plan      Break the topic into focused research questions
+# Stage 2  research  Answer each question with key findings     (depends on plan)
+# Stage 3  report    Write a polished markdown report           (depends on research)
+#
+# Run the full pipeline:
+#   oa run --spec DEMO/researcher.yaml --task report \
+#          --input '{"topic": "AI agents in software development"}'
+# ─────────────────────────────────────────────────────────────────────────────
+
+open_agent_spec: "1.3.0"
+
+agent:
+  name: "researcher"
+  role: "analyst"
+  description: >
+    Multi-stage research agent: plan → research → report.
+    Produces a structured markdown report from a single topic string.
+
+intelligence:
+  type: "llm"
+  engine: "openai"
+  model: "gpt-4o"
+  config:
+    temperature: 0.4
+    max_tokens: 1500
+
+# Global prompts — fallback if a task doesn't define its own.
+# Each task below overrides these with a specialised system prompt.
+prompts:
+  system: "You are a helpful research assistant. Respond with JSON only."
+  user: "{{ input }}"
+
+# ─── Tasks ───────────────────────────────────────────────────────────────────
+
+tasks:
+
+  # ── Stage 1: Plan ──────────────────────────────────────────────────────────
+  # Takes:    { topic }
+  # Produces: { questions: ["...", ...] }
+  plan:
+    description: "Break the topic into 3-4 focused research questions"
+    input:
+      type: object
+      properties:
+        topic:
+          type: string
+          description: "The subject to research"
+      required:
+        - topic
+    prompts:
+      system: |
+        You are a research planner. Given a topic, produce 3-4 focused
+        research questions that together build a complete picture.
+        Respond with JSON only — no prose, no markdown fences.
+      user: "Plan research for: {{ topic }}"
+    output:
+      type: object
+      properties:
+        questions:
+          type: array
+          items:
+            type: string
+      required:
+        - questions
+
+  # ── Stage 2: Research ──────────────────────────────────────────────────────
+  # Automatically runs `plan` first (depends_on).
+  # Takes:    { topic, questions }   ← `questions` injected from plan output
+  # Produces: { findings: [{ question, answer }, ...] }
+  research:
+    description: "Answer each research question with concise, factual findings"
+    depends_on:
+      - plan
+    input:
+      type: object
+      properties:
+        topic:
+          type: string
+          description: "The original research topic (passed through from initial input)"
+        questions:
+          type: array
+          description: "Research questions injected automatically from the plan task output"
+      required:
+        - questions
+    prompts:
+      system: |
+        You are a research analyst. For each question provided, give a concise,
+        well-reasoned answer based on what you know.
+        Respond with JSON only — no prose, no markdown fences.
+      user: |
+        Research questions: {{ questions }}
+    output:
+      type: object
+      properties:
+        findings:
+          type: array
+          items:
+            type: object
+            properties:
+              question:
+                type: string
+              answer:
+                type: string
+      required:
+        - findings
+
+  # ── Stage 3: Report ────────────────────────────────────────────────────────
+  # Automatically runs `plan` then `research` first (transitive chain).
+  # Takes:    { topic, findings }    ← `findings` injected from research output
+  # Produces: raw markdown string    (response_format: text — no JSON parsing)
+  report:
+    description: "Write a polished research report in markdown"
+    depends_on:
+      - research
+    response_format: text
+    input:
+      type: object
+      properties:
+        topic:
+          type: string
+          description: "The original research topic (passed through from initial input)"
+        findings:
+          type: array
+          description: "Research findings injected automatically from the research task output"
+      required:
+        - findings
+    output:
+      type: object
+      properties:
+        content:
+          type: string
+          description: "The markdown report (returned as raw text via response_format: text)"
+      required:
+        - content
+    prompts:
+      system: |
+        You are a research writer. Write a clear, well-structured report
+        in markdown with these sections:
+          ## Executive Summary   (1-2 sentences)
+          ## Key Findings        (one bullet per research question)
+          ## Analysis            (2-3 sentences of synthesis)
+          ## Next Steps          (2-3 concrete actions)
+        Use plain markdown only.
+      user: |
+        Topic: {{ topic }}
+
+        Research findings:
+        {{ findings }}
