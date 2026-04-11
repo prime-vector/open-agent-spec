@@ -97,7 +97,7 @@ class OpenAIProvider(IntelligenceProvider):
         max_tokens = int(config.get("max_tokens", 1000))
         timeout = int(config.get("timeout", _DEFAULT_TIMEOUT))
 
-        all_messages = [{"role": "system", "content": system}] + messages
+        all_messages = [{"role": "system", "content": system}, *messages]
         payload: dict[str, Any] = {
             "model": model,
             "messages": all_messages,

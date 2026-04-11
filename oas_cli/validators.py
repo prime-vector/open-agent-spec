@@ -249,6 +249,22 @@ def _validate_tasks(spec_data: dict) -> None:
                         "Check your top-level 'tools:' section."
                     )
 
+        # Check spec delegation fields
+        if "spec" in task_def:
+            spec_ref = task_def["spec"]
+            if not isinstance(spec_ref, str) or not spec_ref.strip():
+                raise ValueError(
+                    f"tasks.{task_name}.spec must be a non-empty string path, "
+                    f"got {type(spec_ref).__name__!r}."
+                )
+            if "task" in task_def and not isinstance(task_def["task"], str):
+                raise ValueError(
+                    f"tasks.{task_name}.task must be a string (the task name in "
+                    f"the referenced spec), got {type(task_def['task']).__name__!r}."
+                )
+            # Delegated tasks don't require inline input/output schemas.
+            continue
+
         # Check if this is a multi-step task
         is_multi_step = task_def.get("multi_step", False)
 

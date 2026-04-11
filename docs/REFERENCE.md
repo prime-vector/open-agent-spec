@@ -229,7 +229,33 @@ Omit `expect` or use `{}` for a **smoke** case that only checks the task complet
 
 ---
 
-## depends_on — linear task chaining
+## depends_on — data dependencies between tasks
+
+### Design principle
+
+> **OAS describes what data a task needs and how it is implemented —
+> never how execution should proceed.**
+
+`depends_on` is a **data contract**, not a workflow instruction.
+When a task declares `depends_on: [extract]`, it is saying:
+
+> "I require `extract`'s output fields as part of my input."
+
+Execution ordering is a *side-effect* of satisfying that data dependency — not the purpose.
+
+This distinction matters. OAS intentionally **does not support** and will not add:
+
+| Feature | Why it's out of scope |
+|---|---|
+| Branching / conditionals | Execution control — belongs in the calling platform |
+| Loops / retries | Runtime policy — belongs in the calling platform |
+| Parallel execution | Scheduling — belongs in the calling platform |
+| Fallback tasks | Dynamic routing — belongs in the calling platform |
+| Dynamic task selection | Orchestration — belongs in the calling platform |
+
+If you need any of the above, express them outside OAS in whatever platform or orchestrator is invoking the spec. OAS stays composable and inspectable precisely because it refuses to become a workflow engine.
+
+---
 
 A task can declare that it needs the output of another task before it can run:
 
@@ -265,14 +291,13 @@ tasks:
 
 ### Execution rules
 
-1. **Dependencies run first**, in the order listed in `depends_on`
-2. **Output is merged into input** — previous task output wins on key collision:
+1. **Outputs are merged into input** — declared dependencies run first so their data is available:
    ```
    merged = {**caller_input, **dep1_output, **dep2_output, ...}
    ```
-3. **Fail fast** — required input fields are validated *after* the merge; missing fields raise `CHAIN_INPUT_MISSING` before the model is called
-4. **Linear chains only** — no branching, no conditions, no loops
-5. **Cycle detection** — circular references raise `CHAIN_CYCLE_ERROR` at run time
+2. **Fail fast** — required input fields are validated *after* the merge; missing fields raise `CHAIN_INPUT_MISSING` before the model is called
+3. **Linear chains only** — no branching, no conditions, no loops; if you need those, express them outside OAS
+4. **Cycle detection** — circular references raise `CHAIN_CYCLE_ERROR` at run time
 
 ### Result envelope
 
