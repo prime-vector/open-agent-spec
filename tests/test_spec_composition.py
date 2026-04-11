@@ -53,8 +53,16 @@ class TestBasicDelegation:
             tasks={
                 "greet": {
                     "description": "Say hello",
-                    "input": {"type": "object", "properties": {"name": {"type": "string"}}, "required": ["name"]},
-                    "output": {"type": "object", "properties": {"reply": {"type": "string"}}, "required": ["reply"]},
+                    "input": {
+                        "type": "object",
+                        "properties": {"name": {"type": "string"}},
+                        "required": ["name"],
+                    },
+                    "output": {
+                        "type": "object",
+                        "properties": {"reply": {"type": "string"}},
+                        "required": ["reply"],
+                    },
                     "prompts": {"system": "Greet the user.", "user": "Hello {name}"},
                 }
             }
@@ -76,7 +84,9 @@ class TestBasicDelegation:
             return json.dumps({"reply": "Hello there!"})
 
         with patch("oas_cli.runner.invoke_intelligence", fake_invoke):
-            result = run_task_from_file(coordinator_path, task_name="greet", input_data={"name": "Alice"})
+            result = run_task_from_file(
+                coordinator_path, task_name="greet", input_data={"name": "Alice"}
+            )
 
         assert result["task"] == "greet"
         assert result["output"]["reply"] == "Hello there!"
@@ -89,7 +99,11 @@ class TestBasicDelegation:
                 "analyse": {
                     "description": "Analyse",
                     "input": {"type": "object", "properties": {}, "required": []},
-                    "output": {"type": "object", "properties": {"result": {"type": "string"}}, "required": ["result"]},
+                    "output": {
+                        "type": "object",
+                        "properties": {"result": {"type": "string"}},
+                        "required": ["result"],
+                    },
                     "prompts": {"system": "Analyse.", "user": "Go"},
                 }
             }
@@ -123,7 +137,11 @@ class TestBasicDelegation:
                 "internal_summarise": {
                     "description": "Internal summariser",
                     "input": {"type": "object", "properties": {}, "required": []},
-                    "output": {"type": "object", "properties": {"summary": {"type": "string"}}, "required": ["summary"]},
+                    "output": {
+                        "type": "object",
+                        "properties": {"summary": {"type": "string"}},
+                        "required": ["summary"],
+                    },
                     "prompts": {"system": "Summarise.", "user": "Go"},
                 }
             }
@@ -141,7 +159,10 @@ class TestBasicDelegation:
         _write_spec(tmp_path, "shared.yaml", shared_spec)
         coordinator_path = _write_spec(tmp_path, "coordinator.yaml", coordinator_spec)
 
-        with patch("oas_cli.runner.invoke_intelligence", lambda s, u, c: json.dumps({"summary": "brief"})):
+        with patch(
+            "oas_cli.runner.invoke_intelligence",
+            lambda s, u, c: json.dumps({"summary": "brief"}),
+        ):
             result = run_task_from_file(coordinator_path, task_name="summarise")
 
         assert result["task"] == "summarise"
@@ -157,8 +178,18 @@ class TestDelegationWithChain:
             tasks={
                 "extract": {
                     "description": "Extract keywords",
-                    "input": {"type": "object", "properties": {"text": {"type": "string"}}, "required": ["text"]},
-                    "output": {"type": "object", "properties": {"keywords": {"type": "array", "items": {"type": "string"}}}, "required": ["keywords"]},
+                    "input": {
+                        "type": "object",
+                        "properties": {"text": {"type": "string"}},
+                        "required": ["text"],
+                    },
+                    "output": {
+                        "type": "object",
+                        "properties": {
+                            "keywords": {"type": "array", "items": {"type": "string"}}
+                        },
+                        "required": ["keywords"],
+                    },
                     "prompts": {"system": "Extract.", "user": "Extract from: {text}"},
                 }
             }
@@ -174,8 +205,16 @@ class TestDelegationWithChain:
                 "report": {
                     "description": "Build report from keywords",
                     "depends_on": ["extract"],
-                    "input": {"type": "object", "properties": {"text": {"type": "string"}}, "required": ["text"]},
-                    "output": {"type": "object", "properties": {"report": {"type": "string"}}, "required": ["report"]},
+                    "input": {
+                        "type": "object",
+                        "properties": {"text": {"type": "string"}},
+                        "required": ["text"],
+                    },
+                    "output": {
+                        "type": "object",
+                        "properties": {"report": {"type": "string"}},
+                        "required": ["report"],
+                    },
                     "prompts": {"system": "Report.", "user": "Report on keywords"},
                 },
             }
@@ -219,7 +258,7 @@ class TestCycleDetection:
             tasks={
                 "do_thing": {
                     "description": "Self-delegating",
-                    "spec": str(spec_path),   # absolute path to itself
+                    "spec": str(spec_path),  # absolute path to itself
                     "task": "do_thing",
                 }
             }
@@ -298,7 +337,11 @@ class TestDelegationErrors:
                 "real_task": {
                     "description": "exists",
                     "input": {"type": "object", "properties": {}, "required": []},
-                    "output": {"type": "object", "properties": {"r": {"type": "string"}}, "required": ["r"]},
+                    "output": {
+                        "type": "object",
+                        "properties": {"r": {"type": "string"}},
+                        "required": ["r"],
+                    },
                     "prompts": {"system": "s", "user": "u"},
                 }
             }
@@ -331,7 +374,11 @@ class TestDelegationErrors:
                 "ping": {
                     "description": "ping",
                     "input": {"type": "object", "properties": {}, "required": []},
-                    "output": {"type": "object", "properties": {"pong": {"type": "string"}}, "required": ["pong"]},
+                    "output": {
+                        "type": "object",
+                        "properties": {"pong": {"type": "string"}},
+                        "required": ["pong"],
+                    },
                     "prompts": {"system": "s", "user": "u"},
                 }
             }
@@ -349,7 +396,10 @@ class TestDelegationErrors:
         _write_spec(tmp_path / "shared", "pinger.yaml", shared_spec)
         coordinator_path = _write_spec(sub, "coordinator.yaml", coordinator_spec)
 
-        with patch("oas_cli.runner.invoke_intelligence", lambda s, u, c: json.dumps({"pong": "ok"})):
+        with patch(
+            "oas_cli.runner.invoke_intelligence",
+            lambda s, u, c: json.dumps({"pong": "ok"}),
+        ):
             result = run_task_from_file(coordinator_path, task_name="ping")
 
         assert result["output"]["pong"] == "ok"
