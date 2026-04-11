@@ -266,7 +266,7 @@ class TestCustomProvider:
 
     def test_missing_dot_in_module_path_raises(self):
         provider = CustomProvider()
-        with pytest.raises(ProviderError, match="module.ClassName"):
+        with pytest.raises(ProviderError, match=r"module\.ClassName"):
             provider.invoke(system="s", user="u", config={"module": "NoDotsHere"})
 
     def test_class_not_found_raises(self, tmp_path, monkeypatch):

@@ -241,6 +241,9 @@ def _resolve_chain(
     base_input: dict[str, Any],
     override_system: str | None,
     override_user: str | None,
+    *,
+    spec_path: Path | None = None,
+    _visited_specs: frozenset[Path] = frozenset(),
 ) -> tuple[dict[str, Any], dict[str, Any]]:
     """Resolve depends_on chain and return (merged_input, chain_results).
 
@@ -289,6 +292,8 @@ def _resolve_chain(
             dict(merged),
             override_system=None,
             override_user=None,
+            spec_path=spec_path,
+            _visited_specs=_visited_specs,
         )
         chain[dep_name] = dep_result
         dep_output = dep_result.get("output") or {}
@@ -449,10 +454,87 @@ def _run_single_task(
     input_data: dict[str, Any],
     override_system: str | None,
     override_user: str | None,
+    *,
+    spec_path: Path | None = None,
+    _visited_specs: frozenset[Path] = frozenset(),
 ) -> dict[str, Any]:
-    """Execute one task (no chain resolution) and return the result envelope."""
+    """Execute one task (no chain resolution) and return the result envelope.
+
+    If the task declares ``spec:`` + ``task:`` it is a *delegated* task — the
+    runner loads the referenced spec and executes that task transparently,
+    returning the result as if it had been defined inline.
+    """
     tasks = spec_data.get("tasks") or {}
     task_def = tasks.get(task_name) or {}
+
+    # ── Spec delegation ───────────────────────────────────────────────────
+    delegation_spec_ref: str | None = task_def.get("spec")
+    if delegation_spec_ref is not None:
+        if not isinstance(delegation_spec_ref, str) or not delegation_spec_ref.strip():
+            raise OARunError(
+                f"Task '{task_name}': 'spec' must be a non-empty string path",
+                code="SPEC_LOAD_ERROR",
+                stage="delegation",
+                task=task_name,
+            )
+
+        # Resolve path relative to the calling spec's directory.
+        ref = Path(delegation_spec_ref.strip())
+        if not ref.is_absolute() and spec_path is not None:
+            ref = (spec_path.parent / ref).resolve()
+        else:
+            ref = ref.resolve()
+
+        # Cycle guard — prevent A → B → A loops.
+        canonical = ref
+        if canonical in _visited_specs:
+            raise OARunError(
+                f"Circular spec delegation detected: '{canonical}' is already in "
+                "the delegation stack",
+                code="DELEGATION_CYCLE_ERROR",
+                stage="delegation",
+                task=task_name,
+            )
+
+        delegated_spec = _load_spec(canonical)
+        new_visited = _visited_specs | {canonical}
+
+        # Use the explicitly named task, or fall back to same name as the caller.
+        delegated_task: str = task_def.get("task") or task_name
+
+        # Validate the task exists in the referenced spec before going further.
+        delegated_tasks = delegated_spec.get("tasks") or {}
+        if delegated_task not in delegated_tasks:
+            available = ", ".join(f"'{t}'" for t in delegated_tasks) or "none"
+            raise OARunError(
+                f"Task '{delegated_task}' not found in delegated spec '{canonical}'. "
+                f"Available tasks: {available}",
+                code="TASK_NOT_FOUND",
+                stage="delegation",
+                task=task_name,
+            )
+
+        logger.debug(
+            "[delegation] task '%s' → %s#%s",
+            task_name,
+            canonical,
+            delegated_task,
+        )
+
+        result = _run_single_task(
+            delegated_spec,
+            delegated_task,
+            input_data,
+            override_system,
+            override_user,
+            spec_path=canonical,
+            _visited_specs=new_visited,
+        )
+        # Surface the coordinator's task name so the envelope is consistent
+        # from the caller's perspective.
+        result["task"] = task_name
+        result["delegated_to"] = f"{canonical}#{delegated_task}"
+        return result
 
     # Validate required inputs before touching the model.
     inp_schema = task_def.get("input") or {}
@@ -569,6 +651,8 @@ def run_task_from_spec(
     input_data: dict[str, Any] | None = None,
     override_system: str | None = None,
     override_user: str | None = None,
+    *,
+    spec_path: Path | None = None,
 ) -> dict[str, Any]:
     """Run a task defined in the spec, resolving any depends_on chain first.
 
@@ -577,12 +661,25 @@ def run_task_from_spec(
 
     override_system / override_user replace the resolved spec prompt for this
     invocation only — useful for targeted one-off instructions from the CLI.
+
+    spec_path is used to resolve relative ``spec:`` delegation references.
     """
     base_input: dict[str, Any] = dict(input_data or {})
     chosen_task, _ = _choose_task(spec_data, task_name)
 
+    # Seed the visited set with the calling spec so direct self-delegation is caught.
+    visited: frozenset[Path] = frozenset()
+    if spec_path is not None:
+        visited = frozenset({spec_path.resolve()})
+
     merged_input, chain = _resolve_chain(
-        spec_data, chosen_task, base_input, override_system, override_user
+        spec_data,
+        chosen_task,
+        base_input,
+        override_system,
+        override_user,
+        spec_path=spec_path,
+        _visited_specs=visited,
     )
 
     result = _run_single_task(
@@ -591,6 +688,8 @@ def run_task_from_spec(
         merged_input,
         override_system=override_system,
         override_user=override_user,
+        spec_path=spec_path,
+        _visited_specs=visited,
     )
 
     if chain:
@@ -607,11 +706,13 @@ def run_task_from_file(
     override_user: str | None = None,
 ) -> dict[str, Any]:
     """Convenience wrapper to load a spec from disk and run a task."""
-    spec = _load_spec(spec_path)
+    resolved = spec_path.resolve()
+    spec = _load_spec(resolved)
     return run_task_from_spec(
         spec,
         task_name=task_name,
         input_data=input_data,
         override_system=override_system,
         override_user=override_user,
+        spec_path=resolved,
     )

@@ -287,7 +287,7 @@ class TestRegistry:
         }
         pairs = resolve_task_tools(spec, "my_task")
         assert len(pairs) == 2
-        provider, defn = pairs[0]
+        _, defn = pairs[0]
         assert defn.name == "file_read"
 
     def test_resolve_task_tools_missing_top_level_raises(self):
@@ -421,7 +421,7 @@ class TestInvokeWithToolsLoop:
             from oas_cli.tool_providers.registry import resolve_task_tools
 
             tools = resolve_task_tools(spec, "ask")
-            result = _invoke_with_tools(
+            _invoke_with_tools(
                 "You are helpful.",
                 "user",
                 tools,

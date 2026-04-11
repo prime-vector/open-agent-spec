@@ -1,0 +1,61 @@
+open_agent_spec: "1.3.0"
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Spec Composition demo — coordinator.yaml
+#
+# This spec does NOT implement any task logic itself.
+# Each task delegates to a shared specialist spec via `spec:` + `task:`.
+#
+# Run with:
+#   oa run --spec examples/spec-composition/coordinator.yaml \
+#           --task analyse_sentiment \
+#           --input '{"text": "OA spec composition is surprisingly elegant."}'
+#
+#   oa run --spec examples/spec-composition/coordinator.yaml \
+#           --task summarise \
+#           --input '{"text": "Open Agent Spec lets you build multi-task agents
+#                               directly from YAML with no framework required."}'
+# ─────────────────────────────────────────────────────────────────────────────
+
+agent:
+  name: content-analyser
+  description: >
+    A multi-capability content agent that delegates specialist work to
+    shared, reusable specs. Demonstrates OA spec composition — zero
+    duplication, maximum reuse.
+  role: analyst
+
+intelligence:
+  type: llm
+  engine: openai
+  model: gpt-4o-mini
+  config:
+    temperature: 0.2
+
+# ── Tasks ────────────────────────────────────────────────────────────────────
+# Every task here is a thin delegation pointer. No prompts, no output schema —
+# all of that lives in the shared specialists.
+
+tasks:
+  summarise:
+    description: >
+      Summarise a body of text. Delegates to shared/summariser.yaml.
+    spec: ./shared/summariser.yaml
+    task: summarise
+
+  analyse_sentiment:
+    description: >
+      Analyse the sentiment of a body of text. Delegates to shared/sentiment.yaml.
+    spec: ./shared/sentiment.yaml
+    task: analyse_sentiment
+
+  sentiment_of_summary:
+    description: >
+      Analyse the sentiment of a summarised text. Requires the output of
+      'summarise' as its input — this is a data dependency, not a workflow
+      instruction. OAS merges the summary output into this task's input;
+      execution ordering is a side-effect of that, not the purpose.
+    depends_on:
+      - summarise
+    spec: ./shared/sentiment.yaml
+    task: analyse_sentiment

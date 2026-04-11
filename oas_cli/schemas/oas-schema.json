@@ -356,7 +356,7 @@
               "items": {
                 "type": "string"
               },
-              "description": "List of task names that must run before this task. Their outputs are merged into this task's input (later entries win on key collision). Linear chains only \u2014 no branching or conditions."
+              "description": "Declares data dependencies: the named tasks must produce output before this task can run, and their outputs are merged into this task's input (later entries win on key collision). IMPORTANT \u2014 this is a data contract, not execution control. OAS intentionally prohibits: branching, conditionals, loops, retries, fallbacks, parallel execution, and dynamic task selection. If you need any of those, they belong outside OAS in the calling platform. Linear chains only."
             },
             "behavioural_contract": {
               "type": "object",
@@ -368,11 +368,18 @@
                 "type": "string"
               },
               "description": "Names of tools from the top-level tools: block that this task is allowed to use."
+            },
+            "spec": {
+              "type": "string",
+              "description": "Path to another spec YAML file whose task implements this task. Relative paths are resolved from the directory of the calling spec. When present, this task is delegated \u2014 inline prompts and output schema are ignored in favour of the referenced spec's task definition."
+            },
+            "task": {
+              "type": "string",
+              "description": "Name of the task to run in the referenced spec (used with 'spec:'). Defaults to the same name as this task when omitted."
             }
           },
           "required": [
-            "description",
-            "output"
+            "description"
           ]
         }
       },
