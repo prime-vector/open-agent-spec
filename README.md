@@ -225,6 +225,7 @@ OA deliberately does not prescribe:
 | `oa init aac` | Create `.agents/` with starter specs |
 | `oa validate aac` | Validate all specs in `.agents/` |
 | `oa validate --spec agent.yaml` | Validate one spec |
+| `oa test agent.test.yaml` | Run YAML eval cases (model + assertions on task output); `--quiet` for CI JSON |
 | `oa run --spec agent.yaml --task greet --input '{"name":"Alice"}' --quiet` | Run one task directly from YAML |
 | `oa init --spec agent.yaml --output ./agent` | Generate a Python scaffold |
 | `oa update --spec agent.yaml --output ./agent` | Regenerate an existing scaffold |
