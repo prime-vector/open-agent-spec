@@ -323,7 +323,7 @@ class TestInvokeWithToolsLoop:
 
     def _make_spec(self) -> dict:
         return {
-            "open_agent_spec": "1.3.0",
+            "open_agent_spec": "1.4.0",
             "agent": {"name": "test", "description": "test"},
             "intelligence": {
                 "type": "llm",

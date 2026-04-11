@@ -26,7 +26,7 @@ _INTELLIGENCE = {
 
 def _make_spec(tasks: dict, prompts: dict | None = None) -> dict:
     return {
-        "open_agent_spec": "1.3.0",
+        "open_agent_spec": "1.4.0",
         "agent": {"name": "test", "description": "test", "role": "analyst"},
         "intelligence": _INTELLIGENCE,
         "tasks": tasks,
