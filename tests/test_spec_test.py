@@ -113,7 +113,7 @@ def test_run_cases_from_file_with_mock(tmp_path: Path):
     spec.write_text(_MINIMAL_RUNNABLE_SPEC)
     testf = tmp_path / "agent.test.yaml"
     testf.write_text(
-        f"""\
+        """\
 spec: agent.yaml
 cases:
   - name: smoke
