@@ -1,0 +1,9 @@
+# Dependencies for the multi-agent orchestration example.
+#
+# Prerequisites — install the OA Spec CLI first:
+#   cd <repo-root>
+#   pip install -e .
+#
+fastapi>=0.100.0
+uvicorn>=0.20.0
+python-dotenv>=0.19.0

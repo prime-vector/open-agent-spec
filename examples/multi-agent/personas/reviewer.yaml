@@ -1,0 +1,54 @@
+open_agent_spec: "1.3.0"
+
+agent:
+  name: reviewer-agent
+  role: reviewer
+
+intelligence:
+  type: llm
+  engine: anthropic
+  model: claude-haiku-4-5-20251001
+  config:
+    temperature: 0.3
+    max_tokens: 1500
+
+tasks:
+  review:
+    description: >
+      Review content or work output for quality, accuracy, and
+      completeness.  Provide a decision and actionable feedback.
+    input:
+      type: object
+      properties:
+        content:
+          type: string
+          description: The content to review.
+        criteria:
+          type: string
+          description: What to evaluate against.
+      required: [content]
+    output:
+      type: object
+      properties:
+        decision:
+          type: string
+          description: "approve, revise, or reject"
+        feedback:
+          type: array
+          items:
+            type: string
+        score:
+          type: number
+          description: Quality score 0-10.
+      required: [decision, feedback]
+    prompts:
+      system: |
+        You are a quality reviewer agent.  You are rigorous but
+        constructive.  Evaluate the content against the criteria and
+        provide a clear decision with specific, actionable feedback.
+        Respond with valid JSON matching the output schema.
+      user: |
+        Content to review:
+        {{ content }}
+
+        Evaluation criteria: {{ criteria }}

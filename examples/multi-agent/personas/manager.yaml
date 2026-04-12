@@ -1,0 +1,87 @@
+open_agent_spec: "1.3.0"
+
+agent:
+  name: manager-agent
+  role: planner
+
+intelligence:
+  type: llm
+  engine: anthropic
+  model: claude-sonnet-4-6
+  config:
+    temperature: 0.4
+    max_tokens: 2000
+
+tasks:
+  decompose:
+    description: >
+      Take a high-level objective and break it down into concrete,
+      actionable tasks for a team of specialist agents.  Each task
+      must specify the required_role so the orchestrator can route
+      it to the right worker.
+    input:
+      type: object
+      properties:
+        objective:
+          type: string
+          description: The high-level goal to achieve.
+        available_roles:
+          type: string
+          description: Comma-separated list of worker roles available.
+      required: [objective]
+    output:
+      type: object
+      properties:
+        tasks:
+          type: array
+          items:
+            type: object
+            properties:
+              title:
+                type: string
+              description:
+                type: string
+              required_role:
+                type: string
+              priority:
+                type: integer
+                description: "1=low, 2=normal, 3=high, 4=urgent"
+              input_data:
+                type: object
+              depends_on_titles:
+                type: array
+                items:
+                  type: string
+                description: Titles of tasks that must complete first.
+            required: [title, description, required_role]
+        summary:
+          type: string
+          description: Brief summary of the plan.
+      required: [tasks, summary]
+    prompts:
+      system: |
+        You are a project manager agent.  Given an objective, decompose it
+        into a list of concrete tasks that specialist agents can execute
+        independently.
+
+        Available worker roles: {{ available_roles }}
+
+        Rules:
+        - Create 3-5 tasks MAXIMUM.  Fewer tasks is better — combine related
+          work into single tasks rather than splitting into many small ones.
+        - Each task must have a title, description, required_role, and
+          priority (1-4, where 4 is urgent).
+        - CRITICAL: required_role MUST be one of the available worker roles
+          listed above — do not invent new roles like "editor", "researcher",
+          "proofreader", etc.  Only use the exact role names provided.
+        - Include input_data with any context the worker will need.
+        - Use depends_on_titles to express ordering constraints.
+        - Keep tasks focused — one clear deliverable per task.
+        - Respond with valid JSON matching the output schema.
+
+        IMPORTANT: Today's date is {{ current_date }}.
+        You MUST use the current year from this date — never use past years.
+      user: |
+        Objective: {{ objective }}
+
+        Reminder: only assign tasks to these roles: {{ available_roles }}
