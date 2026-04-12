@@ -53,7 +53,7 @@ class TestTaskBoard:
     def test_dependency_gating(self) -> None:
         board = TaskBoard()
         t1 = board.post_task("First", "f", "analyst", {})
-        t2 = board.post_task("Second", "s", "writer", {}, depends_on=[t1.id])
+        board.post_task("Second", "s", "writer", {}, depends_on=[t1.id])
         # t2 not available until t1 completes.
         assert board.available_tasks("writer") == []
         board.claim_task(t1.id, "agent-a")
