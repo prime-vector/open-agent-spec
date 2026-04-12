@@ -31,6 +31,7 @@ export default function HomePage() {
               ["#install", "Install"],
               ["#whats-new", "What's New"],
               ["#features", "Features"],
+              ["#registry", "Registry"],
               ["#problem", "The Problem"],
               ["#how-it-works", "How It Works"],
               ["#modes", "Two Ways"],
@@ -251,6 +252,89 @@ tasks:
                 <p className="text-xs text-stone-600">Attach output contracts to tasks with the <code className="rounded bg-stone-200 px-1">behavioural-contracts</code> library. Validate required fields, confidence scores, and custom rules, after parsing, before returning. Degrades gracefully when not installed.</p>
               </div>
 
+            </div>
+          </section>
+
+          {/* Registry teaser */}
+          <section
+            id="registry"
+            className="mx-auto mb-8 max-w-5xl scroll-mt-6 rounded-xl border border-stone-300/50 bg-white/50 p-4 text-left text-sm leading-relaxed text-stone-700 shadow-sm backdrop-blur-sm sm:p-6"
+          >
+            <div className="mb-4 flex flex-wrap items-baseline justify-between gap-2">
+              <h2 className="text-xs font-semibold uppercase tracking-wide text-stone-900">
+                Spec Registry
+              </h2>
+              <Link
+                href="/registry"
+                className="text-[11px] font-medium text-stone-500 transition hover:text-stone-900"
+              >
+                Browse all specs →
+              </Link>
+            </div>
+            <p className="mb-4 max-w-2xl text-xs leading-relaxed text-stone-600">
+              Pull shared, versioned agent specs directly from the registry using the{" "}
+              <code className="rounded bg-stone-200/80 px-1 text-stone-800">oa://</code>{" "}
+              shorthand. No copy-paste. Just delegate.
+            </p>
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              {[
+                {
+                  id: "prime-vector/summariser",
+                  name: "Summariser",
+                  task: "summarise",
+                  desc: "Summarise text and extract key points.",
+                },
+                {
+                  id: "prime-vector/sentiment",
+                  name: "Sentiment Analyser",
+                  task: "analyse_sentiment",
+                  desc: "Label tone as positive, negative, neutral, or mixed.",
+                },
+                {
+                  id: "prime-vector/classifier",
+                  name: "Text Classifier",
+                  task: "classify",
+                  desc: "Classify text into runtime-provided categories.",
+                },
+                {
+                  id: "prime-vector/keyword-extractor",
+                  name: "Keyword Extractor",
+                  task: "extract_keywords",
+                  desc: "Extract keywords and phrases ordered by relevance.",
+                },
+                {
+                  id: "prime-vector/code-reviewer",
+                  name: "Code Reviewer",
+                  task: "review_code",
+                  desc: "Review code for bugs, security issues, and improvements.",
+                },
+              ].map((spec) => (
+                <div
+                  key={spec.id}
+                  className="rounded-lg border border-stone-300/60 bg-stone-50/80 p-3"
+                >
+                  <div className="mb-0.5 flex items-center justify-between gap-1">
+                    <span className="text-xs font-semibold text-stone-900">{spec.name}</span>
+                    <span className="rounded-full border border-stone-300/60 bg-white px-1.5 py-0.5 text-[9px] font-medium text-stone-500">
+                      v1.0.0
+                    </span>
+                  </div>
+                  <p className="mb-2 text-[11px] text-stone-500">{spec.desc}</p>
+                  <code className="block rounded bg-stone-200/80 px-1.5 py-1 font-mono text-[10px] text-stone-700">
+                    oa://{spec.id}
+                  </code>
+                </div>
+              ))}
+              {/* Browse CTA */}
+              <div className="flex items-center justify-center rounded-lg border border-dashed border-stone-300 bg-transparent p-3">
+                <Link
+                  href="/registry"
+                  className="text-center text-[11px] font-medium text-stone-500 transition hover:text-stone-800"
+                >
+                  Browse registry →<br />
+                  <span className="text-[10px] font-normal text-stone-400">Publish your own spec</span>
+                </Link>
+              </div>
             </div>
           </section>
 
