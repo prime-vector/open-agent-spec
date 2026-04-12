@@ -1,0 +1,84 @@
+open_agent_spec: "1.4.0"
+
+agent:
+  name: code-reviewer
+  description: >
+    Review a code snippet for bugs, security issues, and improvement
+    opportunities. Returns structured feedback with severity ratings.
+    Designed to be reused via spec delegation
+    (spec: oa://prime-vector/code-reviewer).
+  role: reviewer
+
+intelligence:
+  type: llm
+  engine: openai
+  model: gpt-4o-mini
+  config:
+    temperature: 0.2
+
+tasks:
+  review_code:
+    description: Review code for bugs, security issues, and improvements
+    input:
+      type: object
+      properties:
+        code:
+          type: string
+          description: The code snippet to review
+        language:
+          type: string
+          description: Programming language (e.g. python, typescript, go)
+        context:
+          type: string
+          description: Optional context about what the code is supposed to do
+      required:
+        - code
+        - language
+    output:
+      type: object
+      properties:
+        verdict:
+          type: string
+          description: "Overall verdict: approved, approved_with_suggestions, needs_changes"
+        issues:
+          type: array
+          items:
+            type: object
+          description: List of issues found, each with severity, line, and description
+        suggestions:
+          type: array
+          items:
+            type: string
+          description: General improvement suggestions not tied to a specific line
+        summary:
+          type: string
+          description: A brief overall summary of the review
+      required:
+        - verdict
+        - issues
+        - suggestions
+        - summary
+    prompts:
+      system: >
+        You are an experienced software engineer conducting a thorough code review.
+        Identify bugs, security vulnerabilities, and improvement opportunities.
+        Be specific, constructive, and concise. Always respond with valid JSON.
+      user: |
+        Review the following {language} code.
+
+        {context}
+
+        Code:
+        ```{language}
+        {code}
+        ```
+
+        Respond with JSON:
+        {
+          "verdict": "approved|approved_with_suggestions|needs_changes",
+          "issues": [
+            {"severity": "critical|high|medium|low", "description": "...", "line": null}
+          ],
+          "suggestions": ["suggestion 1", "suggestion 2"],
+          "summary": "<brief overall summary>"
+        }

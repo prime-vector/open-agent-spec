@@ -1,0 +1,69 @@
+open_agent_spec: "1.4.0"
+
+agent:
+  name: classifier
+  description: >
+    Classify a piece of text into one of a set of provided categories.
+    Categories are passed at runtime so the same spec works for any
+    classification problem. Designed to be reused via spec delegation
+    (spec: oa://prime-vector/classifier).
+  role: analyst
+
+intelligence:
+  type: llm
+  engine: openai
+  model: gpt-4o-mini
+  config:
+    temperature: 0.1
+
+tasks:
+  classify:
+    description: >
+      Classify text into one of the provided categories. Pass the
+      available categories as a comma-separated string in the input.
+    input:
+      type: object
+      properties:
+        text:
+          type: string
+          description: The text to classify
+        categories:
+          type: string
+          description: >
+            Comma-separated list of valid categories,
+            e.g. "bug, feature, question, documentation"
+      required:
+        - text
+        - categories
+    output:
+      type: object
+      properties:
+        category:
+          type: string
+          description: The assigned category (must be one of the provided categories)
+        confidence:
+          type: number
+          description: Confidence score between 0.0 and 1.0
+        reasoning:
+          type: string
+          description: Brief explanation of the classification
+      required:
+        - category
+        - confidence
+        - reasoning
+    prompts:
+      system: >
+        You are a precise classification engine. Classify the input text into
+        exactly one of the provided categories. Always respond with valid JSON.
+      user: |
+        Classify the following text into one of these categories: {categories}
+
+        Text:
+        {text}
+
+        Respond with JSON:
+        {
+          "category": "<one of the provided categories>",
+          "confidence": 0.0-1.0,
+          "reasoning": "<brief explanation>"
+        }

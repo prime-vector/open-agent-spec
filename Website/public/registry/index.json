@@ -1,0 +1,72 @@
+{
+  "registry": "openagentspec.dev",
+  "version": "1.0",
+  "updated": "2026-03-19",
+  "specs": [
+    {
+      "id": "prime-vector/summariser",
+      "name": "Summariser",
+      "description": "Summarise a body of text and extract the most important key points.",
+      "namespace": "prime-vector",
+      "slug": "summariser",
+      "latest": "1.0.0",
+      "versions": ["1.0.0"],
+      "tags": ["text", "nlp", "summarisation"],
+      "usage": "spec: oa://prime-vector/summariser",
+      "task": "summarise",
+      "url": "https://openagentspec.dev/registry/prime-vector/summariser/latest/spec.yaml"
+    },
+    {
+      "id": "prime-vector/sentiment",
+      "name": "Sentiment Analyser",
+      "description": "Analyse the sentiment of text — positive, negative, neutral, or mixed — with a confidence score.",
+      "namespace": "prime-vector",
+      "slug": "sentiment",
+      "latest": "1.0.0",
+      "versions": ["1.0.0"],
+      "tags": ["text", "nlp", "sentiment", "classification"],
+      "usage": "spec: oa://prime-vector/sentiment",
+      "task": "analyse_sentiment",
+      "url": "https://openagentspec.dev/registry/prime-vector/sentiment/latest/spec.yaml"
+    },
+    {
+      "id": "prime-vector/classifier",
+      "name": "Text Classifier",
+      "description": "Classify text into one of a set of categories provided at runtime. Works for any classification problem.",
+      "namespace": "prime-vector",
+      "slug": "classifier",
+      "latest": "1.0.0",
+      "versions": ["1.0.0"],
+      "tags": ["text", "nlp", "classification"],
+      "usage": "spec: oa://prime-vector/classifier",
+      "task": "classify",
+      "url": "https://openagentspec.dev/registry/prime-vector/classifier/latest/spec.yaml"
+    },
+    {
+      "id": "prime-vector/keyword-extractor",
+      "name": "Keyword Extractor",
+      "description": "Extract the most relevant keywords and key phrases from a body of text, ordered by relevance.",
+      "namespace": "prime-vector",
+      "slug": "keyword-extractor",
+      "latest": "1.0.0",
+      "versions": ["1.0.0"],
+      "tags": ["text", "nlp", "keywords", "extraction"],
+      "usage": "spec: oa://prime-vector/keyword-extractor",
+      "task": "extract_keywords",
+      "url": "https://openagentspec.dev/registry/prime-vector/keyword-extractor/latest/spec.yaml"
+    },
+    {
+      "id": "prime-vector/code-reviewer",
+      "name": "Code Reviewer",
+      "description": "Review a code snippet for bugs, security issues, and improvement opportunities. Returns structured feedback with severity ratings.",
+      "namespace": "prime-vector",
+      "slug": "code-reviewer",
+      "latest": "1.0.0",
+      "versions": ["1.0.0"],
+      "tags": ["code", "review", "security", "quality"],
+      "usage": "spec: oa://prime-vector/code-reviewer",
+      "task": "review_code",
+      "url": "https://openagentspec.dev/registry/prime-vector/code-reviewer/latest/spec.yaml"
+    }
+  ]
+}
