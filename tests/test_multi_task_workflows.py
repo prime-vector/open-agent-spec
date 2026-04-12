@@ -526,19 +526,43 @@ class TestTemplateInterpolation:
 
 class TestOutputNormalisation:
     def test_plain_json_string_parsed(self):
-        spec = _spec({"t": _task(system="s", user="{{ q }}", output_fields={"answer": {"type": "string"}})})
+        spec = _spec(
+            {
+                "t": _task(
+                    system="s",
+                    user="{{ q }}",
+                    output_fields={"answer": {"type": "string"}},
+                )
+            }
+        )
         result = _run(spec, "t", {"q": "hi"}, fake_response='{"answer": "42"}')
         assert result["output"] == {"answer": "42"}
 
     def test_json_fenced_with_language_tag(self):
         fenced = '```json\n{"answer": "ok"}\n```'
-        spec = _spec({"t": _task(system="s", user="{{ q }}", output_fields={"answer": {"type": "string"}})})
+        spec = _spec(
+            {
+                "t": _task(
+                    system="s",
+                    user="{{ q }}",
+                    output_fields={"answer": {"type": "string"}},
+                )
+            }
+        )
         result = _run(spec, "t", {"q": "hi"}, fake_response=fenced)
         assert result["output"] == {"answer": "ok"}
 
     def test_json_fenced_without_language_tag(self):
         fenced = '```\n{"answer": "plain"}\n```'
-        spec = _spec({"t": _task(system="s", user="{{ q }}", output_fields={"answer": {"type": "string"}})})
+        spec = _spec(
+            {
+                "t": _task(
+                    system="s",
+                    user="{{ q }}",
+                    output_fields={"answer": {"type": "string"}},
+                )
+            }
+        )
         result = _run(spec, "t", {"q": "hi"}, fake_response=fenced)
         assert result["output"] == {"answer": "plain"}
 
@@ -561,7 +585,13 @@ class TestOutputNormalisation:
         assert result["output"] == {"result": "direct"}
 
     def test_whitespace_stripped_before_json_parse(self):
-        spec = _spec({"t": _task(system="s", user="{{ q }}", output_fields={"v": {"type": "integer"}})})
+        spec = _spec(
+            {
+                "t": _task(
+                    system="s", user="{{ q }}", output_fields={"v": {"type": "integer"}}
+                )
+            }
+        )
         result = _run(spec, "t", {"q": "hi"}, fake_response='  {"v": 1}  ')
         assert result["output"] == {"v": 1}
 

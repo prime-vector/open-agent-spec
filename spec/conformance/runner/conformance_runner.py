@@ -168,7 +168,7 @@ def _assert_expect(result: dict, expect: dict) -> None:
 
         # --- dotted path assertion ---
         if key.startswith("result."):
-            path = key[len("result."):]
+            path = key[len("result.") :]
             try:
                 actual = _resolve_dotted(result, path)
             except (KeyError, TypeError) as exc:
