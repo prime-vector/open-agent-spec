@@ -12,7 +12,7 @@ from __future__ import annotations
 
 import logging
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any
 
 import yaml
 
@@ -43,16 +43,16 @@ class AgentRunner:
         return list((self._spec_data.get("tasks") or {}).keys())
 
     @property
-    def spec_data(self) -> Dict[str, Any]:
+    def spec_data(self) -> dict[str, Any]:
         return self._spec_data
 
     def run_task(
         self,
         task_name: str,
-        input_data: Dict[str, Any],
-        override_system: Optional[str] = None,
-        override_user: Optional[str] = None,
-    ) -> Dict[str, Any]:
+        input_data: dict[str, Any],
+        override_system: str | None = None,
+        override_user: str | None = None,
+    ) -> dict[str, Any]:
         """Run a single task and return the result envelope.
 
         Returns a dict with at least ``output`` on success or
@@ -60,7 +60,7 @@ class AgentRunner:
         """
         # Import here to avoid circular deps and keep the interface importable
         # without a full runtime install.
-        from oas_cli.runner import run_task_from_spec, OARunError
+        from oas_cli.runner import OARunError, run_task_from_spec
 
         try:
             result = run_task_from_spec(
@@ -75,11 +75,13 @@ class AgentRunner:
             logger.error("Agent %s task %s failed: %s", self.agent_name, task_name, exc)
             return {"error": str(exc), "code": exc.code, "stage": exc.stage}
         except Exception as exc:
-            logger.error("Agent %s task %s unexpected error: %s", self.agent_name, task_name, exc)
+            logger.error(
+                "Agent %s task %s unexpected error: %s", self.agent_name, task_name, exc
+            )
             return {"error": str(exc)}
 
     @staticmethod
-    def _load(spec_path: str) -> Dict[str, Any]:
+    def _load(spec_path: str) -> dict[str, Any]:
         path = Path(spec_path)
         with path.open("r", encoding="utf-8") as f:
             data = yaml.safe_load(f) or {}

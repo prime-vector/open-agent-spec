@@ -25,8 +25,9 @@ from __future__ import annotations
 import json
 import logging
 import time
+from collections.abc import Callable
 from datetime import date, timedelta
-from typing import Any, Callable, Dict, List, Optional
+from typing import Any
 
 
 def _easter_sunday(year: int) -> date:
@@ -64,14 +65,15 @@ def _date_context() -> str:
         f"Easter Monday {easter_monday.strftime('%d %B')}."
     )
 
-from board import TaskBoard, TaskPriority, TaskStatus
+
+from board import TaskBoard, TaskPriority
 from registry import AgentRegistry
 from runner import AgentRunner
 
 logger = logging.getLogger(__name__)
 
 # Type for event callbacks the dashboard can subscribe to.
-EventCallback = Callable[[str, Dict[str, Any]], None]
+EventCallback = Callable[[str, dict[str, Any]], None]
 
 
 class OrchestrationLoop:
@@ -80,19 +82,19 @@ class OrchestrationLoop:
     def __init__(
         self,
         manager_spec: str,
-        worker_specs: List[str],
-        concierge_spec: Optional[str] = None,
+        worker_specs: list[str],
+        concierge_spec: str | None = None,
         max_iterations: int = 50,
     ) -> None:
         self.board = TaskBoard()
         self.registry = AgentRegistry()
-        self.runners: Dict[str, AgentRunner] = {}
-        self._event_listeners: List[EventCallback] = []
+        self.runners: dict[str, AgentRunner] = {}
+        self._event_listeners: list[EventCallback] = []
         self.max_iterations = max_iterations
-        self.events: List[Dict[str, Any]] = []
+        self.events: list[dict[str, Any]] = []
 
         # Load the concierge (optional — user-facing agent).
-        self._concierge_runner: Optional[AgentRunner] = None
+        self._concierge_runner: AgentRunner | None = None
         if concierge_spec:
             self._concierge_runner = AgentRunner(concierge_spec)
             self.registry.register(
@@ -126,7 +128,7 @@ class OrchestrationLoop:
         """Register an event listener (used by the dashboard)."""
         self._event_listeners.append(callback)
 
-    def _emit(self, event_type: str, data: Dict[str, Any]) -> None:
+    def _emit(self, event_type: str, data: dict[str, Any]) -> None:
         entry = {"type": event_type, "timestamp": time.time(), **data}
         self.events.append(entry)
         for cb in self._event_listeners:
@@ -169,14 +171,19 @@ class OrchestrationLoop:
         concierge_entry = self.registry.get("concierge-agent")
         if concierge_entry:
             concierge_entry.tasks_completed += 1
-        self._emit("clarify_complete", {
-            "objective": objective,
-            "clarification_needed": output.get("clarification_needed", False),
-            "scope_notes": output.get("scope_notes", ""),
-        })
+        self._emit(
+            "clarify_complete",
+            {
+                "objective": objective,
+                "clarification_needed": output.get("clarification_needed", False),
+                "scope_notes": output.get("scope_notes", ""),
+            },
+        )
         return objective
 
-    def _summarise(self, objective: str, tasks: List[Dict[str, Any]]) -> Optional[Dict[str, Any]]:
+    def _summarise(
+        self, objective: str, tasks: list[dict[str, Any]]
+    ) -> dict[str, Any] | None:
         """Use the concierge to produce a user-friendly summary of results."""
         if not self._concierge_runner:
             return None
@@ -188,7 +195,10 @@ class OrchestrationLoop:
             input_data={
                 "objective": objective,
                 "task_results": json.dumps(
-                    [{"title": t.get("title"), "result": t.get("result")} for t in tasks],
+                    [
+                        {"title": t.get("title"), "result": t.get("result")}
+                        for t in tasks
+                    ],
                     default=str,
                 )[:3000],  # Truncate to stay within token limits.
             },
@@ -209,12 +219,14 @@ class OrchestrationLoop:
         concierge_entry = self.registry.get("concierge-agent")
         if concierge_entry:
             concierge_entry.tasks_completed += 1
-        self._emit("summarise_complete", {"summary": str(output.get("summary", ""))[:200]})
+        self._emit(
+            "summarise_complete", {"summary": str(output.get("summary", ""))[:200]}
+        )
         return output
 
     # -- Phase 1: Ask the manager to plan --
 
-    def _plan(self, objective: str) -> List[Dict[str, Any]]:
+    def _plan(self, objective: str) -> list[dict[str, Any]]:
         """Ask the manager agent to decompose the objective into tasks."""
         available_roles = ", ".join(
             sorted(
@@ -225,7 +237,9 @@ class OrchestrationLoop:
                 }
             )
         )
-        self._emit("plan_start", {"objective": objective, "available_roles": available_roles})
+        self._emit(
+            "plan_start", {"objective": objective, "available_roles": available_roles}
+        )
 
         result = self._manager_runner.run_task(
             task_name="decompose",
@@ -271,9 +285,9 @@ class OrchestrationLoop:
 
     # -- Phase 2: Populate the board --
 
-    def _populate_board(self, planned_tasks: List[Dict[str, Any]]) -> None:
+    def _populate_board(self, planned_tasks: list[dict[str, Any]]) -> None:
         """Post planned tasks onto the board, resolving dependency titles to IDs."""
-        title_to_id: Dict[str, str] = {}
+        title_to_id: dict[str, str] = {}
 
         for t in planned_tasks:
             priority_val = t.get("priority", 2)
@@ -297,18 +311,21 @@ class OrchestrationLoop:
             )
             title_to_id[t["title"]] = task.id
 
-            self._emit("task_posted", {"task_id": task.id, "title": task.title, "role": task.required_role})
+            self._emit(
+                "task_posted",
+                {"task_id": task.id, "title": task.title, "role": task.required_role},
+            )
 
     # -- Phase 3: Execute --
 
-    def _find_worker(self, role: str) -> Optional[AgentRunner]:
+    def _find_worker(self, role: str) -> AgentRunner | None:
         """Find a runner whose agent matches the required role."""
         entries = self.registry.find_by_role(role)
         if entries:
             return self.runners.get(entries[0].id)
         return None
 
-    def _pick_task_for_worker(self, runner: AgentRunner) -> Optional[Any]:
+    def _pick_task_for_worker(self, runner: AgentRunner) -> Any | None:
         """Find the highest-priority available task matching this worker's role."""
         tasks = self.board.available_tasks(role=runner.agent_role)
         return tasks[0] if tasks else None
@@ -332,11 +349,14 @@ class OrchestrationLoop:
                 continue
 
             self.board.start_task(task.id)
-            self._emit("task_started", {
-                "task_id": task.id,
-                "title": task.title,
-                "agent": entry.id,
-            })
+            self._emit(
+                "task_started",
+                {
+                    "task_id": task.id,
+                    "title": task.title,
+                    "agent": entry.id,
+                },
+            )
 
             # Build input: task's own input_data + description as context.
             input_data = dict(task.input_data)
@@ -363,46 +383,82 @@ class OrchestrationLoop:
                 reg_entry = self.registry.get(entry.id)
                 if reg_entry:
                     reg_entry.tasks_failed += 1
-                self._emit("task_failed", {
-                    "task_id": task.id,
-                    "title": task.title,
-                    "agent": entry.id,
-                    "error": result["error"],
-                })
+                self._emit(
+                    "task_failed",
+                    {
+                        "task_id": task.id,
+                        "title": task.title,
+                        "agent": entry.id,
+                        "error": result["error"],
+                    },
+                )
             else:
                 output = result.get("output", {})
-                self.board.complete_task(task.id, output if isinstance(output, dict) else {"result": output})
+                self.board.complete_task(
+                    task.id, output if isinstance(output, dict) else {"result": output}
+                )
                 reg_entry = self.registry.get(entry.id)
                 if reg_entry:
                     reg_entry.tasks_completed += 1
-                self._emit("task_completed", {
-                    "task_id": task.id,
-                    "title": task.title,
-                    "agent": entry.id,
-                    "output_preview": str(output)[:200],
-                })
+                self._emit(
+                    "task_completed",
+                    {
+                        "task_id": task.id,
+                        "title": task.title,
+                        "agent": entry.id,
+                        "output_preview": str(output)[:200],
+                    },
+                )
             return True
 
         return False
 
     # -- Public API --
 
-    def run(self, objective: str) -> Dict[str, Any]:
+    def run(self, objective: str) -> dict[str, Any]:
         """Run the full orchestration loop for an objective.
 
         Returns a summary with the board state, agent stats, and event log.
         """
         # Only prepend date context when the objective is time-sensitive.
-        time_words = {"today", "tomorrow", "yesterday", "weekend", "week",
-                      "month", "easter", "christmas", "holiday", "season",
-                      "spring", "summer", "autumn", "winter", "date",
-                      "april", "march", "january", "february", "may",
-                      "june", "july", "august", "september", "october",
-                      "november", "december", "schedule", "upcoming",
-                      "current", "recent", "latest", "now",
-                      str(date.today().year - 1),
-                      str(date.today().year),
-                      str(date.today().year + 1)}
+        time_words = {
+            "today",
+            "tomorrow",
+            "yesterday",
+            "weekend",
+            "week",
+            "month",
+            "easter",
+            "christmas",
+            "holiday",
+            "season",
+            "spring",
+            "summer",
+            "autumn",
+            "winter",
+            "date",
+            "april",
+            "march",
+            "january",
+            "february",
+            "may",
+            "june",
+            "july",
+            "august",
+            "september",
+            "october",
+            "november",
+            "december",
+            "schedule",
+            "upcoming",
+            "current",
+            "recent",
+            "latest",
+            "now",
+            str(date.today().year - 1),
+            str(date.today().year),
+            str(date.today().year + 1),
+        }
         obj_lower = objective.lower()
         if any(w in obj_lower for w in time_words):
             date_ctx = _date_context()
@@ -424,10 +480,13 @@ class OrchestrationLoop:
         while not self.board.is_complete() and iterations < self.max_iterations:
             did_work = self._execute_one()
             if not did_work:
-                self._emit("orchestration_stalled", {
-                    "reason": "No available tasks but board is not complete",
-                    "board_summary": self.board.summary(),
-                })
+                self._emit(
+                    "orchestration_stalled",
+                    {
+                        "reason": "No available tasks but board is not complete",
+                        "board_summary": self.board.summary(),
+                    },
+                )
                 break
             iterations += 1
 
@@ -436,12 +495,15 @@ class OrchestrationLoop:
         task_dicts = [t.to_dict() for t in self.board.all_tasks()]
         summary = self._summarise(objective, task_dicts)
 
-        self._emit("orchestration_complete", {
-            "iterations": iterations,
-            "board_summary": self.board.summary(),
-        })
+        self._emit(
+            "orchestration_complete",
+            {
+                "iterations": iterations,
+                "board_summary": self.board.summary(),
+            },
+        )
 
-        result: Dict[str, Any] = {
+        result: dict[str, Any] = {
             "objective": objective,
             "refined_objective": refined_objective,
             "board": self.board.summary(),
@@ -454,7 +516,7 @@ class OrchestrationLoop:
             result["summary"] = summary
         return result
 
-    def status(self) -> Dict[str, Any]:
+    def status(self) -> dict[str, Any]:
         """Snapshot of current state (for the dashboard)."""
         return {
             "board": self.board.summary(),

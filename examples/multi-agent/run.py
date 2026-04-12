@@ -43,18 +43,28 @@ def default_path(filename: str) -> str:
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Multi-agent orchestration example")
-    parser.add_argument("objective", nargs="?", default="", help="Objective for the agent team")
-    parser.add_argument("--manager", default=default_path("manager.yaml"), help="Manager spec path")
+    parser.add_argument(
+        "objective", nargs="?", default="", help="Objective for the agent team"
+    )
+    parser.add_argument(
+        "--manager", default=default_path("manager.yaml"), help="Manager spec path"
+    )
     parser.add_argument(
         "--workers",
-        default=",".join([
-            default_path("researcher.yaml"),
-            default_path("writer.yaml"),
-            default_path("reviewer.yaml"),
-        ]),
+        default=",".join(
+            [
+                default_path("researcher.yaml"),
+                default_path("writer.yaml"),
+                default_path("reviewer.yaml"),
+            ]
+        ),
         help="Comma-separated worker spec paths",
     )
-    parser.add_argument("--concierge", default=default_path("concierge.yaml"), help="Concierge spec path (empty to disable)")
+    parser.add_argument(
+        "--concierge",
+        default=default_path("concierge.yaml"),
+        help="Concierge spec path (empty to disable)",
+    )
     parser.add_argument("--dashboard", action="store_true", help="Launch web dashboard")
     parser.add_argument("--port", type=int, default=8420, help="Dashboard port")
     parser.add_argument("--quiet", "-q", action="store_true", help="JSON output only")
@@ -95,14 +105,14 @@ def main() -> None:
         else:
             board = result.get("board", {})
             by_status = board.get("by_status", {})
-            print(f"\n{'='*50}")
+            print(f"\n{'=' * 50}")
             print(f"  Tasks: {board.get('total', 0)}")
             print(f"  Completed: {by_status.get('completed', 0)}")
             print(f"  Failed: {by_status.get('failed', 0)}")
             print(f"  Iterations: {result.get('iterations', 0)}")
             if result.get("summary"):
                 print(f"\n  Summary: {result['summary'].get('summary', '')}")
-            print(f"{'='*50}\n")
+            print(f"{'=' * 50}\n")
             print(json.dumps(result, indent=2, default=str))
 
 

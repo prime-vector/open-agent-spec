@@ -12,7 +12,7 @@ import time
 import uuid
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 
 class TaskStatus(Enum):
@@ -38,19 +38,19 @@ class Task:
     title: str
     description: str
     required_role: str
-    input_data: Dict[str, Any]
+    input_data: dict[str, Any]
     priority: TaskPriority = TaskPriority.NORMAL
     status: TaskStatus = TaskStatus.PENDING
-    assigned_to: Optional[str] = None
-    depends_on: List[str] = field(default_factory=list)
-    result: Optional[Dict[str, Any]] = None
-    error: Optional[str] = None
+    assigned_to: str | None = None
+    depends_on: list[str] = field(default_factory=list)
+    result: dict[str, Any] | None = None
+    error: str | None = None
     created_at: float = field(default_factory=time.time)
-    assigned_at: Optional[float] = None
-    completed_at: Optional[float] = None
+    assigned_at: float | None = None
+    completed_at: float | None = None
     source: str = "manager"
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "id": self.id,
             "title": self.title,
@@ -74,7 +74,7 @@ class TaskBoard:
     """In-memory task board.  Override for persistent backends."""
 
     def __init__(self) -> None:
-        self._tasks: Dict[str, Task] = {}
+        self._tasks: dict[str, Task] = {}
 
     # -- mutations --
 
@@ -83,9 +83,9 @@ class TaskBoard:
         title: str,
         description: str,
         required_role: str,
-        input_data: Dict[str, Any],
+        input_data: dict[str, Any],
         priority: TaskPriority = TaskPriority.NORMAL,
-        depends_on: Optional[List[str]] = None,
+        depends_on: list[str] | None = None,
         source: str = "manager",
     ) -> Task:
         task_id = str(uuid.uuid4())[:8]
@@ -118,7 +118,7 @@ class TaskBoard:
         if task and task.status == TaskStatus.ASSIGNED:
             task.status = TaskStatus.IN_PROGRESS
 
-    def complete_task(self, task_id: str, result: Dict[str, Any]) -> None:
+    def complete_task(self, task_id: str, result: dict[str, Any]) -> None:
         task = self._tasks.get(task_id)
         if task and task.status in (TaskStatus.ASSIGNED, TaskStatus.IN_PROGRESS):
             task.status = TaskStatus.COMPLETED
@@ -134,9 +134,9 @@ class TaskBoard:
 
     # -- queries --
 
-    def available_tasks(self, role: Optional[str] = None) -> List[Task]:
+    def available_tasks(self, role: str | None = None) -> list[Task]:
         """Return pending tasks whose dependencies are met, optionally filtered by role."""
-        out: List[Task] = []
+        out: list[Task] = []
         for t in self._tasks.values():
             if t.status != TaskStatus.PENDING:
                 continue
@@ -148,14 +148,14 @@ class TaskBoard:
         out.sort(key=lambda t: (-t.priority.value, t.created_at))
         return out
 
-    def get_task(self, task_id: str) -> Optional[Task]:
+    def get_task(self, task_id: str) -> Task | None:
         return self._tasks.get(task_id)
 
-    def all_tasks(self) -> List[Task]:
+    def all_tasks(self) -> list[Task]:
         return list(self._tasks.values())
 
-    def summary(self) -> Dict[str, Any]:
-        counts: Dict[str, int] = {}
+    def summary(self) -> dict[str, Any]:
+        counts: dict[str, int] = {}
         for t in self._tasks.values():
             counts[t.status.value] = counts.get(t.status.value, 0) + 1
         return {

@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import json
 import os
 import sys
 from unittest.mock import patch
@@ -14,9 +13,9 @@ EXAMPLE_DIR = os.path.join(os.path.dirname(__file__), "..", "examples", "multi-a
 sys.path.insert(0, os.path.abspath(EXAMPLE_DIR))
 
 from board import TaskBoard, TaskPriority, TaskStatus  # noqa: E402
+from loop import OrchestrationLoop  # noqa: E402
 from registry import AgentRegistry  # noqa: E402
 from runner import AgentRunner  # noqa: E402
-from loop import OrchestrationLoop  # noqa: E402
 
 PERSONAS_DIR = os.path.join(EXAMPLE_DIR, "personas")
 
@@ -172,9 +171,19 @@ class TestOrchestrationLoop:
     def test_populate_board_from_planned_tasks(self) -> None:
         loop = self._make_loop()
         planned = [
-            {"title": "Research AI", "description": "Find info", "required_role": "analyst", "priority": 3},
-            {"title": "Write post", "description": "Draft article", "required_role": "writer", "priority": 2,
-             "depends_on_titles": ["Research AI"]},
+            {
+                "title": "Research AI",
+                "description": "Find info",
+                "required_role": "analyst",
+                "priority": 3,
+            },
+            {
+                "title": "Write post",
+                "description": "Draft article",
+                "required_role": "writer",
+                "priority": 2,
+                "depends_on_titles": ["Research AI"],
+            },
         ]
         loop._populate_board(planned)
         assert loop.board.summary()["total"] == 2
@@ -191,11 +200,19 @@ class TestOrchestrationLoop:
         manager_response = {
             "output": {
                 "tasks": [
-                    {"title": "Analyse topic", "description": "Research AI agents",
-                     "required_role": "analyst", "priority": 3},
-                    {"title": "Write article", "description": "Draft blog post",
-                     "required_role": "writer", "priority": 2,
-                     "depends_on_titles": ["Analyse topic"]},
+                    {
+                        "title": "Analyse topic",
+                        "description": "Research AI agents",
+                        "required_role": "analyst",
+                        "priority": 3,
+                    },
+                    {
+                        "title": "Write article",
+                        "description": "Draft blog post",
+                        "required_role": "writer",
+                        "priority": 2,
+                        "depends_on_titles": ["Analyse topic"],
+                    },
                 ],
                 "summary": "Two-step plan: research then write.",
             }
@@ -253,14 +270,21 @@ class TestOrchestrationLoop:
         manager_response = {
             "output": {
                 "tasks": [
-                    {"title": "Research frameworks", "description": "Find top AI agent frameworks",
-                     "required_role": "analyst", "priority": 3},
+                    {
+                        "title": "Research frameworks",
+                        "description": "Find top AI agent frameworks",
+                        "required_role": "analyst",
+                        "priority": 3,
+                    },
                 ],
                 "summary": "Single research task.",
             }
         }
         analyst_response = {
-            "output": {"findings": "LangChain, CrewAI, OA Spec", "key_points": ["three frameworks"]}
+            "output": {
+                "findings": "LangChain, CrewAI, OA Spec",
+                "key_points": ["three frameworks"],
+            }
         }
         summarise_response = {
             "output": {
@@ -280,7 +304,10 @@ class TestOrchestrationLoop:
         result = loop.run("write something about AI agents")
 
         assert result["objective"] == "write something about AI agents"
-        assert result["refined_objective"] == "Write a 500-word blog post about AI agent frameworks"
+        assert (
+            result["refined_objective"]
+            == "Write a 500-word blog post about AI agent frameworks"
+        )
         assert result["board"]["by_status"]["completed"] == 1
         assert "summary" in result
         assert "highlights" in result["summary"]
@@ -301,9 +328,16 @@ class TestOrchestrationLoop:
 
     def test_status_snapshot(self) -> None:
         loop = self._make_loop()
-        loop._populate_board([
-            {"title": "A", "description": "a", "required_role": "analyst", "priority": 2},
-        ])
+        loop._populate_board(
+            [
+                {
+                    "title": "A",
+                    "description": "a",
+                    "required_role": "analyst",
+                    "priority": 2,
+                },
+            ]
+        )
         status = loop.status()
         assert "board" in status
         assert "tasks" in status
@@ -323,8 +357,18 @@ class TestOrchestrationLoop:
         manager_response = {
             "output": {
                 "tasks": [
-                    {"title": "Task A", "description": "a", "required_role": "analyst", "priority": 2},
-                    {"title": "Task B", "description": "b", "required_role": "analyst", "priority": 2},
+                    {
+                        "title": "Task A",
+                        "description": "a",
+                        "required_role": "analyst",
+                        "priority": 2,
+                    },
+                    {
+                        "title": "Task B",
+                        "description": "b",
+                        "required_role": "analyst",
+                        "priority": 2,
+                    },
                 ],
                 "summary": "Two tasks.",
             }
@@ -343,8 +387,12 @@ class TestOrchestrationLoop:
         manager_response = {
             "output": {
                 "tasks": [
-                    {"title": "Bad task", "description": "will fail",
-                     "required_role": "analyst", "priority": 2},
+                    {
+                        "title": "Bad task",
+                        "description": "will fail",
+                        "required_role": "analyst",
+                        "priority": 2,
+                    },
                 ],
                 "summary": "One task.",
             }
@@ -368,8 +416,12 @@ class TestOrchestrationLoop:
         manager_response = {
             "output": {
                 "tasks": [
-                    {"title": "Deploy app", "description": "push to prod",
-                     "required_role": "devops", "priority": 4},
+                    {
+                        "title": "Deploy app",
+                        "description": "push to prod",
+                        "required_role": "devops",
+                        "priority": 4,
+                    },
                 ],
                 "summary": "One task.",
             }
@@ -392,8 +444,12 @@ class TestOrchestrationLoop:
         manager_response = {
             "output": {
                 "tasks": [
-                    {"title": "Do it", "description": "just do it",
-                     "required_role": "analyst", "priority": 2},
+                    {
+                        "title": "Do it",
+                        "description": "just do it",
+                        "required_role": "analyst",
+                        "priority": 2,
+                    },
                 ],
                 "summary": "One task.",
             }
@@ -425,7 +481,9 @@ class TestOrchestrationLoop:
 class TestSerialization:
     def test_task_to_dict(self) -> None:
         board = TaskBoard()
-        task = board.post_task("Title", "Desc", "analyst", {"key": "val"}, priority=TaskPriority.HIGH)
+        task = board.post_task(
+            "Title", "Desc", "analyst", {"key": "val"}, priority=TaskPriority.HIGH
+        )
         d = task.to_dict()
         assert d["id"] == task.id
         assert d["title"] == "Title"
@@ -441,6 +499,7 @@ class TestSerialization:
 
     def test_agent_entry_to_dict(self) -> None:
         from registry import AgentEntry
+
         entry = AgentEntry(id="a1", role="analyst", spec_path="s.yaml")
         d = entry.to_dict()
         assert d["id"] == "a1"

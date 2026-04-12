@@ -10,21 +10,20 @@ No JS framework needed — uses plain HTML with fetch polling.
 
 from __future__ import annotations
 
-import json
 import logging
 import threading
-from typing import Any, Dict, Optional
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
 # We import FastAPI lazily so the rest of the package doesn't require it.
 _app = None
 _loop_instance = None
-_run_thread: Optional[threading.Thread] = None
-_last_result: Optional[Dict[str, Any]] = None
+_run_thread: threading.Thread | None = None
+_last_result: dict[str, Any] | None = None
 
 
-def _get_app():  # noqa: ANN202
+def _get_app():
     global _app
     if _app is not None:
         return _app
@@ -45,7 +44,7 @@ def _get_app():  # noqa: ANN202
         return _DASHBOARD_HTML
 
     @_app.get("/api/status", response_class=JSONResponse)
-    async def status() -> Dict[str, Any]:
+    async def status() -> dict[str, Any]:
         if _loop_instance is None:
             return {"error": "No orchestration loop configured"}
         data = _loop_instance.status()
@@ -61,7 +60,7 @@ def _get_app():  # noqa: ANN202
         return data
 
     @_app.post("/api/run", response_class=JSONResponse)
-    async def run_objective(payload: Dict[str, Any]) -> Dict[str, Any]:
+    async def run_objective(payload: dict[str, Any]) -> dict[str, Any]:
         global _run_thread, _last_result
         if _loop_instance is None:
             return {"error": "No orchestration loop configured"}
