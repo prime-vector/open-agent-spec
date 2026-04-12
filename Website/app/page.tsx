@@ -29,6 +29,8 @@ export default function HomePage() {
             {[
               ["#overview", "Overview"],
               ["#install", "Install"],
+              ["#whats-new", "What's New"],
+              ["#features", "Features"],
               ["#problem", "The Problem"],
               ["#how-it-works", "How It Works"],
               ["#modes", "Two Ways"],
@@ -86,7 +88,7 @@ export default function HomePage() {
                   Open source · MIT
                 </span>
                 <span className="rounded-full border border-stone-400/50 bg-white/60 px-3 py-1 text-[10px] font-medium text-stone-700 backdrop-blur-sm">
-                  Spec v1.3.0
+                  Spec v1.4.0
                 </span>
               </div>
             </div>
@@ -119,51 +121,81 @@ export default function HomePage() {
               </Link>
             </div>
 
-            {/* Announcement — multi-step workflows */}
-            <div className="mt-8">
-              <div className="mb-3 flex flex-wrap items-baseline gap-2">
+            {/* What's new in 1.4.0 */}
+            <div id="whats-new" className="mt-8 scroll-mt-6">
+              <div className="mb-4 flex flex-wrap items-baseline gap-2">
                 <span className="inline-block rounded bg-stone-900 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-stone-100">
-                  New in 1.3.0
+                  New in 1.4.0
                 </span>
                 <p className="text-sm font-semibold text-stone-900">
-                  NEW!! Multi-step agent workflows, no framework required.{" "}
-                  <span className="font-normal text-stone-600">
-                    Define composable tasks and chain them with{" "}
-                    <code className="rounded bg-stone-200 px-1 py-0.5 text-stone-800">
-                      depends_on
-                    </code>
-                    .
-                  </span>
+                  Tool use, spec composition, and a test harness | all from YAML.
                 </p>
               </div>
-              <div className="overflow-hidden rounded-xl border border-stone-700 bg-stone-900">
-                <div className="overflow-x-auto p-4 font-mono text-[11px] leading-relaxed text-stone-300">
-                  <pre>{`tasks:
-  extract:
-    description: Pull key facts from a document
-    prompts:
-      system: "Extract the three most important facts."
-      user: "{{ document }}"
-    output:
-      type: object
-      properties:
-        facts: { type: string }
-      required: [facts]
+              <div className="grid gap-4 sm:grid-cols-3">
+                {/* Tool use */}
+                <div className="overflow-hidden rounded-xl border border-stone-700 bg-stone-900">
+                  <div className="border-b border-stone-700 px-4 py-2">
+                    <span className="text-[11px] font-semibold text-stone-300">Tool use</span>
+                    <p className="mt-0.5 text-[10px] text-stone-500">Native tools, MCP servers, or custom Python, declared in the spec.</p>
+                  </div>
+                  <div className="overflow-x-auto p-4 font-mono text-[10px] leading-relaxed text-stone-300">
+                    <pre>{`tools:
+  reader:
+    type: native
+    native: file.read
 
-  summarize:
-    description: Summarise the extracted facts
-    depends_on: [extract]     # extract runs first; its output flows in automatically
+tasks:
+  summarise:
+    tools: [reader]
     prompts:
-      system: "Summarise in one sentence."
-      user: "{{ facts }}"
-    output:
-      type: object
-      properties:
-        summary: { type: string }`}</pre>
+      system: "Summarise the file."
+      user: "Read {path} and summarise."`}</pre>
+                  </div>
                 </div>
-                <div className="border-t border-stone-700 px-4 py-2 text-[11px] text-stone-500">
-                  No orchestration engine. No Python glue. Just YAML.
+
+                {/* Spec composition */}
+                <div className="overflow-hidden rounded-xl border border-stone-700 bg-stone-900">
+                  <div className="border-b border-stone-700 px-4 py-2">
+                    <span className="text-[11px] font-semibold text-stone-300">Spec composition</span>
+                    <p className="mt-0.5 text-[10px] text-stone-500">Delegate tasks to shared specialist specs. Reuse without duplication.</p>
+                  </div>
+                  <div className="overflow-x-auto p-4 font-mono text-[10px] leading-relaxed text-stone-300">
+                    <pre>{`tasks:
+  summarise:
+    description: Delegated summariser
+    spec: ./shared/summariser.yaml
+    task: summarise
+
+  sentiment:
+    description: Delegated sentiment
+    spec: ./shared/sentiment.yaml
+    task: analyse_sentiment`}</pre>
+                  </div>
                 </div>
+
+                {/* Multi-step + test harness */}
+                <div className="overflow-hidden rounded-xl border border-stone-700 bg-stone-900">
+                  <div className="border-b border-stone-700 px-4 py-2">
+                    <span className="text-[11px] font-semibold text-stone-300">Chaining + test harness</span>
+                    <p className="mt-0.5 text-[10px] text-stone-500">Data dependencies with <code className="text-stone-400">depends_on</code>. Eval cases with <code className="text-stone-400">oa test</code>.</p>
+                  </div>
+                  <div className="overflow-x-auto p-4 font-mono text-[10px] leading-relaxed text-stone-300">
+                    <pre>{`tasks:
+  extract:
+    description: Pull key facts
+    output: { facts: string }
+
+  summarise:
+    depends_on: [extract]
+    description: Summarise facts
+    output: { summary: string }
+
+# oa test --spec agent.yaml`}</pre>
+                  </div>
+                </div>
+              </div>
+              <div className="mt-2 text-[11px] text-stone-500">
+                No orchestration engine. No framework. No SDK dependencies. Just YAML and the <code className="rounded bg-stone-200/60 px-1 text-stone-700">oa</code> CLI.
               </div>
             </div>
 
@@ -176,6 +208,49 @@ export default function HomePage() {
                 className="h-auto w-full object-cover object-top"
                 sizes="(max-width: 1024px) 100vw, 1024px"
               />
+            </div>
+          </section>
+
+          {/* Features — all capabilities */}
+          <section
+            id="features"
+            className="mx-auto mb-8 max-w-5xl scroll-mt-6 rounded-xl border border-stone-300/50 bg-white/50 p-4 text-left text-sm leading-relaxed text-stone-700 shadow-sm backdrop-blur-sm sm:p-6"
+          >
+            <h2 className="mb-4 text-xs font-semibold uppercase tracking-wide text-stone-900">
+              Features
+            </h2>
+            <div className="grid gap-4 sm:grid-cols-2">
+
+              <div className="rounded-lg border border-stone-300/60 bg-stone-50/80 p-3">
+                <div className="mb-1 text-xs font-semibold text-stone-900">Multi-step task chaining</div>
+                <p className="text-xs text-stone-600">Declare data dependencies with <code className="rounded bg-stone-200 px-1">depends_on</code>. Output from one task flows automatically into the next. Linear, declarative, and strictly not an orchestration engine.</p>
+              </div>
+
+              <div className="rounded-lg border border-stone-300/60 bg-stone-50/80 p-3">
+                <div className="mb-1 text-xs font-semibold text-stone-900">Tool use | native, MCP, custom</div>
+                <p className="text-xs text-stone-600">Declare tools in the spec. Built-in tools (<code className="rounded bg-stone-200 px-1">file.read</code>, <code className="rounded bg-stone-200 px-1">http.get</code>, …), any MCP server via JSON-RPC, or your own Python class. No SDK required.</p>
+              </div>
+
+              <div className="rounded-lg border border-stone-300/60 bg-stone-50/80 p-3">
+                <div className="mb-1 text-xs font-semibold text-stone-900">Spec composition</div>
+                <p className="text-xs text-stone-600">A task can delegate its implementation to another spec with <code className="rounded bg-stone-200 px-1">spec:</code> + <code className="rounded bg-stone-200 px-1">task:</code>. Build coordinator specs that reuse shared specialists, zero duplication, full traceability.</p>
+              </div>
+
+              <div className="rounded-lg border border-stone-300/60 bg-stone-50/80 p-3">
+                <div className="mb-1 text-xs font-semibold text-stone-900">Test harness</div>
+                <p className="text-xs text-stone-600">Run eval cases against any spec with <code className="rounded bg-stone-200 px-1">oa test</code>. Assert on task output fields. Make your agents verifiable before you ship them.</p>
+              </div>
+
+              <div className="rounded-lg border border-stone-300/60 bg-stone-50/80 p-3">
+                <div className="mb-1 text-xs font-semibold text-stone-900">Provider interface | no SDK lock-in</div>
+                <p className="text-xs text-stone-600">All LLM calls go through a thin HTTP interface. OpenAI, Anthropic, Grok, xAI, Codex, local, or custom, swap engines with one line. No OpenAI SDK. No Anthropic SDK.</p>
+              </div>
+
+              <div className="rounded-lg border border-stone-300/60 bg-stone-50/80 p-3">
+                <div className="mb-1 text-xs font-semibold text-stone-900">Behavioural contracts (optional)</div>
+                <p className="text-xs text-stone-600">Attach output contracts to tasks with the <code className="rounded bg-stone-200 px-1">behavioural-contracts</code> library. Validate required fields, confidence scores, and custom rules, after parsing, before returning. Degrades gracefully when not installed.</p>
+              </div>
+
             </div>
           </section>
 
@@ -343,7 +418,7 @@ export default function HomePage() {
                 Open source · MIT
               </span>
               <span className="rounded-full border border-stone-400/50 bg-stone-100/80 px-3 py-1">
-                Spec v1.3.0
+                Spec v1.4.0
               </span>
             </div>
           </section>
@@ -355,15 +430,14 @@ export default function HomePage() {
             <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-stone-900">
               Why Open Agent Spec
             </div>
-            <div className="grid gap-3 sm:grid-cols-2 md:grid-cols-4">
+            <div className="grid gap-3 sm:grid-cols-2 md:grid-cols-3">
               {[
                 ["Framework-agnostic", "Specs describe agents, not the web stack."],
-                ["Engine-agnostic", "OpenAI, Claude, Codex, custom | via adapters."],
-                [
-                  "Repo-native",
-                  "Agents live in .agents/, versioned like code.",
-                ],
-                ["CI-friendly", "One spec for local runs and GitHub Actions."],
+                ["Engine-agnostic", "OpenAI, Anthropic, Grok, xAI, Codex, local, custom, swap with one line."],
+                ["Repo-native", "Agents live in .agents/, versioned and reviewed like code."],
+                ["CI-friendly", "One spec for local runs, GitHub Actions, and sub-agent pipelines."],
+                ["Tool-native", "Declare file, HTTP, MCP, or custom tools directly in the spec."],
+                ["Composable", "Tasks delegate to shared specialist specs. Reuse without duplication."],
               ].map(([title, body]) => (
                 <div
                   key={title}
