@@ -92,3 +92,6 @@ repair-*.json
 /Website/.next/
 /Website/node_modules/
 !/Website/lib/
+
+# Claude Code
+.claude/

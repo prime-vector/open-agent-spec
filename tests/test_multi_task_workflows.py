@@ -108,15 +108,44 @@ def _spec(
     return s
 
 
+_SENTINEL = object()
+
+
+def _fake_response_for(spec: dict, task_name: str | None) -> str:
+    """Generate a minimal JSON response that satisfies the task's output schema."""
+    tasks = spec.get("tasks", {})
+    tname = task_name or next(iter(tasks), None)
+    task_def = tasks.get(tname, {}) if tname else {}
+    output = task_def.get("output", {})
+    required = output.get("required", [])
+    props = output.get("properties", {})
+    obj: dict = {}
+    for field in required:
+        ftype = props.get(field, {}).get("type", "string")
+        if ftype == "string":
+            obj[field] = "ok"
+        elif ftype in ("number", "integer"):
+            obj[field] = 0
+        elif ftype == "boolean":
+            obj[field] = True
+        elif ftype == "array":
+            obj[field] = []
+        else:
+            obj[field] = {}
+    return json.dumps(obj) if obj else '{"result": "ok"}'
+
+
 def _run(
     spec: dict,
     task_name: str | None = None,
     input_data: dict | None = None,
     override_system: str | None = None,
     override_user: str | None = None,
-    fake_response: str = '{"result": "ok"}',
+    fake_response: str | object = _SENTINEL,
 ) -> dict:
     """Run run_task_from_spec with a monkeypatched invoke_intelligence."""
+    if fake_response is _SENTINEL:
+        fake_response = _fake_response_for(spec, task_name)
     captured: dict = {}
 
     def fake_invoke(system: str, user: str, config: dict) -> str:
@@ -497,19 +526,19 @@ class TestTemplateInterpolation:
 
 class TestOutputNormalisation:
     def test_plain_json_string_parsed(self):
-        spec = _spec({"t": _task(system="s", user="{{ q }}")})
+        spec = _spec({"t": _task(system="s", user="{{ q }}", output_fields={"answer": {"type": "string"}})})
         result = _run(spec, "t", {"q": "hi"}, fake_response='{"answer": "42"}')
         assert result["output"] == {"answer": "42"}
 
     def test_json_fenced_with_language_tag(self):
         fenced = '```json\n{"answer": "ok"}\n```'
-        spec = _spec({"t": _task(system="s", user="{{ q }}")})
+        spec = _spec({"t": _task(system="s", user="{{ q }}", output_fields={"answer": {"type": "string"}})})
         result = _run(spec, "t", {"q": "hi"}, fake_response=fenced)
         assert result["output"] == {"answer": "ok"}
 
     def test_json_fenced_without_language_tag(self):
         fenced = '```\n{"answer": "plain"}\n```'
-        spec = _spec({"t": _task(system="s", user="{{ q }}")})
+        spec = _spec({"t": _task(system="s", user="{{ q }}", output_fields={"answer": {"type": "string"}})})
         result = _run(spec, "t", {"q": "hi"}, fake_response=fenced)
         assert result["output"] == {"answer": "plain"}
 
@@ -532,7 +561,7 @@ class TestOutputNormalisation:
         assert result["output"] == {"result": "direct"}
 
     def test_whitespace_stripped_before_json_parse(self):
-        spec = _spec({"t": _task(system="s", user="{{ q }}")})
+        spec = _spec({"t": _task(system="s", user="{{ q }}", output_fields={"v": {"type": "integer"}})})
         result = _run(spec, "t", {"q": "hi"}, fake_response='  {"v": 1}  ')
         assert result["output"] == {"v": 1}
 
