@@ -1,0 +1,41 @@
+# Spec §8.2 — Tasks without depends_on MUST NOT include a chain key.
+description: "Result envelope has no 'chain' key when task has no depends_on"
+spec_section: "8.2"
+
+spec: |
+  open_agent_spec: "1.4.0"
+  agent:
+    name: test
+    description: test
+  intelligence:
+    type: llm
+    engine: openai
+    model: gpt-4o
+  tasks:
+    solo:
+      description: standalone task
+      input:
+        type: object
+        properties:
+          q: { type: string }
+        required: [q]
+      output:
+        type: object
+        properties:
+          answer: { type: string }
+        required: [answer]
+      prompts:
+        system: "answer"
+        user: "{{ q }}"
+
+mock_responses:
+  solo: '{"answer": "42"}'
+
+invoke:
+  task: solo
+  input: { q: "meaning of life" }
+
+expect:
+  result.task: solo
+  result.output.answer: "42"
+  result.no_key: chain

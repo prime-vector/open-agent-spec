@@ -557,7 +557,7 @@ A runtime MUST surface errors as structured objects with the following fields:
 | Code | Stage | Trigger |
 |------|-------|---------|
 | `SPEC_LOAD_ERROR` | `load` | File not found, YAML parse error, spec does not validate against schema |
-| `TASK_NOT_FOUND` | `routing` | `--task` name absent from spec, or unknown `depends_on` reference, or missing delegated task |
+| `TASK_NOT_FOUND` | `routing` or `delegation` | `--task` name absent from spec, unknown `depends_on` reference (`routing`), or missing task in delegated spec (`delegation`) |
 | `RUN_ERROR` | `run` | LLM invocation raises an exception, or tool-call loop exceeds maximum iterations |
 | `PROVIDER_ERROR` | `run` | Provider-specific error (network failure, API error, auth failure) |
 | `CHAIN_CYCLE_ERROR` | `routing` | Circular `depends_on` chain detected |

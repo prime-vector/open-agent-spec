@@ -1,0 +1,39 @@
+# Spec §7.1 — Missing required input fields MUST raise CHAIN_INPUT_MISSING.
+description: "Missing required input raises CHAIN_INPUT_MISSING"
+spec_section: "7.1"
+
+spec: |
+  open_agent_spec: "1.4.0"
+  agent:
+    name: test
+    description: test
+  intelligence:
+    type: llm
+    engine: openai
+    model: gpt-4o
+  tasks:
+    greet:
+      description: say hello
+      input:
+        type: object
+        properties:
+          name: { type: string }
+        required: [name]
+      output:
+        type: object
+        properties:
+          response: { type: string }
+        required: [response]
+      prompts:
+        system: "Greet."
+        user: "{{ name }}"
+
+mock_responses: {}
+
+invoke:
+  task: greet
+  input: {}
+
+expect_error:
+  code: CHAIN_INPUT_MISSING
+  stage: input_validation

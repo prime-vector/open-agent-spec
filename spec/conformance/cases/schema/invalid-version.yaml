@@ -1,0 +1,24 @@
+# Spec §3.2 — Invalid open_agent_spec version strings MUST be rejected.
+description: "Invalid version string is rejected by schema validation"
+spec_section: "3.2"
+
+spec: |
+  open_agent_spec: "0.1.0"
+  agent:
+    name: test
+    description: test
+  intelligence:
+    type: llm
+    engine: openai
+    model: gpt-4o
+  tasks:
+    greet:
+      description: say hello
+
+invoke:
+  task: greet
+  input: {}
+
+expect_error:
+  code: SPEC_LOAD_ERROR
+  stage: load

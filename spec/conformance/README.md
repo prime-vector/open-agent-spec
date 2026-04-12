@@ -1,6 +1,6 @@
 # OAS Conformance Tests
 
-This directory will contain the conformance test suite for Open Agent Spec 1.4.0. Conformance tests validate **runtime behaviour**, not LLM output.
+This directory contains the conformance test suite for Open Agent Spec 1.4.0. Conformance tests validate **runtime behaviour**, not LLM output.
 
 ## Purpose
 
@@ -78,45 +78,67 @@ The conformance suite covers the normative MUST requirements from the spec:
 - Contract is enforced after output parsing, before result is returned
 - Contract enforcement is skipped for `response_format: text`
 
-## Test File Structure (Planned)
+## Test File Structure
 
 ```
 spec/conformance/
 ├── README.md                     # this file
 ├── cases/
 │   ├── schema/
-│   │   ├── valid-minimal.yaml    # minimal valid spec → should validate
-│   │   ├── missing-agent.yaml    # missing required key → schema error
-│   │   └── ...
+│   │   ├── valid-minimal.yaml    # minimal valid spec → accepted
+│   │   ├── missing-agent.yaml    # missing required key → SPEC_LOAD_ERROR
+│   │   ├── missing-tasks.yaml
+│   │   ├── missing-intelligence.yaml
+│   │   ├── invalid-version.yaml  # bad version string → SPEC_LOAD_ERROR
+│   │   └── invalid-engine.yaml   # unknown engine → SPEC_LOAD_ERROR
 │   ├── prompt-resolution/
-│   │   ├── cli-override.yaml
-│   │   ├── per-task-inline.yaml
-│   │   ├── global-fallback.yaml
-│   │   └── ...
+│   │   ├── cli-override.yaml     # CLI beats all other sources
+│   │   ├── per-task-inline.yaml  # per-task beats global
+│   │   ├── legacy-task-map.yaml  # legacy map beats global
+│   │   ├── global-fallback.yaml  # global used when nothing else set
+│   │   └── independent-resolution.yaml  # system/user resolve independently
 │   ├── depends-on/
-│   │   ├── linear-chain.yaml
-│   │   ├── cycle-detection.yaml
-│   │   └── ...
+│   │   ├── linear-chain.yaml     # dep output merged into input
+│   │   ├── cycle-detection.yaml  # A↔B cycle → CHAIN_CYCLE_ERROR
+│   │   ├── merge-order.yaml      # later deps win on key collision
+│   │   ├── no-chain-key-without-deps.yaml  # no chain key when no deps
+│   │   └── unknown-dependency.yaml  # bad dep name → TASK_NOT_FOUND
 │   ├── delegation/
-│   │   ├── local-path.yaml
-│   │   ├── oa-scheme.yaml
-│   │   ├── cycle-detection.yaml
-│   │   └── ...
+│   │   ├── delegated-spec.yaml   # helper spec (not a test case)
+│   │   ├── local-path.yaml       # relative path delegation
+│   │   ├── default-task-name.yaml # omit task: → use calling name
+│   │   └── missing-task.yaml     # bad task in target → TASK_NOT_FOUND
 │   ├── response-format/
-│   │   ├── json-default.yaml
-│   │   ├── text-mode.yaml
-│   │   ├── fence-stripping.yaml
-│   │   └── ...
+│   │   ├── json-default.yaml     # default JSON parsing
+│   │   ├── text-mode.yaml        # text mode skips JSON parsing
+│   │   ├── fence-stripping.yaml  # ```json fences stripped
+│   │   ├── fence-stripping-no-lang.yaml  # bare ``` fences stripped
+│   │   └── output-schema-validation.yaml  # missing required field → RUN_ERROR
 │   └── errors/
-│       ├── chain-input-missing.yaml
-│       ├── task-not-found.yaml
-│       ├── chain-cycle.yaml
-│       └── ...
+│       ├── chain-input-missing.yaml  # missing required input
+│       ├── task-not-found.yaml       # unknown task name
+│       ├── chain-cycle.yaml          # 3-task transitive cycle
+│       ├── contract-violation.yaml   # contract field check
+│       └── error-structure.yaml      # error object has required fields
 └── runner/
     └── conformance_runner.py     # harness that executes cases against any runtime
 ```
 
-## Test Case Format (Planned)
+## Running the Suite
+
+```bash
+# Run all conformance tests
+python -m spec.conformance.runner.conformance_runner
+
+# Run a single category
+python -m spec.conformance.runner.conformance_runner schema
+python -m spec.conformance.runner.conformance_runner depends-on
+
+# List all discovered cases
+python -m spec.conformance.runner.conformance_runner --list
+```
+
+## Test Case Format
 
 Each test case will be a YAML file with this shape:
 

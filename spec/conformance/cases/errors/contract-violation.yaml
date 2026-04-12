@@ -1,0 +1,48 @@
+# Spec §10.4 — Contract violation MUST raise CONTRACT_VIOLATION.
+description: "Missing required contract field raises CONTRACT_VIOLATION"
+spec_section: "10.4"
+requires: contracts
+
+spec: |
+  open_agent_spec: "1.4.0"
+  agent:
+    name: test
+    description: test
+  intelligence:
+    type: llm
+    engine: openai
+    model: gpt-4o
+  behavioural_contract:
+    version: "1.0"
+    response_contract:
+      output_format:
+        required_fields: [confidence]
+  tasks:
+    analyse:
+      description: analyse
+      input:
+        type: object
+        properties:
+          q: { type: string }
+        required: [q]
+      output:
+        type: object
+        properties:
+          answer: { type: string }
+          confidence: { type: number }
+        required: [answer]
+      prompts:
+        system: "Analyse."
+        user: "{{ q }}"
+
+mock_responses:
+  # Output has "answer" but no "confidence" — violates contract
+  analyse: '{"answer": "yes"}'
+
+invoke:
+  task: analyse
+  input: { q: "test" }
+
+expect_error:
+  code: CONTRACT_VIOLATION
+  stage: contract

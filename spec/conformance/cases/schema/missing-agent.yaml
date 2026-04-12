@@ -1,0 +1,21 @@
+# Spec §3.2 — Documents missing required top-level keys MUST be rejected.
+description: "Spec missing required 'agent' key is rejected"
+spec_section: "3.2"
+
+spec: |
+  open_agent_spec: "1.4.0"
+  intelligence:
+    type: llm
+    engine: openai
+    model: gpt-4o
+  tasks:
+    greet:
+      description: say hello
+
+invoke:
+  task: greet
+  input: {}
+
+expect_error:
+  code: SPEC_LOAD_ERROR
+  stage: load
