@@ -5,6 +5,31 @@ All notable changes to **open-agent-spec** (Open Agent CLI) will be documented i
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.4.0] - 2026-03-19
+
+### Added
+- **Spec composition via task delegation** — a task can now declare `spec: ./path/to/spec.yaml` + `task: name` to delegate its implementation to another spec. The runner loads the referenced spec and executes that task transparently, returning the result under the coordinator's task name. Relative `spec:` paths resolve from the calling spec's directory.
+- Cycle detection for spec delegation: A→B→A loops raise a new `DELEGATION_CYCLE_ERROR` before any model call is made.
+- `delegated_to` field in the result envelope for traceability (`"spec_path#task_name"`).
+- New `spec` and `task` fields in the task JSON schema definition.
+- `examples/spec-composition/` — coordinator spec + two shared specialist specs (`summariser.yaml`, `sentiment.yaml`) and a demo `run.sh`.
+- `tests/test_spec_composition.py` — 13 tests covering basic delegation, `depends_on` chains across delegated tasks, cycle detection, error cases, relative path resolution, and validator.
+- **Tool use / MCP integration** — declarative tool definitions in the spec with three backends: `native` (built-in zero-dependency tools: `file.read`, `file.write`, `http.get`, `http.post`, `env.read`), `mcp` (JSON-RPC 2.0 over raw HTTP to any MCP server), and `custom` (dynamic Python class loading).
+- `ToolProvider` abstract base class and full provider registry (`oas_cli/tool_providers/`).
+- Multi-turn `_invoke_with_tools` loop in the runner for model-driven tool calling.
+- Native tool support in `OpenAIProvider` and `AnthropicProvider` via their function-calling APIs.
+- `examples/file-reader/`, `examples/mcp-local/`, `examples/mcp-search/` — self-contained tool demos.
+- **Provider interface** — all LLM calls now go through a minimal `IntelligenceProvider.invoke()` abstraction using raw HTTP (no OpenAI/Anthropic SDK required). Engine support extended to `grok`, `xai`, `local`, and `custom`.
+- **Test harness** (`oa test`) — run eval cases against a spec with assertions on task output.
+- **Spec reuse / composition** — `depends_on` formally documented as a data contract (not execution control), with an explicit hard wall against branching, conditionals, loops, retries, and dynamic routing.
+
+### Changed
+- `output` removed from the task JSON schema `required` array; enforced by the Python validator for non-delegated, non-multi-step tasks (enables delegated tasks to omit inline schema).
+- `depends_on` description in schema and `REFERENCE.md` updated with the design principle and a hard-wall table of features OAS intentionally does not support.
+- Spec version aligned to **1.4.0** across all examples, templates, `.agents/`, Website content, REFERENCE.md, CONTRIBUTING.md, and README.
+
+---
+
 ## [Unreleased]
 
 ### Added
