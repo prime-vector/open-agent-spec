@@ -165,9 +165,10 @@ if __name__ == "__main__":
         # Step 6: Run the test script
         print("\n6️⃣ Running agent with mocked intelligence...")
 
-        # Ensure we can import the modules
+        # Ensure we can import both the generated agent modules and oas_cli.
+        repo_root = str(Path(__file__).resolve().parent.parent.parent)
         env = os.environ.copy()
-        env["PYTHONPATH"] = f"{agent_dir}:{env.get('PYTHONPATH', '')}"
+        env["PYTHONPATH"] = f"{agent_dir}:{repo_root}:{env.get('PYTHONPATH', '')}"
 
         test_result = subprocess.run(
             [sys.executable, str(test_script)],
