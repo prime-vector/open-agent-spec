@@ -361,8 +361,8 @@ class TestOrchestrationLoop:
         assert "LLM timeout" in failed_task[0]["error"]
 
     @patch("runner.AgentRunner.run_task")
-    def test_unmatched_role_stalls(self, mock_run_task) -> None:
-        """Tasks requiring a role with no worker should cause the loop to stall."""
+    def test_unmatched_role_clamped(self, mock_run_task) -> None:
+        """Tasks with an unknown role should be clamped to a valid worker role."""
         loop = self._make_loop()
 
         manager_response = {
@@ -374,12 +374,14 @@ class TestOrchestrationLoop:
                 "summary": "One task.",
             }
         }
-        mock_run_task.side_effect = [manager_response]
+        worker_response = {"output": {"findings": "deployed"}}
+        mock_run_task.side_effect = [manager_response, worker_response]
 
         result = loop.run("Deploy the app")
-        assert result["board"]["by_status"].get("pending") == 1
-        stall_events = [e for e in result["events"] if e["type"] == "orchestration_stalled"]
-        assert len(stall_events) == 1
+        # The unknown 'devops' role gets clamped to the nearest valid role,
+        # so the task completes rather than stalling.
+        assert result["board"]["by_status"].get("completed") == 1
+        assert result["board"]["by_status"].get("pending", 0) == 0
 
     @patch("runner.AgentRunner.run_task")
     def test_clarify_error_falls_back(self, mock_run_task) -> None:

@@ -22,6 +22,12 @@ User → Concierge (clarify) → Manager (plan) → Workers (execute) → Concie
 Each agent is a standard OA Spec YAML file in `personas/`.  The orchestration
 layer is ~400 lines of Python with no external dependencies beyond the OA CLI.
 
+## Prerequisites
+
+- **Python 3.10+**
+- An **Anthropic** API key (the default personas use Claude models)
+- Optionally an **OpenAI** API key if you swap personas to OpenAI engines
+
 ## Quick Start
 
 ```bash
@@ -31,8 +37,12 @@ pip install -e .
 # Install example dependencies (FastAPI + uvicorn for the dashboard)
 pip install -r examples/multi-agent/requirements.txt
 
-# Run inline
+# Set up your API keys
 cd examples/multi-agent
+cp .env.example .env
+# Edit .env and add your ANTHROPIC_API_KEY (and optionally OPENAI_API_KEY)
+
+# Run inline
 python run.py "Write a blog post about AI agent frameworks"
 
 # Or launch the dashboard
@@ -41,6 +51,9 @@ python run.py --dashboard
 
 > **Note:** The dashboard requires `fastapi` and `uvicorn`.  The inline mode
 > (`python run.py "..."`) works without them.
+>
+> **API Keys:** The personas default to Anthropic Claude models. Set
+> `ANTHROPIC_API_KEY` in your `.env` file. See `.env.example` for the template.
 
 ## Components
 

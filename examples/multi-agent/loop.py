@@ -30,7 +30,11 @@ from typing import Any, Callable, Dict, List, Optional
 
 
 def _easter_sunday(year: int) -> date:
-    """Compute Easter Sunday for a given year (Anonymous Gregorian algorithm)."""
+    """Compute Easter Sunday for a given year (Anonymous Gregorian algorithm).
+
+    Used by _date_context() to inject upcoming holiday dates into agent prompts
+    so time-sensitive objectives get grounded in real calendar dates.
+    """
     a = year % 19
     b, c = divmod(year, 100)
     d, e = divmod(b, 4)
@@ -395,7 +399,10 @@ class OrchestrationLoop:
                       "april", "march", "january", "february", "may",
                       "june", "july", "august", "september", "october",
                       "november", "december", "schedule", "upcoming",
-                      "current", "recent", "latest", "now", "2024", "2025", "2026"}
+                      "current", "recent", "latest", "now",
+                      str(date.today().year - 1),
+                      str(date.today().year),
+                      str(date.today().year + 1)}
         obj_lower = objective.lower()
         if any(w in obj_lower for w in time_words):
             date_ctx = _date_context()
