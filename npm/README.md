@@ -7,13 +7,13 @@ Run agent specs from YAML, pull shared specialist specs from the registry, and c
 ## Install
 
 ```bash
-npm install -g open-agent-spec
+npm install -g @prime-vector/open-agent-spec
 ```
 
 Or run without installing:
 
 ```bash
-npx open-agent-spec run --spec agent.yaml --task summarise --input input.json
+npx @prime-vector/open-agent-spec run --spec agent.yaml --task summarise --input input.json
 ```
 
 ## Quick start

@@ -1,5 +1,5 @@
 {
-  "name": "open-agent-spec",
+  "name": "@prime-vector/open-agent-spec",
   "version": "1.4.0",
   "description": "Run Open Agent Spec YAML files from Node.js — no Python required.",
   "keywords": [
@@ -18,6 +18,9 @@
     "url": "https://github.com/prime-vector/open-agent-spec"
   },
   "license": "MIT",
+  "publishConfig": {
+    "access": "public"
+  },
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -39,7 +42,8 @@
     "build": "tsc",
     "dev": "tsc --watch",
     "lint": "tsc --noEmit",
-    "test": "node --experimental-vm-modules node_modules/.bin/jest"
+    "test": "node --experimental-vm-modules node_modules/.bin/jest",
+    "prepublishOnly": "npm run build"
   },
   "dependencies": {
     "commander": "^12.0.0",
