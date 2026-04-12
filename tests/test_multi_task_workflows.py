@@ -144,14 +144,17 @@ def _run(
     fake_response: str | object = _SENTINEL,
 ) -> dict:
     """Run run_task_from_spec with a monkeypatched invoke_intelligence."""
-    if fake_response is _SENTINEL:
-        fake_response = _fake_response_for(spec, task_name)
+    resolved_response: str = (
+        _fake_response_for(spec, task_name)
+        if fake_response is _SENTINEL
+        else fake_response  # type: ignore[assignment]
+    )
     captured: dict = {}
 
     def fake_invoke(system: str, user: str, config: dict) -> str:
         captured["prompt"] = f"{system}\n\n{user}"
         captured["config"] = config
-        return fake_response
+        return resolved_response
 
     with patch("oas_cli.runner.invoke_intelligence", fake_invoke):
         result = run_task_from_spec(
