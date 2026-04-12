@@ -647,9 +647,7 @@ def run(
                 # .json files are always parsed as a JSON object directly.
                 if input_path.suffix.lower() == ".json":
                     try:
-                        input_data = json.loads(
-                            input_path.read_text(encoding="utf-8")
-                        )
+                        input_data = json.loads(input_path.read_text(encoding="utf-8"))
                     except json.JSONDecodeError as e:
                         raise typer.BadParameter(
                             f"Invalid JSON in '{input_path.name}': {e}"
@@ -665,7 +663,10 @@ def run(
                     inp_schema = task_def.get("input") or {}
                     req = inp_schema.get("required") or []
                     props = inp_schema.get("properties") or {}
-                    if len(req) != 1 or (props.get(req[0]) or {}).get("type") != "string":
+                    if (
+                        len(req) != 1
+                        or (props.get(req[0]) or {}).get("type") != "string"
+                    ):
                         raise typer.BadParameter(
                             "When --input is a file path, the task must have exactly "
                             "one required string input (e.g. diff). Use JSON otherwise."
