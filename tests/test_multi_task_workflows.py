@@ -1090,7 +1090,9 @@ class TestCLIIntegration:
         input_file = tmp_path / "data.json"
         input_file.write_text('{"name": "Bob", "extra": "ignored"}')
 
-        with patch("oas_cli.runner.invoke_intelligence", return_value='{"response": "ok"}'):
+        with patch(
+            "oas_cli.runner.invoke_intelligence", return_value='{"response": "ok"}'
+        ):
             result = cli.invoke(
                 app,
                 [

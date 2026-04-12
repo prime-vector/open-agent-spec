@@ -1,0 +1,63 @@
+{
+  "name": "@prime-vector/open-agent-spec",
+  "version": "1.4.0",
+  "description": "Run Open Agent Spec YAML files from Node.js — no Python required.",
+  "keywords": [
+    "ai",
+    "agents",
+    "llm",
+    "openai",
+    "anthropic",
+    "yaml",
+    "open-agent-spec",
+    "oas"
+  ],
+  "homepage": "https://openagentspec.dev",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/prime-vector/open-agent-spec"
+  },
+  "license": "MIT",
+  "publishConfig": {
+    "access": "public"
+  },
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    }
+  },
+  "bin": {
+    "oa": "./bin/oa.js"
+  },
+  "files": [
+    "dist",
+    "bin",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "lint": "tsc --noEmit",
+    "test": "node --experimental-vm-modules node_modules/.bin/jest",
+    "prepublishOnly": "npm run build"
+  },
+  "dependencies": {
+    "commander": "^12.0.0",
+    "js-yaml": "^4.1.0"
+  },
+  "devDependencies": {
+    "@types/js-yaml": "^4.0.9",
+    "@types/node": "^20.0.0",
+    "jest": "^29.0.0",
+    "@jest/globals": "^29.0.0",
+    "ts-jest": "^29.0.0",
+    "typescript": "^5.4.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

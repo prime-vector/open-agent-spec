@@ -91,6 +91,9 @@ export default function HomePage() {
                 <span className="rounded-full border border-stone-400/50 bg-white/60 px-3 py-1 text-[10px] font-medium text-stone-700 backdrop-blur-sm">
                   Spec v1.4.0
                 </span>
+                <span className="rounded-full border border-stone-400/50 bg-white/60 px-3 py-1 text-[10px] font-medium text-stone-700 backdrop-blur-sm">
+                  Python · Node.js
+                </span>
               </div>
             </div>
             <p className="max-w-2xl text-sm leading-relaxed text-stone-700 sm:text-base">
@@ -196,7 +199,7 @@ tasks:
                 </div>
               </div>
               <div className="mt-2 text-[11px] text-stone-500">
-                No orchestration engine. No framework. No SDK dependencies. Just YAML and the <code className="rounded bg-stone-200/60 px-1 text-stone-700">oa</code> CLI.
+                No orchestration engine. No framework. No SDK dependencies. Just YAML and the <code className="rounded bg-stone-200/60 px-1 text-stone-700">oa</code> CLI — available for Python and Node.js.
               </div>
             </div>
 
@@ -250,6 +253,18 @@ tasks:
               <div className="rounded-lg border border-stone-300/60 bg-stone-50/80 p-3">
                 <div className="mb-1 text-xs font-semibold text-stone-900">Behavioural contracts (optional)</div>
                 <p className="text-xs text-stone-600">Attach output contracts to tasks with the <code className="rounded bg-stone-200 px-1">behavioural-contracts</code> library. Validate required fields, confidence scores, and custom rules, after parsing, before returning. Degrades gracefully when not installed.</p>
+              </div>
+
+              <div className="rounded-lg border border-stone-300/60 bg-stone-50/80 p-3">
+                <div className="mb-1 flex items-center gap-2 text-xs font-semibold text-stone-900">
+                  Node.js native runner
+                  <span className="rounded-full border border-green-200 bg-green-50 px-1.5 py-0.5 text-[9px] font-medium text-green-700">new</span>
+                </div>
+                <p className="text-xs text-stone-600">
+                  Run the same YAML specs from Node.js with no Python required.{" "}
+                  <code className="rounded bg-stone-200 px-1">@prime-vector/open-agent-spec</code>{" "}
+                  on npm — same <code className="rounded bg-stone-200 px-1">oa://</code> registry, same <code className="rounded bg-stone-200 px-1">depends_on</code> chaining, same spec format.
+                </p>
               </div>
 
             </div>
@@ -522,6 +537,7 @@ tasks:
                 ["CI-friendly", "One spec for local runs, GitHub Actions, and sub-agent pipelines."],
                 ["Tool-native", "Declare file, HTTP, MCP, or custom tools directly in the spec."],
                 ["Composable", "Tasks delegate to shared specialist specs. Reuse without duplication."],
+                ["Language-agnostic", "Run from Python (pip) or Node.js (npm). Same YAML, same registry, same results."],
               ].map(([title, body]) => (
                 <div
                   key={title}
