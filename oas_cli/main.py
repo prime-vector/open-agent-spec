@@ -634,32 +634,50 @@ def run(
         input_data: dict[str, Any] | None = None
         if input:
             input_stripped = input.strip()
-            # Convenience: if --input is a path to an existing file and the task
-            # has a single required string input, use file contents as that key.
+            # Convenience: if --input is a path to an existing file, either parse
+            # it as JSON (for .json files) or use its text content as the single
+            # required string input field (for plain text files such as diffs).
             if not input_stripped.startswith("{") and not input_stripped.startswith(
                 "["
             ):
                 input_path = Path(input_stripped).resolve()
                 if not input_path.is_file():
                     raise typer.BadParameter(f"File not found: {input_path}")
-                spec_data = _load_spec(spec)
-                _task_name, task_def = _choose_task(spec_data, task)
-                inp_schema = task_def.get("input") or {}
-                req = inp_schema.get("required") or []
-                props = inp_schema.get("properties") or {}
-                if len(req) != 1 or (props.get(req[0]) or {}).get("type") != "string":
-                    raise typer.BadParameter(
-                        "When --input is a file path, the task must have exactly "
-                        "one required string input (e.g. diff). Use JSON otherwise."
-                    )
-                content = input_path.read_text(encoding="utf-8")
-                if not content.strip():
-                    raise typer.BadParameter(
-                        f"File '{input_path.name}' is empty. "
-                        "Generate a diff first (e.g. make a change, then run "
-                        "'git diff > change.diff'), then run again."
-                    )
-                input_data = {req[0]: content}
+
+                # .json files are always parsed as a JSON object directly.
+                if input_path.suffix.lower() == ".json":
+                    try:
+                        input_data = json.loads(
+                            input_path.read_text(encoding="utf-8")
+                        )
+                    except json.JSONDecodeError as e:
+                        raise typer.BadParameter(
+                            f"Invalid JSON in '{input_path.name}': {e}"
+                        ) from e
+                    if not isinstance(input_data, dict):
+                        raise typer.BadParameter(
+                            f"'{input_path.name}' must contain a JSON object, not an array or scalar."
+                        )
+                else:
+                    # Plain text file — must map to a single required string input.
+                    spec_data = _load_spec(spec)
+                    _task_name, task_def = _choose_task(spec_data, task)
+                    inp_schema = task_def.get("input") or {}
+                    req = inp_schema.get("required") or []
+                    props = inp_schema.get("properties") or {}
+                    if len(req) != 1 or (props.get(req[0]) or {}).get("type") != "string":
+                        raise typer.BadParameter(
+                            "When --input is a file path, the task must have exactly "
+                            "one required string input (e.g. diff). Use JSON otherwise."
+                        )
+                    content = input_path.read_text(encoding="utf-8")
+                    if not content.strip():
+                        raise typer.BadParameter(
+                            f"File '{input_path.name}' is empty. "
+                            "Generate a diff first (e.g. make a change, then run "
+                            "'git diff > change.diff'), then run again."
+                        )
+                    input_data = {req[0]: content}
             else:
                 try:
                     parsed = json.loads(input)
