@@ -1,0 +1,3 @@
+{
+  "text": "Open Agent Spec defines AI agents declaratively in YAML. Agents are version-controlled, engine-agnostic, and portable across runtimes. The 1.4.0 release adds tool use, spec composition, and a test harness — all without introducing orchestration or framework dependencies. Tasks can now delegate to shared specialist specs in the OA registry using a single oa:// reference, enabling reuse across projects with no duplication."
+}
