@@ -128,7 +128,7 @@ export default function HomePage() {
                   New in 1.4.0
                 </span>
                 <p className="text-sm font-semibold text-stone-900">
-                  Tool use, spec composition, and a test harness — all from YAML.
+                  Tool use, spec composition, and a test harness | all from YAML.
                 </p>
               </div>
               <div className="grid gap-4 sm:grid-cols-3">
@@ -136,7 +136,7 @@ export default function HomePage() {
                 <div className="overflow-hidden rounded-xl border border-stone-700 bg-stone-900">
                   <div className="border-b border-stone-700 px-4 py-2">
                     <span className="text-[11px] font-semibold text-stone-300">Tool use</span>
-                    <p className="mt-0.5 text-[10px] text-stone-500">Native tools, MCP servers, or custom Python — declared in the spec.</p>
+                    <p className="mt-0.5 text-[10px] text-stone-500">Native tools, MCP servers, or custom Python, declared in the spec.</p>
                   </div>
                   <div className="overflow-x-auto p-4 font-mono text-[10px] leading-relaxed text-stone-300">
                     <pre>{`tools:
@@ -227,13 +227,13 @@ tasks:
               </div>
 
               <div className="rounded-lg border border-stone-300/60 bg-stone-50/80 p-3">
-                <div className="mb-1 text-xs font-semibold text-stone-900">Tool use — native, MCP, custom</div>
+                <div className="mb-1 text-xs font-semibold text-stone-900">Tool use | native, MCP, custom</div>
                 <p className="text-xs text-stone-600">Declare tools in the spec. Built-in tools (<code className="rounded bg-stone-200 px-1">file.read</code>, <code className="rounded bg-stone-200 px-1">http.get</code>, …), any MCP server via JSON-RPC, or your own Python class. No SDK required.</p>
               </div>
 
               <div className="rounded-lg border border-stone-300/60 bg-stone-50/80 p-3">
                 <div className="mb-1 text-xs font-semibold text-stone-900">Spec composition</div>
-                <p className="text-xs text-stone-600">A task can delegate its implementation to another spec with <code className="rounded bg-stone-200 px-1">spec:</code> + <code className="rounded bg-stone-200 px-1">task:</code>. Build coordinator specs that reuse shared specialists — zero duplication, full traceability.</p>
+                <p className="text-xs text-stone-600">A task can delegate its implementation to another spec with <code className="rounded bg-stone-200 px-1">spec:</code> + <code className="rounded bg-stone-200 px-1">task:</code>. Build coordinator specs that reuse shared specialists, zero duplication, full traceability.</p>
               </div>
 
               <div className="rounded-lg border border-stone-300/60 bg-stone-50/80 p-3">
@@ -242,13 +242,13 @@ tasks:
               </div>
 
               <div className="rounded-lg border border-stone-300/60 bg-stone-50/80 p-3">
-                <div className="mb-1 text-xs font-semibold text-stone-900">Provider interface — no SDK lock-in</div>
-                <p className="text-xs text-stone-600">All LLM calls go through a thin HTTP interface. OpenAI, Anthropic, Grok, xAI, Codex, local, or custom — swap engines with one line. No OpenAI SDK. No Anthropic SDK.</p>
+                <div className="mb-1 text-xs font-semibold text-stone-900">Provider interface | no SDK lock-in</div>
+                <p className="text-xs text-stone-600">All LLM calls go through a thin HTTP interface. OpenAI, Anthropic, Grok, xAI, Codex, local, or custom, swap engines with one line. No OpenAI SDK. No Anthropic SDK.</p>
               </div>
 
               <div className="rounded-lg border border-stone-300/60 bg-stone-50/80 p-3">
                 <div className="mb-1 text-xs font-semibold text-stone-900">Behavioural contracts (optional)</div>
-                <p className="text-xs text-stone-600">Attach output contracts to tasks with the <code className="rounded bg-stone-200 px-1">behavioural-contracts</code> library. Validate required fields, confidence scores, and custom rules — after parsing, before returning. Degrades gracefully when not installed.</p>
+                <p className="text-xs text-stone-600">Attach output contracts to tasks with the <code className="rounded bg-stone-200 px-1">behavioural-contracts</code> library. Validate required fields, confidence scores, and custom rules, after parsing, before returning. Degrades gracefully when not installed.</p>
               </div>
 
             </div>
@@ -433,7 +433,7 @@ tasks:
             <div className="grid gap-3 sm:grid-cols-2 md:grid-cols-3">
               {[
                 ["Framework-agnostic", "Specs describe agents, not the web stack."],
-                ["Engine-agnostic", "OpenAI, Anthropic, Grok, xAI, Codex, local, custom — swap with one line."],
+                ["Engine-agnostic", "OpenAI, Anthropic, Grok, xAI, Codex, local, custom, swap with one line."],
                 ["Repo-native", "Agents live in .agents/, versioned and reviewed like code."],
                 ["CI-friendly", "One spec for local runs, GitHub Actions, and sub-agent pipelines."],
                 ["Tool-native", "Declare file, HTTP, MCP, or custom tools directly in the spec."],
