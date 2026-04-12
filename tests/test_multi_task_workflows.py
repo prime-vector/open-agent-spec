@@ -1056,6 +1056,97 @@ class TestCLIIntegration:
         assert result.exit_code == 0, result.output
         assert "Alice" in captured["prompt"]
 
+    def test_json_file_input_parsed_as_object(self, tmp_path, cli_spec_file):
+        """--input pointing to a .json file is parsed as a JSON object."""
+        input_file = tmp_path / "input.json"
+        input_file.write_text('{"name": "Alice"}')
+
+        captured: dict = {}
+
+        def fake_invoke(system: str, user: str, config: dict) -> str:
+            captured["prompt"] = f"{system}\n\n{user}"
+            return '{"response": "hi"}'
+
+        with patch("oas_cli.runner.invoke_intelligence", fake_invoke):
+            result = cli.invoke(
+                app,
+                [
+                    "run",
+                    "--spec",
+                    str(cli_spec_file),
+                    "--task",
+                    "greet",
+                    "--input",
+                    str(input_file),
+                    "--quiet",
+                ],
+            )
+
+        assert result.exit_code == 0, result.output
+        assert "Alice" in captured["prompt"]
+
+    def test_json_file_input_multi_field(self, tmp_path, cli_spec_file):
+        """A .json file with multiple fields is accepted even for multi-field tasks."""
+        input_file = tmp_path / "data.json"
+        input_file.write_text('{"name": "Bob", "extra": "ignored"}')
+
+        with patch("oas_cli.runner.invoke_intelligence", return_value='{"response": "ok"}'):
+            result = cli.invoke(
+                app,
+                [
+                    "run",
+                    "--spec",
+                    str(cli_spec_file),
+                    "--task",
+                    "greet",
+                    "--input",
+                    str(input_file),
+                    "--quiet",
+                ],
+            )
+
+        assert result.exit_code == 0, result.output
+
+    def test_json_file_input_invalid_json_exits_nonzero(self, tmp_path, cli_spec_file):
+        """A .json file containing invalid JSON exits with a non-zero code."""
+        bad_file = tmp_path / "bad.json"
+        bad_file.write_text("not valid json {{{")
+
+        result = cli.invoke(
+            app,
+            [
+                "run",
+                "--spec",
+                str(cli_spec_file),
+                "--task",
+                "greet",
+                "--input",
+                str(bad_file),
+            ],
+        )
+
+        assert result.exit_code != 0
+
+    def test_json_file_input_array_exits_nonzero(self, tmp_path, cli_spec_file):
+        """A .json file containing a JSON array (not an object) exits with a non-zero code."""
+        array_file = tmp_path / "array.json"
+        array_file.write_text('[{"name": "Alice"}]')
+
+        result = cli.invoke(
+            app,
+            [
+                "run",
+                "--spec",
+                str(cli_spec_file),
+                "--task",
+                "greet",
+                "--input",
+                str(array_file),
+            ],
+        )
+
+        assert result.exit_code != 0
+
     def test_system_prompt_on_bye_task(self, cli_spec_file):
         result = _cli_run(
             cli_spec_file,
