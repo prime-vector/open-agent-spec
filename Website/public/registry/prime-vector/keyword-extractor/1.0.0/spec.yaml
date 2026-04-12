@@ -1,0 +1,64 @@
+open_agent_spec: "1.4.0"
+
+agent:
+  name: keyword-extractor
+  description: >
+    Extract the most relevant keywords and key phrases from a body of text.
+    Designed to be reused via spec delegation
+    (spec: oa://prime-vector/keyword-extractor).
+  role: analyst
+
+intelligence:
+  type: llm
+  engine: openai
+  model: gpt-4o-mini
+  config:
+    temperature: 0.1
+
+tasks:
+  extract_keywords:
+    description: Extract keywords and key phrases from text
+    input:
+      type: object
+      properties:
+        text:
+          type: string
+          description: The text to extract keywords from
+        max_keywords:
+          type: string
+          description: Maximum number of keywords to return (default 10)
+      required:
+        - text
+    output:
+      type: object
+      properties:
+        keywords:
+          type: array
+          items:
+            type: string
+          description: Extracted keywords ordered by relevance
+        phrases:
+          type: array
+          items:
+            type: string
+          description: Key multi-word phrases extracted from the text
+      required:
+        - keywords
+        - phrases
+    prompts:
+      system: >
+        You are a precise keyword extraction engine. Extract the most
+        relevant individual keywords and key phrases from the provided text.
+        Order by relevance. Always respond with valid JSON.
+      user: |
+        Extract keywords and key phrases from the following text.
+        Return at most {max_keywords} keywords (default 10 if not specified).
+
+        Text:
+        {text}
+
+        Respond with JSON:
+        {
+          "keywords": ["keyword1", "keyword2", ...],
+          "phrases": ["key phrase 1", "key phrase 2", ...]
+        }

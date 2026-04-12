@@ -10,6 +10,8 @@ from __future__ import annotations
 import json
 import logging
 import re
+import urllib.error
+import urllib.request
 from pathlib import Path
 from typing import Any
 
@@ -23,6 +25,10 @@ from .tool_providers import (
     resolve_task_tools,
 )
 from .tool_providers.base import InvokeResult
+
+# ── Registry constants ────────────────────────────────────────────────────────
+_REGISTRY_BASE = "https://openagentspec.dev/registry"
+_OA_SCHEME = "oa://"
 
 logger = logging.getLogger(__name__)
 
@@ -89,6 +95,90 @@ def _load_spec(path: Path) -> dict[str, Any]:
             "Spec YAML must decode to a mapping/object",
             code="SPEC_LOAD_ERROR",
             stage="load",
+        )
+    return data
+
+
+def _resolve_spec_url(ref: str) -> str:
+    """Expand an ``oa://`` shorthand into a full HTTPS registry URL.
+
+    Supported formats:
+        oa://namespace/name            → registry/.../latest/spec.yaml
+        oa://namespace/name@1.0.0      → registry/.../1.0.0/spec.yaml
+        https://...                    → returned as-is
+        http://...                     → returned as-is
+
+    Local paths are not handled here — caller checks ``_is_remote_ref`` first.
+    """
+    if not ref.startswith(_OA_SCHEME):
+        return ref  # already a plain HTTP(S) URL
+
+    rest = ref[len(_OA_SCHEME) :]
+    version = "latest"
+    if "@" in rest:
+        rest, version = rest.rsplit("@", 1)
+
+    parts = rest.strip("/").split("/")
+    if len(parts) != 2:
+        raise OARunError(
+            f"Invalid oa:// reference '{ref}'. "
+            "Expected format: oa://namespace/name or oa://namespace/name@version",
+            code="SPEC_LOAD_ERROR",
+            stage="delegation",
+        )
+
+    namespace, name = parts
+    url = f"{_REGISTRY_BASE}/{namespace}/{name}/{version}/spec.yaml"
+    logger.debug("[registry] resolved %s → %s", ref, url)
+    return url
+
+
+def _is_remote_ref(ref: str) -> bool:
+    """Return True when *ref* should be fetched over HTTP rather than disk."""
+    return (
+        ref.startswith(_OA_SCHEME)
+        or ref.startswith("http://")
+        or ref.startswith("https://")
+    )
+
+
+def _fetch_remote_spec(url: str) -> dict[str, Any]:
+    """Download a spec YAML from a URL and return the parsed dict."""
+    logger.debug("[registry] fetching %s", url)
+    try:
+        req = urllib.request.Request(
+            url,
+            headers={"Accept": "application/yaml, text/yaml, text/plain, */*"},
+        )
+        with urllib.request.urlopen(req, timeout=30) as resp:
+            raw = resp.read().decode("utf-8")
+    except urllib.error.HTTPError as exc:
+        raise OARunError(
+            f"Registry fetch failed for '{url}': HTTP {exc.code} {exc.reason}",
+            code="SPEC_LOAD_ERROR",
+            stage="delegation",
+        ) from exc
+    except urllib.error.URLError as exc:
+        raise OARunError(
+            f"Registry fetch failed for '{url}': {exc.reason}",
+            code="SPEC_LOAD_ERROR",
+            stage="delegation",
+        ) from exc
+
+    try:
+        data = yaml.safe_load(raw) or {}
+    except yaml.YAMLError as exc:
+        raise OARunError(
+            f"Invalid YAML from registry '{url}': {exc}",
+            code="SPEC_LOAD_ERROR",
+            stage="delegation",
+        ) from exc
+
+    if not isinstance(data, dict):
+        raise OARunError(
+            f"Registry spec at '{url}' must decode to a mapping/object",
+            code="SPEC_LOAD_ERROR",
+            stage="delegation",
         )
     return data
 
@@ -478,26 +568,44 @@ def _run_single_task(
                 task=task_name,
             )
 
-        # Resolve path relative to the calling spec's directory.
-        ref = Path(delegation_spec_ref.strip())
-        if not ref.is_absolute() and spec_path is not None:
-            ref = (spec_path.parent / ref).resolve()
+        raw_ref = delegation_spec_ref.strip()
+
+        # ── Remote spec (oa:// or https://) ──────────────────────────────
+        if _is_remote_ref(raw_ref):
+            url = _resolve_spec_url(raw_ref)
+            # Use URL string as the cycle-detection key.
+            canonical_key: Any = url
+            if canonical_key in _visited_specs:
+                raise OARunError(
+                    f"Circular spec delegation detected: '{url}' is already in "
+                    "the delegation stack",
+                    code="DELEGATION_CYCLE_ERROR",
+                    stage="delegation",
+                    task=task_name,
+                )
+            delegated_spec = _fetch_remote_spec(url)
+            new_visited = _visited_specs | {canonical_key}
+            canonical: Any = url  # used for logging + result envelope below
+
+        # ── Local path (relative or absolute) ────────────────────────────
         else:
-            ref = ref.resolve()
+            ref = Path(raw_ref)
+            if not ref.is_absolute() and spec_path is not None:
+                ref = (spec_path.parent / ref).resolve()
+            else:
+                ref = ref.resolve()
 
-        # Cycle guard — prevent A → B → A loops.
-        canonical = ref
-        if canonical in _visited_specs:
-            raise OARunError(
-                f"Circular spec delegation detected: '{canonical}' is already in "
-                "the delegation stack",
-                code="DELEGATION_CYCLE_ERROR",
-                stage="delegation",
-                task=task_name,
-            )
-
-        delegated_spec = _load_spec(canonical)
-        new_visited = _visited_specs | {canonical}
+            canonical = ref
+            if canonical in _visited_specs:
+                raise OARunError(
+                    f"Circular spec delegation detected: '{canonical}' is already in "
+                    "the delegation stack",
+                    code="DELEGATION_CYCLE_ERROR",
+                    stage="delegation",
+                    task=task_name,
+                )
+            delegated_spec = _load_spec(canonical)
+            new_visited = _visited_specs | {canonical}
 
         # Use the explicitly named task, or fall back to same name as the caller.
         delegated_task: str = task_def.get("task") or task_name
@@ -521,13 +629,17 @@ def _run_single_task(
             delegated_task,
         )
 
+        # For remote specs there is no local path, so pass None for spec_path.
+        # Relative references inside a remote spec will also resolve remotely.
+        next_spec_path = canonical if isinstance(canonical, Path) else None
+
         result = _run_single_task(
             delegated_spec,
             delegated_task,
             input_data,
             override_system,
             override_user,
-            spec_path=canonical,
+            spec_path=next_spec_path,
             _visited_specs=new_visited,
         )
         # Surface the coordinator's task name so the envelope is consistent
