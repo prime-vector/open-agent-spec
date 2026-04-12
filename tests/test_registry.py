@@ -110,7 +110,10 @@ _MINIMAL_SPEC_YAML = yaml.dump(
 
 class TestFetchRemoteSpec:
     def test_successful_fetch(self):
-        with patch("urllib.request.urlopen", return_value=_make_mock_response(_MINIMAL_SPEC_YAML)):
+        with patch(
+            "urllib.request.urlopen",
+            return_value=_make_mock_response(_MINIMAL_SPEC_YAML),
+        ):
             spec = _fetch_remote_spec("https://example.com/spec.yaml")
         assert spec["open_agent_spec"] == "1.4.0"
         assert "tasks" in spec
@@ -118,13 +121,16 @@ class TestFetchRemoteSpec:
     def test_http_error_raises(self):
         import urllib.error
 
-        with patch("urllib.request.urlopen", side_effect=urllib.error.HTTPError(
-            url="https://example.com/spec.yaml",
-            code=404,
-            msg="Not Found",
-            hdrs=None,  # type: ignore[arg-type]
-            fp=None,
-        )):
+        with patch(
+            "urllib.request.urlopen",
+            side_effect=urllib.error.HTTPError(
+                url="https://example.com/spec.yaml",
+                code=404,
+                msg="Not Found",
+                hdrs=None,  # type: ignore[arg-type]
+                fp=None,
+            ),
+        ):
             with pytest.raises(OARunError) as exc_info:
                 _fetch_remote_spec("https://example.com/spec.yaml")
         assert exc_info.value.code == "SPEC_LOAD_ERROR"
@@ -133,19 +139,28 @@ class TestFetchRemoteSpec:
     def test_url_error_raises(self):
         import urllib.error
 
-        with patch("urllib.request.urlopen", side_effect=urllib.error.URLError("connection refused")):
+        with patch(
+            "urllib.request.urlopen",
+            side_effect=urllib.error.URLError("connection refused"),
+        ):
             with pytest.raises(OARunError) as exc_info:
                 _fetch_remote_spec("https://example.com/spec.yaml")
         assert exc_info.value.code == "SPEC_LOAD_ERROR"
 
     def test_invalid_yaml_raises(self):
-        with patch("urllib.request.urlopen", return_value=_make_mock_response(":: not valid yaml ::")):
+        with patch(
+            "urllib.request.urlopen",
+            return_value=_make_mock_response(":: not valid yaml ::"),
+        ):
             with pytest.raises(OARunError) as exc_info:
                 _fetch_remote_spec("https://example.com/spec.yaml")
         assert exc_info.value.code == "SPEC_LOAD_ERROR"
 
     def test_non_mapping_yaml_raises(self):
-        with patch("urllib.request.urlopen", return_value=_make_mock_response("- just\n- a\n- list\n")):
+        with patch(
+            "urllib.request.urlopen",
+            return_value=_make_mock_response("- just\n- a\n- list\n"),
+        ):
             with pytest.raises(OARunError) as exc_info:
                 _fetch_remote_spec("https://example.com/spec.yaml")
         assert exc_info.value.code == "SPEC_LOAD_ERROR"
@@ -179,8 +194,13 @@ class TestRemoteDelegation:
     def test_oa_url_delegation_executes_remote_spec(self, tmp_path):
         coordinator = self._write_coordinator(tmp_path, "oa://prime-vector/summariser")
 
-        with patch("oas_cli.runner._fetch_remote_spec", return_value=yaml.safe_load(_MINIMAL_SPEC_YAML)):
-            with patch("oas_cli.runner.invoke_intelligence", return_value='{"result": "ok"}'):
+        with patch(
+            "oas_cli.runner._fetch_remote_spec",
+            return_value=yaml.safe_load(_MINIMAL_SPEC_YAML),
+        ):
+            with patch(
+                "oas_cli.runner.invoke_intelligence", return_value='{"result": "ok"}'
+            ):
                 result = run_task_from_file(coordinator, task_name="delegate")
 
         assert result["task"] == "delegate"
@@ -192,8 +212,13 @@ class TestRemoteDelegation:
             tmp_path, "https://example.com/specs/myspec.yaml"
         )
 
-        with patch("oas_cli.runner._fetch_remote_spec", return_value=yaml.safe_load(_MINIMAL_SPEC_YAML)):
-            with patch("oas_cli.runner.invoke_intelligence", return_value='{"result": "ok"}'):
+        with patch(
+            "oas_cli.runner._fetch_remote_spec",
+            return_value=yaml.safe_load(_MINIMAL_SPEC_YAML),
+        ):
+            with patch(
+                "oas_cli.runner.invoke_intelligence", return_value='{"result": "ok"}'
+            ):
                 result = run_task_from_file(coordinator, task_name="delegate")
 
         assert result["task"] == "delegate"
@@ -221,7 +246,9 @@ class TestRemoteDelegation:
             },
         }
 
-        with patch("oas_cli.runner._fetch_remote_spec", return_value=self_delegating_spec):
+        with patch(
+            "oas_cli.runner._fetch_remote_spec", return_value=self_delegating_spec
+        ):
             with pytest.raises(OARunError) as exc_info:
                 run_task_from_file(coordinator, task_name="delegate")
 
@@ -229,10 +256,17 @@ class TestRemoteDelegation:
 
     def test_remote_task_not_found_raises(self, tmp_path):
         p = tmp_path / "coordinator.yaml"
-        p.write_text(yaml.dump(_make_coordinator_spec("oa://prime-vector/summariser", "ghost_task")))
+        p.write_text(
+            yaml.dump(
+                _make_coordinator_spec("oa://prime-vector/summariser", "ghost_task")
+            )
+        )
         coordinator = p
 
-        with patch("oas_cli.runner._fetch_remote_spec", return_value=yaml.safe_load(_MINIMAL_SPEC_YAML)):
+        with patch(
+            "oas_cli.runner._fetch_remote_spec",
+            return_value=yaml.safe_load(_MINIMAL_SPEC_YAML),
+        ):
             with pytest.raises(OARunError) as exc_info:
                 run_task_from_file(coordinator, task_name="delegate")
 
@@ -242,7 +276,10 @@ class TestRemoteDelegation:
         """Smoke-test the bundled registry index."""
         index_path = (
             Path(__file__).parent.parent
-            / "Website" / "public" / "registry" / "index.json"
+            / "Website"
+            / "public"
+            / "registry"
+            / "index.json"
         )
         with index_path.open() as f:
             data = json.load(f)

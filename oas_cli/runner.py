@@ -113,7 +113,7 @@ def _resolve_spec_url(ref: str) -> str:
     if not ref.startswith(_OA_SCHEME):
         return ref  # already a plain HTTP(S) URL
 
-    rest = ref[len(_OA_SCHEME):]
+    rest = ref[len(_OA_SCHEME) :]
     version = "latest"
     if "@" in rest:
         rest, version = rest.rsplit("@", 1)
@@ -135,7 +135,11 @@ def _resolve_spec_url(ref: str) -> str:
 
 def _is_remote_ref(ref: str) -> bool:
     """Return True when *ref* should be fetched over HTTP rather than disk."""
-    return ref.startswith(_OA_SCHEME) or ref.startswith("http://") or ref.startswith("https://")
+    return (
+        ref.startswith(_OA_SCHEME)
+        or ref.startswith("http://")
+        or ref.startswith("https://")
+    )
 
 
 def _fetch_remote_spec(url: str) -> dict[str, Any]:
