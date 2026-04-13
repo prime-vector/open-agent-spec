@@ -1,0 +1,5 @@
+{
+  "message": "What did we talk about last time regarding the project timeline?",
+  "memory_store_url": "http://localhost:8765",
+  "top_k": 5
+}

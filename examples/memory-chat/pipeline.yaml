@@ -1,0 +1,39 @@
+open_agent_spec: "1.4.0"
+
+agent:
+  name: memory-chat-pipeline
+  description: >
+    Two-task pipeline combining long-term memory retrieval with a chat reply.
+
+    1. `recall`  — delegates to oa://prime-vector/memory-retriever to search
+       the external memory store for turns relevant to the user's message.
+       Returns `history` and `memory_count`.
+
+    2. `respond` — delegates to the local chat-agent spec.  It depends_on
+       `recall`, so the runner merges recall's output (including `history`)
+       into respond's input automatically before the model is called.
+
+    OAS never stores or manages memory — the memory store is external
+    infrastructure.  This spec is purely a declarative retrieval + reply
+    pipeline.
+  role: assistant
+
+intelligence:
+  type: llm
+  engine: openai
+  model: gpt-4o-mini
+
+tasks:
+  recall:
+    description: Retrieve relevant memory context for the user's message.
+    spec: oa://prime-vector/memory-retriever
+    task: retrieve
+
+  respond:
+    description: >
+      Reply to the user's message using retrieved memory context.
+      The `history` field from `recall` is merged in automatically.
+    depends_on:
+      - recall
+    spec: ../chat-agent/spec.yaml
+    task: chat

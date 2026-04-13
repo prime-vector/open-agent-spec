@@ -77,7 +77,7 @@ class TestEngineDefaults:
         """Call invoke_intelligence and capture the resolved config passed to the provider."""
         captured: dict = {}
 
-        def fake_invoke(*, system, user, config):
+        def fake_invoke(*, system, user, config, history=None):
             captured.update(config)
             return '{"ok": true}'
 

@@ -15,6 +15,7 @@ When ``module`` is absent the provider falls back to the ``OpenAIProvider``
 from __future__ import annotations
 
 import importlib
+from typing import Any
 
 from .base import IntelligenceProvider, ProviderError
 
@@ -22,14 +23,23 @@ from .base import IntelligenceProvider, ProviderError
 class CustomProvider(IntelligenceProvider):
     """Routes to a user-supplied Python class, or falls back to HTTP."""
 
-    def invoke(self, *, system: str, user: str, config: dict) -> str:
+    def invoke(
+        self,
+        *,
+        system: str,
+        user: str,
+        config: dict,
+        history: list[dict[str, Any]] | None = None,
+    ) -> str:
         module_path: str | None = config.get("module")
 
         if not module_path:
             # No module specified — behave as a plain OpenAI-compatible endpoint.
             from .openai_http import OpenAIProvider
 
-            return OpenAIProvider().invoke(system=system, user=user, config=config)
+            return OpenAIProvider().invoke(
+                system=system, user=user, config=config, history=history
+            )
 
         return self._invoke_class(module_path, system, user, config)
 

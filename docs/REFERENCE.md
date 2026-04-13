@@ -619,6 +619,96 @@ This repository's own `.agents/` directory contains four specs used for developm
 
 ---
 
+## Memory management
+
+OAS is **stateless by design** — it never stores, summarises, or manages
+conversation history.  This keeps specs portable and infrastructure-agnostic.
+Two patterns cover the common memory use-cases without breaking that boundary.
+
+### Pattern 1 — Short-term history (within a session)
+
+Pass prior turns as the reserved `history` input field.  The runner
+automatically injects them between the system prompt and the current user
+message before calling the model.  Your application code manages the list;
+OAS just forwards it.
+
+```yaml
+tasks:
+  chat:
+    input:
+      type: object
+      properties:
+        message:  { type: string }
+        history:
+          type: array
+          description: >
+            Prior turns — [{"role": "user"|"assistant", "content": "…"}, …].
+            Injected by the runner automatically. OAS never writes to this field.
+          items:
+            type: object
+            properties:
+              role:    { type: string, enum: [user, assistant] }
+              content: { type: string }
+      required: [message]
+```
+
+Caller example (Python):
+
+```python
+history = []
+
+while True:
+    message = input("You: ")
+    result = run_task(spec_path, "chat", {"message": message, "history": history})
+    reply = result["reply"]
+    print(f"Agent: {reply}")
+
+    history.append({"role": "user",      "content": message})
+    history.append({"role": "assistant", "content": reply})
+```
+
+See [`examples/chat-agent/`](../examples/chat-agent/) for a full working example.
+
+### Pattern 2 — Long-term memory (across sessions)
+
+Use the `oa://prime-vector/memory-retriever` registry spec as a first task
+in a pipeline.  It calls your external memory store, retrieves relevant prior
+turns, and returns them as a `history` array.  A downstream `chat` task picks
+that up via `depends_on`.
+
+```yaml
+tasks:
+  recall:
+    spec: oa://prime-vector/memory-retriever
+    task: retrieve
+
+  respond:
+    depends_on: [recall]
+    spec: ../chat-agent/spec.yaml
+    task: chat
+```
+
+The runner merges `recall`'s output (including `history`) into `respond`'s
+input automatically — no glue code required.
+
+Your memory store is external infrastructure (vector DB, Redis, SQLite with
+semantic search, etc.) — OAS is not opinionated about the store technology,
+only about the retrieval interface.
+
+See [`examples/memory-chat/`](../examples/memory-chat/) for a complete
+pipeline spec and a minimal mock memory-store script.
+
+### What OAS deliberately does NOT do
+
+| Capability | Where it belongs |
+|---|---|
+| Session persistence | Your application / infrastructure |
+| History summarisation | A dedicated summarisation spec (`oa://prime-vector/summariser`) |
+| Memory write / upsert | Your memory store's write endpoint |
+| Branching on memory content | Outside OAS (OAS has no conditionals) |
+
+---
+
 ## Generated project layout
 
 ```

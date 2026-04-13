@@ -25,13 +25,24 @@ class IntelligenceProvider(ABC):
     """
 
     @abstractmethod
-    def invoke(self, *, system: str, user: str, config: dict) -> str:
+    def invoke(
+        self,
+        *,
+        system: str,
+        user: str,
+        config: dict,
+        history: list[dict[str, Any]] | None = None,
+    ) -> str:
         """Invoke the model and return the raw text response.
 
         Args:
-            system: System prompt.
-            user:   User message (template already rendered).
-            config: Provider config dict from intelligence_config (model, temperature, …).
+            system:  System prompt.
+            user:    User message (template already rendered).
+            config:  Provider config dict from intelligence_config (model, temperature, …).
+            history: Optional prior-turn messages in OpenAI wire format
+                     ``[{"role": "user"|"assistant", "content": "…"}, …]``.
+                     Injected between the system message and the current user turn.
+                     OAS never stores history — callers pass it in via ``input.history``.
 
         Returns:
             Raw string output from the model — no parsing.

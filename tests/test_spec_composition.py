@@ -80,7 +80,7 @@ class TestBasicDelegation:
         _write_spec(tmp_path / "shared", "greeter.yaml", shared_spec)
         coordinator_path = _write_spec(tmp_path, "coordinator.yaml", coordinator_spec)
 
-        def fake_invoke(system, user, config):
+        def fake_invoke(system, user, config, history=None):
             return json.dumps({"reply": "Hello there!"})
 
         with patch("oas_cli.runner.invoke_intelligence", fake_invoke):
@@ -121,7 +121,7 @@ class TestBasicDelegation:
         _write_spec(tmp_path, "shared.yaml", shared_spec)
         coordinator_path = _write_spec(tmp_path, "coordinator.yaml", coordinator_spec)
 
-        def fake_invoke(system, user, config):
+        def fake_invoke(system, user, config, history=None):
             return json.dumps({"result": "done"})
 
         with patch("oas_cli.runner.invoke_intelligence", fake_invoke):
@@ -161,7 +161,7 @@ class TestBasicDelegation:
 
         with patch(
             "oas_cli.runner.invoke_intelligence",
-            lambda s, u, c: json.dumps({"summary": "brief"}),
+            lambda s, u, c, h=None: json.dumps({"summary": "brief"}),
         ):
             result = run_task_from_file(coordinator_path, task_name="summarise")
 
@@ -225,7 +225,7 @@ class TestDelegationWithChain:
 
         call_count = {"n": 0}
 
-        def fake_invoke(system, user, config):
+        def fake_invoke(system, user, config, history=None):
             call_count["n"] += 1
             if call_count["n"] == 1:
                 return json.dumps({"keywords": ["foo", "bar"]})
@@ -398,7 +398,7 @@ class TestDelegationErrors:
 
         with patch(
             "oas_cli.runner.invoke_intelligence",
-            lambda s, u, c: json.dumps({"pong": "ok"}),
+            lambda s, u, c, h=None: json.dumps({"pong": "ok"}),
         ):
             result = run_task_from_file(coordinator_path, task_name="ping")
 

@@ -669,6 +669,9 @@ def _run_single_task(
     )
     intelligence_config = _build_intelligence_config(spec_data)
 
+    # history is a reserved input convention — never stored by OAS, just forwarded.
+    history: list[dict] | None = input_data.get("history") or None
+
     try:
         tools = resolve_task_tools(spec_data, task_name)
         if tools:
@@ -676,7 +679,7 @@ def _run_single_task(
                 system, user, tools, intelligence_config, task_name
             )
         else:
-            raw_output = invoke_intelligence(system, user, intelligence_config)
+            raw_output = invoke_intelligence(system, user, intelligence_config, history)
     except (ProviderError, ToolError) as exc:
         raise OARunError(
             str(exc),

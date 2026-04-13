@@ -1,0 +1,86 @@
+open_agent_spec: "1.4.0"
+
+agent:
+  name: memory-retriever
+  description: >
+    Retrieve semantically relevant memories from an external store and format
+    them as a conversation-history context block.  The agent accepts a query
+    and an optional memory_store_url, calls the store's search endpoint, and
+    returns a list of prior turns (role + content) that the calling spec injects
+    into its own `history` input.  OAS never stores or manages memory — this
+    spec is purely a retrieval interface.
+  role: memory
+
+intelligence:
+  type: llm
+  engine: openai
+  model: gpt-4o-mini
+  config:
+    temperature: 0.0
+
+tasks:
+  retrieve:
+    description: >
+      Search the memory store for turns relevant to `query` and return them
+      as a `history` array ready to pass to any chat-capable OAS task.
+    input:
+      type: object
+      properties:
+        query:
+          type: string
+          description: The user's current message or search phrase.
+        memory_store_url:
+          type: string
+          description: >
+            Base URL of the memory store's search endpoint.
+            Defaults to http://localhost:8765 when omitted.
+        top_k:
+          type: integer
+          description: Maximum number of prior turns to return (default 5).
+      required:
+        - query
+    output:
+      type: object
+      properties:
+        history:
+          type: array
+          description: >
+            Prior conversation turns relevant to the query, ordered oldest-first.
+            Each item is {"role": "user"|"assistant", "content": "…"}.
+          items:
+            type: object
+            properties:
+              role:
+                type: string
+                enum: [user, assistant]
+              content:
+                type: string
+            required: [role, content]
+        memory_count:
+          type: integer
+          description: Total number of turns returned.
+      required:
+        - history
+        - memory_count
+    prompts:
+      system: >
+        You are a memory retrieval assistant.  Your job is to select which prior
+        conversation turns are most relevant to the user's current query and
+        return them in chronological order.  You MUST respond with valid JSON
+        only — no prose, no markdown fences.
+      user: |
+        The user's current message is:
+        "{query}"
+
+        The memory store returned the following candidate turns (newest first):
+        {memory_store_results}
+
+        Select the {top_k_effective} most relevant turns, re-order them
+        oldest-first, and return:
+        {
+          "history": [
+            {"role": "user"|"assistant", "content": "…"},
+            …
+          ],
+          "memory_count": <integer>
+        }

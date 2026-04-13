@@ -20,6 +20,7 @@ export async function invokeOpenAI(
   system: string,
   user: string,
   config: ProviderConfig,
+  history?: ChatMessage[],
 ): Promise<string> {
   const engine = config.engine.toLowerCase();
   const base = ENGINE_BASES[engine] ?? DEFAULT_BASE;
@@ -36,6 +37,7 @@ export async function invokeOpenAI(
 
   const messages: ChatMessage[] = [];
   if (system) messages.push({ role: "system", content: system });
+  if (history?.length) messages.push(...history);
   messages.push({ role: "user", content: user });
 
   const extraConfig = (config.config ?? {}) as Record<string, unknown>;

@@ -154,7 +154,12 @@ async function runSingleTask(
     config: spec.intelligence.config,
   };
 
-  const raw = await invokeProvider(prompts.system, prompts.user, providerConfig);
+  // history is a reserved input convention — never stored by OAS, just forwarded.
+  const history = Array.isArray(input["history"])
+    ? (input["history"] as import("./types.js").ChatMessage[])
+    : undefined;
+
+  const raw = await invokeProvider(prompts.system, prompts.user, providerConfig, history);
   const output = extractJson(raw);
 
   return {

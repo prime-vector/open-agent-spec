@@ -1,0 +1,67 @@
+open_agent_spec: "1.4.0"
+
+agent:
+  name: chat-agent
+  description: >
+    A stateless conversational assistant that accepts an optional `history`
+    input.  OAS never stores history — the caller appends each completed turn
+    and passes the array back on the next invocation.  This keeps the spec
+    purely declarative and infrastructure-agnostic.
+  role: assistant
+
+intelligence:
+  type: llm
+  engine: openai
+  model: gpt-4o-mini
+  config:
+    temperature: 0.7
+    max_tokens: 1024
+
+tasks:
+  chat:
+    description: >
+      Reply to the user's message, taking previous conversation turns into
+      account when provided via the `history` input.
+    input:
+      type: object
+      properties:
+        message:
+          type: string
+          description: The user's current message.
+        history:
+          type: array
+          description: >
+            Prior conversation turns in OpenAI wire format
+            [{"role": "user"|"assistant", "content": "…"}, …].
+            When provided, the runner injects them between the system prompt
+            and the current user message before calling the model.
+            OAS never writes to or manages this field.
+          items:
+            type: object
+            properties:
+              role:
+                type: string
+                enum: [user, assistant]
+              content:
+                type: string
+            required: [role, content]
+      required:
+        - message
+    output:
+      type: object
+      properties:
+        reply:
+          type: string
+          description: The assistant's reply to the user's message.
+      required:
+        - reply
+    prompts:
+      system: >
+        You are a helpful, friendly assistant.  You have access to previous
+        conversation turns which the runner injects automatically — use them
+        to maintain context.  Always reply in valid JSON.
+      user: |
+        {message}
+
+        Respond with JSON:
+        {"reply": "<your response>"}
