@@ -143,6 +143,80 @@ class TestInvokeIntelligenceHistory:
 
 
 # ---------------------------------------------------------------------------
+# CustomProvider._invoke_class history forwarding
+# ---------------------------------------------------------------------------
+
+
+class TestCustomProviderHistory:
+    """History must be forwarded to custom router classes via the merged prompt."""
+
+    def _make_router_class(self, captured: dict):
+        """Return a minimal router class that records the prompt it receives."""
+
+        class FakeRouter:
+            def __init__(self, endpoint, model, config):
+                pass
+
+            def run(self, prompt: str) -> str:
+                captured["prompt"] = prompt
+                return '{"reply": "ok"}'
+
+        return FakeRouter
+
+    def test_history_prepended_to_merged_prompt(self, monkeypatch):
+        from oas_cli.providers.custom import CustomProvider
+
+        captured: dict = {}
+        router_cls = self._make_router_class(captured)
+
+        monkeypatch.setattr(
+            "importlib.import_module",
+            lambda name: type("mod", (), {"FakeRouter": router_cls})(),
+        )
+
+        CustomProvider._invoke_class(
+            "fake_module.FakeRouter",
+            system="You are helpful.",
+            user="What is the answer?",
+            config={},
+            history=[
+                {"role": "user", "content": "prior question"},
+                {"role": "assistant", "content": "prior answer"},
+            ],
+        )
+
+        prompt = captured["prompt"]
+        assert "prior question" in prompt
+        assert "prior answer" in prompt
+        # History must come between system and current user turn
+        assert prompt.index("prior question") < prompt.index("What is the answer?")
+
+    def test_no_history_omits_history_section(self, monkeypatch):
+        from oas_cli.providers.custom import CustomProvider
+
+        captured: dict = {}
+        router_cls = self._make_router_class(captured)
+
+        monkeypatch.setattr(
+            "importlib.import_module",
+            lambda name: type("mod", (), {"FakeRouter": router_cls})(),
+        )
+
+        CustomProvider._invoke_class(
+            "fake_module.FakeRouter",
+            system="You are helpful.",
+            user="Hello",
+            config={},
+            history=None,
+        )
+
+        prompt = captured["prompt"]
+        assert "User:" not in prompt
+        assert "Assistant:" not in prompt
+        assert "Hello" in prompt
+
+
+# ---------------------------------------------------------------------------
 # Runner integration: history extracted from input_data
 # ---------------------------------------------------------------------------
 
