@@ -1,4 +1,4 @@
-// TypeScript types mirroring the Open Agent Spec 1.4.0 YAML schema.
+// TypeScript types mirroring the Open Agent Spec 1.5.0 YAML schema.
 
 export interface OASpec {
   open_agent_spec: string;

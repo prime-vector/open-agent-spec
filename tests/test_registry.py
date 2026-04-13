@@ -89,7 +89,7 @@ def _make_mock_response(body: str, status: int = 200):
 
 _MINIMAL_SPEC_YAML = yaml.dump(
     {
-        "open_agent_spec": "1.4.0",
+        "open_agent_spec": "1.5.0",
         "agent": {"name": "test", "description": "test", "role": "analyst"},
         "intelligence": {"type": "llm", "engine": "openai", "model": "gpt-4o-mini"},
         "tasks": {
@@ -115,7 +115,7 @@ class TestFetchRemoteSpec:
             return_value=_make_mock_response(_MINIMAL_SPEC_YAML),
         ):
             spec = _fetch_remote_spec("https://example.com/spec.yaml")
-        assert spec["open_agent_spec"] == "1.4.0"
+        assert spec["open_agent_spec"] == "1.5.0"
         assert "tasks" in spec
 
     def test_http_error_raises(self):
@@ -171,7 +171,7 @@ class TestFetchRemoteSpec:
 
 def _make_coordinator_spec(spec_ref: str, task_ref: str = "run") -> dict:
     return {
-        "open_agent_spec": "1.4.0",
+        "open_agent_spec": "1.5.0",
         "agent": {"name": "coordinator", "description": "test", "role": "analyst"},
         "intelligence": {"type": "llm", "engine": "openai", "model": "gpt-4o-mini"},
         "prompts": {"system": "s", "user": "u"},
@@ -233,7 +233,7 @@ class TestRemoteDelegation:
 
         # The remote spec also delegates to itself
         self_delegating_spec = {
-            "open_agent_spec": "1.4.0",
+            "open_agent_spec": "1.5.0",
             "agent": {"name": "cyclic", "description": "cycles", "role": "analyst"},
             "intelligence": {"type": "llm", "engine": "openai", "model": "gpt-4o-mini"},
             "prompts": {"system": "s", "user": "u"},

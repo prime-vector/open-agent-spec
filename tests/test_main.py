@@ -28,7 +28,7 @@ def test_version_flag():
     """Test that the --version flag works correctly."""
     result = runner.invoke(app, ["--version"])
     assert result.exit_code == 0
-    # New banner shows "Open Agent Spec" text and a version digit (e.g. 1.4.0)
+    # New banner shows "Open Agent Spec" text and a version digit (e.g. 1.5.0)
     assert "Open Agent Spec" in result.output
     assert re.search(r"\d+\.\d+", result.output), (
         "Version output should contain a version-like string"
@@ -79,7 +79,7 @@ def test_init_with_directory_spec_returns_clean_error(tmp_path):
 # ---------------------------------------------------------------------------
 
 _MINIMAL_SPEC = """\
-open_agent_spec: "1.4.0"
+open_agent_spec: "1.5.0"
 
 agent:
   name: test-agent

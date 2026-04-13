@@ -1,10 +1,10 @@
 # OAS Conformance Tests
 
-This directory contains the conformance test suite for Open Agent Spec 1.4.0. Conformance tests validate **runtime behaviour**, not LLM output.
+This directory contains the conformance test suite for Open Agent Spec 1.5.0. Conformance tests validate **runtime behaviour**, not LLM output.
 
 ## Purpose
 
-The spec at `../open-agent-spec-1.4.md` defines what a conforming runtime MUST do. These tests operationalise that definition — any runtime that passes the full suite can claim OAS 1.4.0 conformance.
+The spec at `../open-agent-spec-1.4.md` defines what a conforming runtime MUST do. These tests operationalise that definition — any runtime that passes the full suite can claim OAS 1.5.0 conformance.
 
 Conformance tests differ from unit/integration tests in this repo:
 
@@ -146,7 +146,7 @@ Each test case will be a YAML file with this shape:
 # spec/conformance/cases/depends-on/linear-chain.yaml
 description: "Dependency output is merged into calling task input"
 spec: |
-  open_agent_spec: "1.4.0"
+  open_agent_spec: "1.5.0"
   agent:
     name: test
     description: test

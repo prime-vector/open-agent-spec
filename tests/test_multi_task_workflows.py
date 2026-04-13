@@ -98,7 +98,7 @@ def _spec(
         prompts.update(style_b)
 
     s: dict = {
-        "open_agent_spec": "1.4.0",
+        "open_agent_spec": "1.5.0",
         "agent": {"name": "test-agent", "description": "test agent"},
         "intelligence": intelligence or _base_intelligence(),
         "tasks": tasks,
@@ -200,7 +200,7 @@ class TestPromptResolutionLayers:
     def test_no_prompts_section_at_all(self):
         """Spec without any prompts key (per-task or global) runs without error."""
         spec = {
-            "open_agent_spec": "1.4.0",
+            "open_agent_spec": "1.5.0",
             "agent": {"name": "a", "description": "b"},
             "intelligence": _base_intelligence(),
             "tasks": {"t": _task(system="task-sys", user="{{ q }}")},
@@ -720,7 +720,7 @@ class TestSpecShapePermutations:
     def test_per_task_only_no_global_prompts(self):
         """Spec with no top-level prompts section; each task has its own."""
         spec = {
-            "open_agent_spec": "1.4.0",
+            "open_agent_spec": "1.5.0",
             "agent": {"name": "a", "description": "b"},
             "intelligence": _base_intelligence(),
             "tasks": {
@@ -923,7 +923,7 @@ class TestCodeAssistantScenario:
 # ===========================================================================
 
 _CLI_SPEC_YAML = """\
-open_agent_spec: "1.4.0"
+open_agent_spec: "1.5.0"
 
 agent:
   name: cli-test-agent

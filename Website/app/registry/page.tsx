@@ -173,7 +173,7 @@ export default function RegistryPage() {
                 </span>
               </div>
               <pre className="overflow-x-auto px-3 py-3 font-mono text-[10px] leading-relaxed text-stone-300">
-                {`open_agent_spec: "1.4.0"
+                {`open_agent_spec: "1.5.0"
 
 agent:
   name: my-pipeline

@@ -1,4 +1,4 @@
-export const MULTI_TASK_SPEC_YAML = `open_agent_spec: "1.4.0"
+export const MULTI_TASK_SPEC_YAML = `open_agent_spec: "1.5.0"
 
 agent:
   name: research-pipeline

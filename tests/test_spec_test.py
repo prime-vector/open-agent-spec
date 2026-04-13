@@ -73,7 +73,7 @@ def test_load_test_definition_roundtrip(tmp_path: Path):
 
 
 _MINIMAL_RUNNABLE_SPEC = """\
-open_agent_spec: "1.4.0"
+open_agent_spec: "1.5.0"
 
 agent:
   name: test-agent

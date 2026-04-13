@@ -53,7 +53,7 @@ def _spec(
         prompts["mytask"] = b
 
     return {
-        "open_agent_spec": "1.4.0",
+        "open_agent_spec": "1.5.0",
         "agent": {"name": "test-agent", "description": "test"},
         "intelligence": {"type": "llm", "engine": "openai", "model": "gpt-4o"},
         "tasks": {"mytask": task_def},
@@ -271,7 +271,7 @@ class TestRunTaskFromSpecOverrides:
 def _text_spec(response_format: str = "text") -> dict:
     """Minimal spec with response_format on the task."""
     return {
-        "open_agent_spec": "1.4.0",
+        "open_agent_spec": "1.5.0",
         "agent": {"name": "ta", "description": "ta"},
         "intelligence": {"type": "llm", "engine": "openai", "model": "gpt-4o"},
         "tasks": {
@@ -413,7 +413,7 @@ def _chain_spec(*, add_text_format: bool = False) -> dict:
     if add_text_format:
         summarize_task["response_format"] = "text"
     return {
-        "open_agent_spec": "1.4.0",
+        "open_agent_spec": "1.5.0",
         "agent": {"name": "chain-agent", "description": "test"},
         "intelligence": {"type": "llm", "engine": "openai", "model": "gpt-4o"},
         "tasks": {"extract": extract_task, "summarize": summarize_task},
@@ -604,7 +604,7 @@ class TestResolveContract:
         task_fields: list[str] | None = None,
     ) -> dict:
         spec: dict = {
-            "open_agent_spec": "1.4.0",
+            "open_agent_spec": "1.5.0",
             "agent": {"name": "ta", "description": "ta"},
             "intelligence": {"type": "llm", "engine": "openai", "model": "gpt-4o"},
             "tasks": {
@@ -688,7 +688,7 @@ class TestContractEnforcementLive:
             },
         }
         return {
-            "open_agent_spec": "1.4.0",
+            "open_agent_spec": "1.5.0",
             "agent": {"name": "ta", "description": "ta"},
             "intelligence": {"type": "llm", "engine": "openai", "model": "gpt-4o"},
             "tasks": {"mytask": task},
@@ -735,7 +735,7 @@ class TestContractEnforcementLive:
             lambda s, u, c, h=None: '{"summary": "ok"}',  # missing global 'confidence'
         )
         spec = {
-            "open_agent_spec": "1.4.0",
+            "open_agent_spec": "1.5.0",
             "agent": {"name": "ta", "description": "ta"},
             "intelligence": {"type": "llm", "engine": "openai", "model": "gpt-4o"},
             "tasks": {
@@ -770,7 +770,7 @@ class TestContractEnforcementLive:
 
         monkeypatch.setattr("oas_cli.runner.invoke_intelligence", fake_invoke)
         spec = {
-            "open_agent_spec": "1.4.0",
+            "open_agent_spec": "1.5.0",
             "agent": {"name": "ta", "description": "ta"},
             "intelligence": {"type": "llm", "engine": "openai", "model": "gpt-4o"},
             "tasks": {

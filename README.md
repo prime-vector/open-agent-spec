@@ -135,7 +135,7 @@ oa run --spec .agents/review.yaml --task review --input change.diff --quiet
 Start from this shape:
 
 ```yaml
-open_agent_spec: "1.4.0"
+open_agent_spec: "1.5.0"
 
 agent:
   name: hello-world-agent
@@ -236,7 +236,7 @@ The formal specification defines what a conforming OAS runtime must do, independ
 
 | Resource | Contents |
 |----------|----------|
-| [spec/open-agent-spec-1.4.md](spec/open-agent-spec-1.4.md) | Formal specification — normative MUST/SHOULD/MAY requirements for OAS 1.4.0 |
+| [spec/open-agent-spec-1.4.md](spec/open-agent-spec-1.4.md) | Formal specification — normative MUST/SHOULD/MAY requirements for OAS 1.5.0 |
 | [spec/schema/oas-schema-1.4.json](spec/schema/oas-schema-1.4.json) | Canonical JSON Schema for validating spec documents |
 | [spec/conformance/README.md](spec/conformance/README.md) | Conformance test structure and contribution guide |
 
