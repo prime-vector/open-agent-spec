@@ -28,9 +28,9 @@ def test_version_flag():
     """Test that the --version flag works correctly."""
     result = runner.invoke(app, ["--version"])
     assert result.exit_code == 0
-    assert "Open Agent Spec CLI version" in result.output
-    version_part = result.output.split("version")[-1].strip()
-    assert version_part and re.search(r"\d", version_part), (
+    # New banner shows "Open Agent Spec" text and a version digit (e.g. 1.4.0)
+    assert "Open Agent Spec" in result.output
+    assert re.search(r"\d+\.\d+", result.output), (
         "Version output should contain a version-like string"
     )
 
