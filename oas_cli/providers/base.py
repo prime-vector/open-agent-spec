@@ -1,4 +1,4 @@
-"""Base class and exception types for OAS intelligence providers."""
+"""Base class and exception types for OA intelligence providers."""
 
 from __future__ import annotations
 
@@ -20,7 +20,7 @@ class EngineNotSupportedError(ProviderError):
 class IntelligenceProvider(ABC):
     """Minimal interface every provider must implement.
 
-    OAS handles prompt construction, task orchestration, and output parsing.
+    OA handles prompt construction, task orchestration, and output parsing.
     A provider's only job is: take (system, user, config) → return raw string.
     """
 
@@ -42,7 +42,7 @@ class IntelligenceProvider(ABC):
             history: Optional prior-turn messages in OpenAI wire format
                      ``[{"role": "user"|"assistant", "content": "…"}, …]``.
                      Injected between the system message and the current user turn.
-                     OAS never stores history — callers pass it in via ``input.history``.
+                     OA never stores history — callers pass it in via ``input.history``.
 
         Returns:
             Raw string output from the model — no parsing.

@@ -21,7 +21,7 @@ def get_tool_provider(tool_name: str, tool_config: dict[str, Any]) -> ToolProvid
 
     Supported types
     ---------------
-    native   — built-in OAS tools (file.read, file.write, http.get, …)
+    native   — built-in OA tools (file.read, file.write, http.get, …)
     mcp      — any MCP server (JSON-RPC 2.0 over HTTP, no MCP SDK required)
     custom   — user-provided Python class
     """

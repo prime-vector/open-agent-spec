@@ -1,6 +1,6 @@
 # MCP Search Example
 
-Demonstrates connecting an OAS agent to any MCP (Model Context Protocol) server
+Demonstrates connecting an OA agent to any MCP (Model Context Protocol) server
 for live web search — with **no MCP SDK**, no heavy dependencies, just raw HTTP.
 
 ## How it works
@@ -11,7 +11,7 @@ oa run → MCPToolProvider → tools/list  → discovers available tools
                          → model sees result → generates final answer
 ```
 
-OAS speaks JSON-RPC 2.0 over HTTP directly to your MCP server, the same way
+OA speaks JSON-RPC 2.0 over HTTP directly to your MCP server, the same way
 it calls OpenAI and Anthropic — raw `urllib.request`, nothing else needed.
 
 ## Quick start
@@ -52,7 +52,7 @@ oa run --spec examples/mcp-search/mcp-search.yaml \
 
 ## Connecting other MCP servers
 
-Just change `endpoint` — the rest is automatic. OAS calls `tools/list` to
+Just change `endpoint` — the rest is automatic. OA calls `tools/list` to
 discover whatever tools your server exposes and presents them to the model.
 
 ```yaml
@@ -72,7 +72,7 @@ tasks:
     tools: [github, filesystem]   # mix and match freely
 ```
 
-## What OAS sends to your MCP server
+## What OA sends to your MCP server
 
 **Tool discovery** (once, cached):
 ```json

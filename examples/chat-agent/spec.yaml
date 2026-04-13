@@ -4,7 +4,7 @@ agent:
   name: chat-agent
   description: >
     A stateless conversational assistant that accepts an optional `history`
-    input.  OAS never stores history — the caller appends each completed turn
+    input.  OA never stores history — the caller appends each completed turn
     and passes the array back on the next invocation.  This keeps the spec
     purely declarative and infrastructure-agnostic.
   role: assistant
@@ -35,7 +35,7 @@ tasks:
             [{"role": "user"|"assistant", "content": "…"}, …].
             When provided, the runner injects them between the system prompt
             and the current user message before calling the model.
-            OAS never writes to or manages this field.
+            OA never writes to or manages this field.
           items:
             type: object
             properties:

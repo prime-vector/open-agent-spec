@@ -1,16 +1,16 @@
-# OAS Conformance Tests
+# OA Conformance Tests
 
 This directory contains the conformance test suite for Open Agent Spec 1.5.0. Conformance tests validate **runtime behaviour**, not LLM output.
 
 ## Purpose
 
-The spec at `../open-agent-spec-1.4.md` defines what a conforming runtime MUST do. These tests operationalise that definition — any runtime that passes the full suite can claim OAS 1.5.0 conformance.
+The spec at `../open-agent-spec-1.4.md` defines what a conforming runtime MUST do. These tests operationalise that definition — any runtime that passes the full suite can claim OA 1.5.0 conformance.
 
 Conformance tests differ from unit/integration tests in this repo:
 
 | | Conformance tests (here) | Repo tests (`tests/`) |
 |-|--------------------------|----------------------|
-| Target | Any OAS runtime | The reference Python implementation |
+| Target | Any OA runtime | The reference Python implementation |
 | LLM calls | MUST be mocked / stubbed | May hit real APIs (with keys) |
 | Inputs | Defined by the spec | Convenience-driven |
 | Pass/fail authority | Spec document | Implementation behaviour |

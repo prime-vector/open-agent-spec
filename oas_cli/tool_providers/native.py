@@ -1,4 +1,4 @@
-"""Native OAS tools — zero external dependencies, sandboxed by design.
+"""Native OA tools — zero external dependencies, sandboxed by design.
 
 Available tools
 ---------------
@@ -212,7 +212,7 @@ def _env_read(name: str) -> str:
 
 
 class NativeToolProvider(ToolProvider):
-    """Exposes a subset of native OAS tools declared in the spec.
+    """Exposes a subset of native OA tools declared in the spec.
 
     The spec names which native tool IDs are enabled for a task (e.g.
     ``file.read``, ``http.get``).  This provider exposes only those, so the

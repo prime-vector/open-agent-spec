@@ -1,4 +1,4 @@
-# OAS Extension Points
+# OA Extension Points
 
 Open Agent Spec is deliberately minimal — it defines a document model and execution semantics for single tasks and linear chains. Everything beyond that boundary is an **extension**.
 
@@ -42,7 +42,7 @@ tasks:
 
 **Conformance:** A runtime claiming "tool support" MUST implement the multi-turn tool-call loop (§10.3): send tool definitions to the model, execute tool calls, feed results back, repeat until final response or iteration limit.
 
-**Out of scope:** Tool discovery, tool registries, tool authentication beyond header injection, and tool-to-tool communication are not part of OAS.
+**Out of scope:** Tool discovery, tool registries, tool authentication beyond header injection, and tool-to-tool communication are not part of OA.
 
 ---
 
@@ -87,7 +87,7 @@ When the library is not installed, contract validation is skipped with a warning
 
 ### 3. Custom Engines (Spec §5.4)
 
-The `custom` engine type allows any LLM backend to participate in OAS execution.
+The `custom` engine type allows any LLM backend to participate in OA execution.
 
 ```yaml
 intelligence:
@@ -112,15 +112,15 @@ class MyRouter:
 
 ## Designing New Extensions
 
-OAS intentionally does NOT have a plugin registry or extension manifest. Extensions are declared inline in the spec document using the mechanisms above.
+OA intentionally does NOT have a plugin registry or extension manifest. Extensions are declared inline in the spec document using the mechanisms above.
 
 If you need capability beyond tools, contracts, and custom engines, the intended pattern is:
 
-1. **Build it outside OAS** — in the calling platform, orchestrator, or wrapper
-2. **Feed results in via task input** — OAS tasks accept arbitrary input fields
+1. **Build it outside OA** — in the calling platform, orchestrator, or wrapper
+2. **Feed results in via task input** — OA tasks accept arbitrary input fields
 3. **Consume results from the envelope** — the result envelope exposes all execution data
 
-This keeps the spec boundary clean: OAS defines what happens inside a single task execution. Everything around it — orchestration, evaluation, governance, persistence — belongs to the platform.
+This keeps the spec boundary clean: OA defines what happens inside a single task execution. Everything around it — orchestration, evaluation, governance, persistence — belongs to the platform.
 
 ---
 
@@ -132,4 +132,4 @@ The `interface` top-level key is reserved for future use. Potential candidates f
 - Cross-spec type sharing
 - Runtime capability negotiation
 
-These will be considered for inclusion in OAS 2.x based on implementation experience and community feedback.
+These will be considered for inclusion in OA 2.x based on implementation experience and community feedback.

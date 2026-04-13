@@ -1,4 +1,4 @@
-"""OAS tool provider package."""
+"""OA tool provider package."""
 
 from .base import (
     InvokeResult,

@@ -1,4 +1,4 @@
-"""Tests for the OAS tool provider layer.
+"""Tests for the OA tool provider layer.
 
 Covers:
 - NativeToolProvider: all five built-in tools

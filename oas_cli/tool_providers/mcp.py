@@ -1,6 +1,6 @@
 """MCP (Model Context Protocol) tool provider — raw HTTP, no MCP SDK required.
 
-Connects to any MCP server that speaks JSON-RPC 2.0 over HTTP.  OAS calls
+Connects to any MCP server that speaks JSON-RPC 2.0 over HTTP.  OA calls
 ``tools/list`` once on first use to discover available tools, then
 ``tools/call`` for each model-requested invocation.
 
@@ -29,7 +29,7 @@ tasks:
 Security note
 -------------
 Errors from an MCP server surface as ``ToolError`` and never crash the runner.
-OAS is the caller — it does not host or execute server-side code, so a
+OA is the caller — it does not host or execute server-side code, so a
 misbehaving MCP server affects only the tool result for that call.
 
 Environment variable interpolation
@@ -131,7 +131,7 @@ def _jsonrpc(
 
 
 class MCPToolProvider(ToolProvider):
-    """Connects to an MCP server and exposes its tools to OAS tasks.
+    """Connects to an MCP server and exposes its tools to OA tasks.
 
     Tool discovery (``tools/list``) is lazy — it happens on the first call to
     ``describe()`` or ``call()`` and the result is cached for the lifetime of

@@ -774,7 +774,7 @@ def _run_single_task(
     )
     intelligence_config = _build_intelligence_config(spec_data)
 
-    # history is a reserved input convention — never stored by OAS, just forwarded.
+    # history is a reserved input convention — never stored by OA, just forwarded.
     history: list[dict] | None = input_data.get("history") or None
     sandbox = _resolve_sandbox(spec_data, task_name)
 

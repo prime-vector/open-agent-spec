@@ -154,7 +154,7 @@ async function runSingleTask(
     config: spec.intelligence.config,
   };
 
-  // history is a reserved input convention — never stored by OAS, just forwarded.
+  // history is a reserved input convention — never stored by OA, just forwarded.
   const history = Array.isArray(input["history"])
     ? (input["history"] as import("./types.js").ChatMessage[])
     : undefined;

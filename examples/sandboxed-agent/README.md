@@ -7,10 +7,10 @@ execution constraints _before_ any tool call reaches the I/O layer.
 
 | Layer | Concern |
 |-------|---------|
-| **OAS `sandbox:`** | Hard mechanical block — binary allow/deny enforced by the runner |
+| **OA `sandbox:`** | Hard mechanical block — binary allow/deny enforced by the runner |
 | **BCE `behavioural_contract:`** | Soft policy audit — validated after the run |
 
-OAS owns **what a task can do**. BCE owns **what a task should do**. They never overlap.
+OA owns **what a task can do**. BCE owns **what a task should do**. They never overlap.
 
 ## Sandbox keys
 
@@ -67,4 +67,4 @@ Or call a blocked domain (by temporarily editing the prompt):
 - **Prompt injection detection** — subjective, evolving, belongs in BCE
 - **PII scanning** — policy-level concern, belongs in BCE
 - **Memory / session management** — out of scope for a stateless runner
-- **Parallel execution or retry logic** — not OAS concerns
+- **Parallel execution or retry logic** — not OA concerns

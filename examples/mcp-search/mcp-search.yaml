@@ -4,7 +4,7 @@ agent:
   name: mcp-researcher
   description: >
     A researcher agent that uses an MCP server for web search.
-    Demonstrates connecting OAS to any MCP-compatible tool server
+    Demonstrates connecting OA to any MCP-compatible tool server
     with no SDK dependency — just HTTP.
   role: analyst
 
@@ -15,7 +15,7 @@ intelligence:
 
 # ── Tool declarations ──────────────────────────────────────────────────────
 #
-# Point 'endpoint' at any running MCP server.  OAS calls tools/list on
+# Point 'endpoint' at any running MCP server.  OA calls tools/list on
 # startup to discover what tools it exposes, then tools/call at runtime.
 # No MCP library needed — it's plain JSON-RPC 2.0 over HTTP.
 #

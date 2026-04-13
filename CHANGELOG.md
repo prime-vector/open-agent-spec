@@ -10,12 +10,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - **Immutable Inference Sandboxing (IIS)** — a new `sandbox:` spec key that lets you declare hard execution constraints enforced by the runner *before* any tool call reaches the I/O layer. Three constraint types: `tools.allow`/`deny` (tool allowlist/denylist), `http.allow_domains` (HTTP host restriction for `http.get`/`http.post`), `file.allow_paths` (file path restriction for `file.read`/`file.write`). Sandbox can be declared at root level (all tasks) or per-task (overrides root). Three structured error codes: `SANDBOX_TOOL_VIOLATION`, `SANDBOX_DOMAIN_VIOLATION`, `SANDBOX_PATH_VIOLATION`.
 - **Chain-wide input immutability** — every task boundary now receives a deep copy of its input. Upstream chain mutations can never leak into downstream inputs or back to the caller's original dict.
-- **History threading** — pass a `history` array in the input to any task and it is injected into the LLM message list between system and user turns, enabling stateless multi-turn conversations without OAS managing persistence.
+- **History threading** — pass a `history` array in the input to any task and it is injected into the LLM message list between system and user turns, enabling stateless multi-turn conversations without OA managing persistence.
 - **Memory-retriever registry spec** (`oa://prime-vector/memory-retriever`) — an LLM re-ranker that accepts pre-fetched `candidates` (prior conversation turns from your own store) and returns the most contextually relevant ones as a `history` array, ready to inject into any chat-capable task.
 - **Spec Registry** — `openagentspec.dev/registry/` hosts shareable specs via `oa://` shorthand URLs. Includes seed specs: `oa://prime-vector/summariser`, `classifier`, `sentiment`, `code-reviewer`, `keyword-extractor`, and `memory-retriever`.
 - **npm CLI** (`@prime-vector/open-agent-spec`) — a native TypeScript port of `oa run` for Node.js environments. Supports OpenAI and Anthropic providers, `depends_on` chains, and history threading. No Python required.
 - **CLI terminal UI redesign** — new compact bot-face banner (`Panel.fit`), live inference spinner, syntax-highlighted JSON output panel, smart string rendering (Markdown for prose, extracted fenced JSON), and a unified help panel combining the bot face and command reference.
-- **`examples/sandboxed-agent/`** — demo spec showing root-level sandbox, per-task sandbox override, and the OAS vs BCE boundary.
+- **`examples/sandboxed-agent/`** — demo spec showing root-level sandbox, per-task sandbox override, and the OA vs BCE boundary.
 - **`examples/chat-agent/`** and **`examples/memory-chat/`** — reference implementations for history threading and the memory-retriever re-ranker pattern.
 - **Formal spec** `spec/open-agent-spec-1.5.md` and canonical schema `spec/schema/oas-schema-1.5.json` updated with all new keys (`sandbox:`, `history` threading convention).
 
@@ -33,7 +33,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [1.4.1] - 2026-04-12
 
 ### Added
-- **Formal specification** — `spec/open-agent-spec-1.4.md`, an RFC 2119-style document defining the complete OAS 1.4.0 standard. An independent implementor can build a conforming runtime from this document alone.
+- **Formal specification** — `spec/open-agent-spec-1.4.md`, an RFC 2119-style document defining the complete OA 1.4.0 standard. An independent implementor can build a conforming runtime from this document alone.
 - **Conformance test suite** — 29 YAML test cases across 6 categories (schema validation, prompt resolution, depends_on chains, delegation, response format, error model) with a reference runner at `spec/conformance/runner/conformance_runner.py`.
 - **Extensions documentation** — `spec/extensions/README.md` describing the three extension mechanisms: tools (native/mcp/custom), behavioural contracts, and custom engines.
 - **Canonical schema** — `spec/schema/oas-schema-1.4.json` placed alongside the spec as a normative artifact.
@@ -62,7 +62,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 - `output` removed from the task JSON schema `required` array; enforced by the Python validator for non-delegated, non-multi-step tasks (enables delegated tasks to omit inline schema).
-- `depends_on` description in schema and `REFERENCE.md` updated with the design principle and a hard-wall table of features OAS intentionally does not support.
+- `depends_on` description in schema and `REFERENCE.md` updated with the design principle and a hard-wall table of features OA intentionally does not support.
 - Spec version aligned to **1.4.0** across all examples, templates, `.agents/`, Website content, REFERENCE.md, CONTRIBUTING.md, and README.
 
 ---

@@ -94,7 +94,7 @@ def invoke_intelligence(
         config:  Intelligence config produced by ``_build_intelligence_config``.
         history: Optional prior-turn messages (OpenAI wire format).
                  When provided, they are inserted between the system message and
-                 the current user turn.  OAS never stores or manages history —
+                 the current user turn.  OA never stores or manages history —
                  it is simply forwarded from ``input.history``.
 
     Returns:

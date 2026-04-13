@@ -53,7 +53,7 @@ tasks:
     description: >
       Analyse the sentiment of a summarised text. Requires the output of
       'summarise' as its input — this is a data dependency, not a workflow
-      instruction. OAS merges the summary output into this task's input;
+      instruction. OA merges the summary output into this task's input;
       execution ordering is a side-effect of that, not the purpose.
     depends_on:
       - summarise

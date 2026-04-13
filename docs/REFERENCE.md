@@ -2,7 +2,7 @@
 
 For a short intro, see the [README](../README.md). This page is the longer reference moved out of the main README so PyPI stays simple.
 
-> **Formal specification:** The normative definition of OAS 1.5.0 — what a conforming runtime MUST do — lives at [`spec/open-agent-spec-1.4.md`](../spec/open-agent-spec-1.4.md). This reference guide covers practical usage of the CLI and reference implementation. When this guide and the spec disagree, the spec is authoritative.
+> **Formal specification:** The normative definition of OA 1.5.0 — what a conforming runtime MUST do — lives at [`spec/open-agent-spec-1.4.md`](../spec/open-agent-spec-1.4.md). This reference guide covers practical usage of the CLI and reference implementation. When this guide and the spec disagree, the spec is authoritative.
 
 ## Spec file structure
 
@@ -235,7 +235,7 @@ Omit `expect` or use `{}` for a **smoke** case that only checks the task complet
 
 ### Design principle
 
-> **OAS describes what data a task needs and how it is implemented —
+> **OA describes what data a task needs and how it is implemented —
 > never how execution should proceed.**
 
 `depends_on` is a **data contract**, not a workflow instruction.
@@ -245,7 +245,7 @@ When a task declares `depends_on: [extract]`, it is saying:
 
 Execution ordering is a *side-effect* of satisfying that data dependency — not the purpose.
 
-This distinction matters. OAS intentionally **does not support** and will not add:
+This distinction matters. OA intentionally **does not support** and will not add:
 
 | Feature | Why it's out of scope |
 |---|---|
@@ -255,7 +255,7 @@ This distinction matters. OAS intentionally **does not support** and will not ad
 | Fallback tasks | Dynamic routing — belongs in the calling platform |
 | Dynamic task selection | Orchestration — belongs in the calling platform |
 
-If you need any of the above, express them outside OAS in whatever platform or orchestrator is invoking the spec. OAS stays composable and inspectable precisely because it refuses to become a workflow engine.
+If you need any of the above, express them outside OA in whatever platform or orchestrator is invoking the spec. OA stays composable and inspectable precisely because it refuses to become a workflow engine.
 
 ---
 
@@ -298,7 +298,7 @@ tasks:
    merged = {**caller_input, **dep1_output, **dep2_output, ...}
    ```
 2. **Fail fast** — required input fields are validated *after* the merge; missing fields raise `CHAIN_INPUT_MISSING` before the model is called
-3. **Linear chains only** — no branching, no conditions, no loops; if you need those, express them outside OAS
+3. **Linear chains only** — no branching, no conditions, no loops; if you need those, express them outside OA
 4. **Cycle detection** — circular references raise `CHAIN_CYCLE_ERROR` at run time
 
 ### Result envelope
@@ -417,16 +417,16 @@ A contract violation on a dependency stops the chain immediately and raises `CON
 
 ## Immutable Inference Sandboxing (IIS)
 
-OAS gives every spec a `sandbox:` block that defines **what a task is mechanically permitted to do**. The runner enforces these constraints _before_ any tool call reaches the I/O layer — no network connection is opened, no file handle is created, no exception needs to be caught.
+OA gives every spec a `sandbox:` block that defines **what a task is mechanically permitted to do**. The runner enforces these constraints _before_ any tool call reaches the I/O layer — no network connection is opened, no file handle is created, no exception needs to be caught.
 
 ### The boundary
 
 | Layer | Concern | Mechanism |
 |-------|---------|-----------|
-| **OAS `sandbox:`** | Hard execution constraints | Runner blocks before dispatch |
+| **OA `sandbox:`** | Hard execution constraints | Runner blocks before dispatch |
 | **BCE `behavioural_contract:`** | Policy / quality contract | Validated after the run |
 
-OAS controls **what a task can do**. BCE controls **what a task should do**. They are complementary and never overlap.
+OA controls **what a task can do**. BCE controls **what a task should do**. They are complementary and never overlap.
 
 ### Root-level sandbox (applies to all tasks)
 
@@ -492,7 +492,7 @@ Every task receives a **deep copy** of its input. Chain outputs merged into down
 
 ### Future BCE rename note
 
-The BCE library currently uses `allowed_tools` in `behavioural_contract` as an audit field. A future BCE release will rename this to `expected_tools` to make it unambiguous that this is a _post-run audit assertion_, not an enforcement rule. The OAS `sandbox.tools.allow` list is the enforcement mechanism; BCE's audit field is observational only.
+The BCE library currently uses `allowed_tools` in `behavioural_contract` as an audit field. A future BCE release will rename this to `expected_tools` to make it unambiguous that this is a _post-run audit assertion_, not an enforcement rule. The OA `sandbox.tools.allow` list is the enforcement mechanism; BCE's audit field is observational only.
 
 ### Example
 
@@ -706,7 +706,7 @@ This repository's own `.agents/` directory contains four specs used for developm
 
 ## Memory management
 
-OAS is **stateless by design** — it never stores, summarises, or manages
+OA is **stateless by design** — it never stores, summarises, or manages
 conversation history.  This keeps specs portable and infrastructure-agnostic.
 Two patterns cover the common memory use-cases without breaking that boundary.
 
@@ -715,7 +715,7 @@ Two patterns cover the common memory use-cases without breaking that boundary.
 Pass prior turns as the reserved `history` input field.  The runner
 automatically injects them between the system prompt and the current user
 message before calling the model.  Your application code manages the list;
-OAS just forwards it.
+OA just forwards it.
 
 ```yaml
 tasks:
@@ -728,7 +728,7 @@ tasks:
           type: array
           description: >
             Prior turns — [{"role": "user"|"assistant", "content": "…"}, …].
-            Injected by the runner automatically. OAS never writes to this field.
+            Injected by the runner automatically. OA never writes to this field.
           items:
             type: object
             properties:
@@ -756,7 +756,7 @@ See [`examples/chat-agent/`](../examples/chat-agent/) for a full working example
 
 ### Pattern 2 — Long-term memory (across sessions)
 
-OAS specs are pure LLM interfaces — they cannot make HTTP calls during prompt
+OA specs are pure LLM interfaces — they cannot make HTTP calls during prompt
 rendering.  The long-term memory pattern therefore has two distinct layers:
 
 | Layer | Owner | Responsibility |
@@ -789,14 +789,14 @@ input automatically — no glue code required in the spec.
 See [`examples/memory-chat/`](../examples/memory-chat/) for a runnable
 pipeline with a pre-populated `candidates` input.
 
-### What OAS deliberately does NOT do
+### What OA deliberately does NOT do
 
 | Capability | Where it belongs |
 |---|---|
 | Session persistence | Your application / infrastructure |
 | History summarisation | A dedicated summarisation spec (`oa://prime-vector/summariser`) |
 | Memory write / upsert | Your memory store's write endpoint |
-| Branching on memory content | Outside OAS (OAS has no conditionals) |
+| Branching on memory content | Outside OA (OA has no conditionals) |
 
 ---
 

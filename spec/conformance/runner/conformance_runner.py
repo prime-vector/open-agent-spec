@@ -1,14 +1,14 @@
-"""OAS 1.5.0 Conformance Test Runner.
+"""OA 1.5.0 Conformance Test Runner.
 
 Loads YAML test cases from spec/conformance/cases/, mocks LLM calls,
-runs each case through the OAS runner, and asserts expected outcomes.
+runs each case through the OA runner, and asserts expected outcomes.
 
 Usage:
     python -m spec.conformance.runner.conformance_runner          # run all
     python -m spec.conformance.runner.conformance_runner schema   # run one category
     python -m spec.conformance.runner.conformance_runner --list   # list cases
 
-This runner tests the *reference* OAS implementation (oas_cli.runner).
+This runner tests the *reference* OA implementation (oas_cli.runner).
 Other runtimes can adapt it by replacing the invocation layer.
 """
 
@@ -386,7 +386,7 @@ def main() -> None:
     verbose = "--quiet" not in args and "-q" not in args
 
     if verbose:
-        print("OAS 1.5.0 Conformance Suite")
+        print("OA 1.5.0 Conformance Suite")
         print("=" * 40)
 
     passed, failed, skipped, _failures = run_conformance(category, verbose)

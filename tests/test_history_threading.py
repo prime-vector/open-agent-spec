@@ -1,4 +1,4 @@
-"""Tests for history threading — OAS injects prior turns between system and user."""
+"""Tests for history threading — OA injects prior turns between system and user."""
 
 from __future__ import annotations
 

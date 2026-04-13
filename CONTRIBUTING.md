@@ -129,7 +129,7 @@ See the existing `.agents/ci-failure-repair.yaml` for a production-quality examp
 
 ### Contributing Conformance Tests
 
-The formal specification at `spec/open-agent-spec-1.4.md` defines what a conforming OAS runtime MUST do. The conformance test suite at `spec/conformance/cases/` operationalises those requirements — each test case validates a specific normative MUST/MUST NOT from the spec.
+The formal specification at `spec/open-agent-spec-1.4.md` defines what a conforming OA runtime MUST do. The conformance test suite at `spec/conformance/cases/` operationalises those requirements — each test case validates a specific normative MUST/MUST NOT from the spec.
 
 To add a conformance test:
 
@@ -141,7 +141,7 @@ To add a conformance test:
 
 See `spec/conformance/README.md` for the full test case format and category structure.
 
-**Key distinction:** Conformance tests validate *runtime behaviour against the spec*, not implementation details. They should pass for any conforming OAS runtime, not just the reference Python implementation.
+**Key distinction:** Conformance tests validate *runtime behaviour against the spec*, not implementation details. They should pass for any conforming OA runtime, not just the reference Python implementation.
 
 ### Reporting Bugs
 

@@ -4,7 +4,7 @@ agent:
   name: sandboxed-doc-reader
   description: >
     A read-only document assistant that can only access approved local files
-    and call approved APIs. Demonstrates OAS Immutable Inference Sandboxing (IIS):
+    and call approved APIs. Demonstrates OA Immutable Inference Sandboxing (IIS):
     the runner blocks any tool call that violates these constraints before it
     reaches the I/O layer — no network call, no file open, no exception to catch.
   role: analyst

@@ -1,4 +1,4 @@
-"""Base class and types for OAS tool providers."""
+"""Base class and types for OA tool providers."""
 
 from __future__ import annotations
 

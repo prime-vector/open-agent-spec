@@ -7,7 +7,7 @@ agent:
     replies to the user with the selected context injected as history.
 
     Your application code fetches raw candidates from the memory store and
-    passes them in as `candidates`.  OAS never touches the store directly.
+    passes them in as `candidates`.  OA never touches the store directly.
 
     1. `recall`  — delegates to oa://prime-vector/memory-retriever.
        Takes `query` and `candidates`; returns `history` and `memory_count`.

@@ -1,4 +1,4 @@
-"""OAS intelligence providers — raw-HTTP, no-SDK implementations."""
+"""OA intelligence providers — raw-HTTP, no-SDK implementations."""
 
 from .base import EngineNotSupportedError, IntelligenceProvider, ProviderError
 from .custom import CustomProvider

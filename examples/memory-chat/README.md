@@ -1,11 +1,11 @@
 # memory-chat
 
 Demonstrates how to combine **LLM-powered memory re-ranking** with a
-**stateless chat reply** using OAS spec composition.
+**stateless chat reply** using OA spec composition.
 
 ## How it works
 
-OAS specs are pure LLM interfaces — they cannot make HTTP calls to external
+OA specs are pure LLM interfaces — they cannot make HTTP calls to external
 services during prompt rendering.  The memory pattern therefore has two
 distinct layers:
 
@@ -73,7 +73,7 @@ from oas_cli.runner import run_task_from_file
 resp = httpx.post("http://localhost:8765/search", json={"query": message, "top_n": 10})
 candidates = resp.json()["results"]   # [{role, content}, ...]
 
-# 2. Run the pipeline — OAS handles the rest
+# 2. Run the pipeline — OA handles the rest
 result = run_task_from_file(
     "examples/memory-chat/pipeline.yaml",
     task_name="respond",
@@ -82,7 +82,7 @@ result = run_task_from_file(
 print(result["output"]["reply"])
 ```
 
-## What OAS deliberately does NOT do
+## What OA deliberately does NOT do
 
 | Capability | Where it belongs |
 |---|---|

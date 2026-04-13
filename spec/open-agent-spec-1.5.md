@@ -8,7 +8,7 @@
 
 ## Abstract
 
-This document defines the Open Agent Spec (OAS) 1.5.0. It specifies the structure of an OAS document, the semantics that a conforming runtime MUST implement, and the boundaries of what OAS deliberately does not do. An independent implementor MUST be able to build a conforming runtime from this document alone.
+This document defines the Open Agent Spec (OA) 1.5.0. It specifies the structure of an OA document, the semantics that a conforming runtime MUST implement, and the boundaries of what OA deliberately does not do. An independent implementor MUST be able to build a conforming runtime from this document alone.
 
 ---
 
@@ -23,11 +23,11 @@ Open Agent Spec is a YAML-based document format for declaring AI agent tasks. A 
 - optional tool declarations
 - optional behavioural contracts
 
-OAS is **not** an execution framework, an orchestration engine, or an AI library. It is a document standard — a machine-readable contract between a spec author and a conforming runtime.
+OA is **not** an execution framework, an orchestration engine, or an AI library. It is a document standard — a machine-readable contract between a spec author and a conforming runtime.
 
-### 1.1 What OAS is NOT
+### 1.1 What OA is NOT
 
-OAS explicitly prohibits — and a conforming runtime MUST NOT implement — the following:
+OA explicitly prohibits — and a conforming runtime MUST NOT implement — the following:
 
 | Feature | Classification | Rationale |
 |---------|---------------|-----------|
@@ -47,7 +47,7 @@ The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT", "SHOULD", "S
 
 - [RFC 2119](https://datatracker.ietf.org/doc/html/rfc2119) — Key words for use in RFCs to indicate requirement levels
 - [JSON Schema Draft-07](https://json-schema.org/specification-links.html#draft-7) — Schema language used for input/output validation
-- `spec/schema/oas-schema-1.5.json` — Machine-readable JSON Schema for OAS documents (canonical, normative)
+- `spec/schema/oas-schema-1.5.json` — Machine-readable JSON Schema for OA documents (canonical, normative)
 
 ---
 
@@ -77,7 +77,7 @@ The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT", "SHOULD", "S
 
 ### 3.1 Format
 
-An OAS document MUST be a valid YAML file that deserializes to a JSON-compatible mapping (object). The document MUST validate against the JSON Schema at `spec/schema/oas-schema-1.5.json`.
+An OA document MUST be a valid YAML file that deserializes to a JSON-compatible mapping (object). The document MUST validate against the JSON Schema at `spec/schema/oas-schema-1.5.json`.
 
 ### 3.2 Top-Level Keys
 
@@ -574,7 +574,7 @@ A runtime MUST detect and raise `CHAIN_CYCLE_ERROR` and `DELEGATION_CYCLE_ERROR`
 
 ### 12.1 Conformance Levels
 
-A runtime conforms to OAS 1.5.0 if it:
+A runtime conforms to OA 1.5.0 if it:
 
 1. **MUST** accept spec documents that validate against `spec/schema/oas-schema-1.5.json` and reject documents that do not.
 2. **MUST** implement the four-level prompt resolution order defined in Section 9.1.

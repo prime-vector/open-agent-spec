@@ -1,11 +1,11 @@
-"""Multi-turn chat loop demonstrating OAS history threading.
+"""Multi-turn chat loop demonstrating OA history threading.
 
 Usage:
     python examples/chat-agent/chat.py
 
 How it works
 ------------
-OAS is stateless — it never stores conversation history.
+OA is stateless — it never stores conversation history.
 This script maintains the `history` list and passes it back on every
 invocation as a plain JSON input field.  The runner injects it between
 the system prompt and the current user message before calling the model.
@@ -17,7 +17,7 @@ The pattern is:
 4. Append the user turn and the assistant reply to history.
 5. Repeat.
 
-Memory across sessions is out of scope for OAS.  For long-term memory,
+Memory across sessions is out of scope for OA.  For long-term memory,
 delegate a retrieval step to oa://prime-vector/memory-retriever — see
 examples/memory-chat/ for that pattern.
 """
@@ -38,7 +38,7 @@ SPEC_PATH = Path(__file__).parent / "spec.yaml"
 def main() -> None:
     history: list[dict] = []
 
-    print("OAS chat-agent  (type 'quit' to exit)\n")
+    print("OA chat-agent  (type 'quit' to exit)\n")
 
     while True:
         try:
