@@ -1,9 +1,15 @@
-ASCII_TITLE = r"""
-  _______ _______ _______ ______     _______ _______ _______ ______  _______    _______ _______ _______ _______
- |   _   |   _   |   _   |   _  \   |   _   |   _   |   _   |   _  \|       |  |   _   |   _   |   _   |   _   |
- |.  |   |.  1   |.  1___|.  |   |  |.  1   |.  |___|.  1___|.  |   |.|   | |  |   1___|.  1   |.  1___|.  1___|
- |.  |   |.  ____|.  __)_|.  |   |  |.  _   |.  |   |.  __)_|.  |   `-|.  |-'  |____   |.  ____|.  __)_|.  |___
- |:  1   |:  |   |:  1   |:  |   |  |:  |   |:  1   |:  1   |:  |   | |:  |    |:  1   |:  |   |:  1   |:  1   |
- |::.. . |::.|   |::.. . |::.|   |  |::.|:. |::.. . |::.. . |::.|   | |::.|    |::.. . |::.|   |::.. . |::.. . |
- `-------`---'   `-------`--- ---'  `--- ---`-------`-------`--- ---' `---'    `-------`---'   `-------`-------'
+"""OA CLI banner and branding assets."""
+
+# Compact bot-face banner. Renders cleanly at 80+ columns in any modern terminal.
+# The ◈ glyph is the OA "agent node" icon used consistently across CLI surfaces.
+
+BANNER = r"""
+  ╔═══╗
+  ║◈ ◈║  Open Agent Spec
+  ╚═╤═╝  Agents as code.
+    ╧
 """
+
+# Keep the old name so existing callers in main.py still work until
+# they are migrated to the new ui module.
+ASCII_TITLE = BANNER

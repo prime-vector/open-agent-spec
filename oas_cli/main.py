@@ -5,6 +5,7 @@ import json
 import logging
 import sys
 import tempfile
+import time
 from importlib.metadata import version as _get_version
 from pathlib import Path
 from typing import Any
@@ -14,12 +15,19 @@ from rich.console import Console
 from rich.logging import RichHandler
 from rich.panel import Panel
 
-from .banner import ASCII_TITLE
 from .core import generate_files as core_generate_files
 from .core import validate_spec_file
 from .exceptions import AgentGenerationError
 from .runner import OARunError, _choose_task, _load_spec, run_task_from_file
 from .spec_test import SpecTestError, run_cases_from_file
+from .ui import (
+    inference_spinner,
+    print_banner,
+    print_error_panel,
+    print_help_panel,
+    print_result_panel,
+    print_run_header,
+)
 
 app = typer.Typer(help="Open Agent (OA) CLI")
 console = Console()
@@ -48,26 +56,13 @@ def main(
     version: bool = typer.Option(False, "--version", help="Show version and exit"),
 ):
     """Main CLI entry point."""
+    cli_version = get_version_from_pyproject()
     if version:
-        cli_version = get_version_from_pyproject()
-        console.print(
-            f"[bold cyan]Open Agent Spec CLI[/] version [green]{cli_version}[/]"
-        )
+        print_banner(console, cli_version)
         raise typer.Exit()
 
     if ctx.invoked_subcommand is None or ctx.invoked_subcommand == "help":
-        console.print(f"[bold cyan]{ASCII_TITLE}[/]\n")
-        console.print(
-            Panel.fit(
-                "Use [bold magenta]oa init aac[/] for .agents/ agent-as-code layout\n"
-                "Use [bold magenta]oa init --spec … --output …[/] to scaffold code\n"
-                "Use [bold magenta]oa update[/] to update existing agent code\n"
-                "Define it via Open Agent Spec YAML\n"
-                "Use [bold yellow]--dry-run[/] to preview without writing files.",
-                title="[bold green]OA CLI[/]",
-                subtitle="Open Agent Spec Generator",
-            )
-        )
+        print_help_panel(console, cli_version)
 
 
 def load_and_validate_spec(
@@ -134,13 +129,7 @@ def _run_init_code_gen(
     if verbose:
         log.setLevel(logging.DEBUG)
 
-    console.print(
-        Panel(
-            ASCII_TITLE,
-            title="[bold cyan]OA CLI[/]",
-            subtitle="[green]Open Agent Spec Generator[/]",
-        )
-    )
+    print_banner(console, get_version_from_pyproject())
 
     spec_path, temp_file_to_delete = resolve_spec_path(spec, template, log)
     try:
@@ -521,13 +510,7 @@ def update(
         )
         raise typer.Exit(2)
 
-    console.print(
-        Panel(
-            ASCII_TITLE,
-            title="[bold cyan]OA CLI[/]",
-            subtitle="[green]Open Agent Spec Updater[/]",
-        )
-    )
+    print_banner(console, get_version_from_pyproject())
 
     # Narrow types after validation above.
     spec = spec
@@ -622,13 +605,8 @@ def run(
             logging.getLogger("oas").setLevel(logging.WARNING)
 
     if not quiet:
-        console.print(
-            Panel(
-                ASCII_TITLE,
-                title="[bold cyan]OA CLI[/]",
-                subtitle="[green]Open Agent Spec Runner[/]",
-            )
-        )
+        cli_version = get_version_from_pyproject()
+        print_banner(console, cli_version)
 
     try:
         input_data: dict[str, Any] | None = None
@@ -688,35 +666,66 @@ def run(
                     raise typer.BadParameter("--input JSON must be an object")
                 input_data = parsed
 
+        # Load spec once for the header + spinner labels (reused by the runner).
+        spec_data_preview = _load_spec(spec)
+        intel = spec_data_preview.get("intelligence") or {}
+        _model = intel.get("model") or "model"
+        # Resolve the actual task name (handles auto-selection when --task omitted)
+        _task_label, _ = _choose_task(spec_data_preview, task)
+
+        # Show run header (agent name, task, model) before calling the model.
+        if not quiet:
+            print_run_header(console, spec_data_preview, _task_label)
+
         # When --quiet, redirect stdout to stderr during the run so logs from
         # our code or deps (dacp, httpx) don't pollute the pipe to jq.
         if quiet:
             real_stdout = sys.stdout
             sys.stdout = sys.stderr
+
+        t0 = time.monotonic()
         try:
-            result = run_task_from_file(
-                spec,
-                task_name=task,
-                input_data=input_data,
-                override_system=system_prompt,
-                override_user=user_prompt,
-            )
+            if quiet:
+                result = run_task_from_file(
+                    spec,
+                    task_name=task,
+                    input_data=input_data,
+                    override_system=system_prompt,
+                    override_user=user_prompt,
+                )
+            else:
+                with inference_spinner(console, _model, _task_label):
+                    result = run_task_from_file(
+                        spec,
+                        task_name=task,
+                        input_data=input_data,
+                        override_system=system_prompt,
+                        override_user=user_prompt,
+                    )
         finally:
             if quiet:
                 sys.stdout = real_stdout
+
+        elapsed = time.monotonic() - t0
+
         if quiet:
-            # Print only the agent's output (e.g. decision + summary) for clean piping
+            # Print only the agent's output for clean piping.
+            # dict/list → pretty JSON; plain string → written directly so no
+            # \n escaping or extra quotes corrupt the output.
             out = result.get("output", result)
-            typer.echo(json.dumps(out, indent=2))
+            if isinstance(out, (dict, list)):
+                typer.echo(json.dumps(out, indent=2))
+            else:
+                typer.echo(str(out) if out is not None else "")
         else:
-            console.print_json(data=result)
+            print_result_panel(console, result, elapsed_s=elapsed)
+
     except OARunError as err:
         if quiet:
             # Machine-readable structured error on stderr — stdout stays clean.
             typer.echo(json.dumps(err.to_dict(), indent=2), err=True)
         else:
-            log.error(str(err))
-            typer.echo(str(err), err=True)
+            print_error_panel(console, "Run error", str(err))
         raise typer.Exit(1)
     except Exception as err:
         if quiet:
@@ -727,8 +736,7 @@ def run(
                 err=True,
             )
         else:
-            log.error(str(err))
-            typer.echo(str(err), err=True)
+            print_error_panel(console, "Unexpected error", str(err))
         raise typer.Exit(1)
 
 
