@@ -127,7 +127,7 @@ cases:
 """
     )
 
-    def fake_invoke(system: str, user: str, config: dict) -> str:
+    def fake_invoke(system: str, user: str, config: dict, history=None) -> str:
         return json.dumps({"response": "Hello Bob from mock"})
 
     with patch("oas_cli.runner.invoke_intelligence", fake_invoke):
@@ -154,7 +154,7 @@ cases:
 """
     )
 
-    def fake_invoke(system: str, user: str, config: dict) -> str:
+    def fake_invoke(system: str, user: str, config: dict, history=None) -> str:
         return json.dumps({"response": "Hello x"})
 
     with patch("oas_cli.runner.invoke_intelligence", fake_invoke):
@@ -183,7 +183,7 @@ cases:
 """
     )
 
-    def fake_invoke(system: str, user: str, config: dict) -> str:
+    def fake_invoke(system: str, user: str, config: dict, history=None) -> str:
         return json.dumps({"response": "Hi Bob"})
 
     with patch("oas_cli.runner.invoke_intelligence", fake_invoke):

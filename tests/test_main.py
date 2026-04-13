@@ -119,7 +119,7 @@ def test_run_system_prompt_override_reaches_runner(tmp_path):
     spec_file = _write_spec(tmp_path)
     captured: dict = {}
 
-    def fake_invoke(system: str, user: str, config: dict) -> str:
+    def fake_invoke(system: str, user: str, config: dict, history=None) -> str:
         captured["prompt"] = f"{system}\n\n{user}"
         return '{"response": "hi"}'
 
@@ -151,7 +151,7 @@ def test_run_user_prompt_override_reaches_runner(tmp_path):
     spec_file = _write_spec(tmp_path)
     captured: dict = {}
 
-    def fake_invoke(system: str, user: str, config: dict) -> str:
+    def fake_invoke(system: str, user: str, config: dict, history=None) -> str:
         captured["prompt"] = f"{system}\n\n{user}"
         return '{"response": "hi"}'
 
@@ -182,7 +182,7 @@ def test_run_no_overrides_uses_per_task_prompt(tmp_path):
     spec_file = _write_spec(tmp_path)
     captured: dict = {}
 
-    def fake_invoke(system: str, user: str, config: dict) -> str:
+    def fake_invoke(system: str, user: str, config: dict, history=None) -> str:
         captured["prompt"] = f"{system}\n\n{user}"
         return '{"response": "hi"}'
 
@@ -210,7 +210,7 @@ def test_run_output_is_valid_json_in_quiet_mode(tmp_path):
     """oa run --quiet outputs valid JSON."""
     spec_file = _write_spec(tmp_path)
 
-    def fake_invoke(system: str, user: str, config: dict) -> str:
+    def fake_invoke(system: str, user: str, config: dict, history=None) -> str:
         return '{"response": "Hello Alice!"}'
 
     with patch("oas_cli.runner.invoke_intelligence", fake_invoke):

@@ -1,4 +1,4 @@
-import type { ProviderConfig } from "../types.js";
+import type { ProviderConfig, ChatMessage } from "../types.js";
 import { OAError } from "../loader.js";
 
 const ANTHROPIC_BASE = "https://api.anthropic.com/v1";
@@ -8,6 +8,7 @@ export async function invokeAnthropic(
   system: string,
   user: string,
   config: ProviderConfig,
+  history?: ChatMessage[],
 ): Promise<string> {
   const apiKey = process.env["ANTHROPIC_API_KEY"];
   if (!apiKey) {
@@ -18,11 +19,15 @@ export async function invokeAnthropic(
     );
   }
 
+  const messages: ChatMessage[] = [];
+  if (history?.length) messages.push(...history);
+  messages.push({ role: "user", content: user });
+
   const extraConfig = (config.config ?? {}) as Record<string, unknown>;
   const body: Record<string, unknown> = {
     model: config.model,
     max_tokens: extraConfig["max_tokens"] ?? 4096,
-    messages: [{ role: "user", content: user }],
+    messages,
   };
   if (system) body["system"] = system;
   if (extraConfig["temperature"] !== undefined)

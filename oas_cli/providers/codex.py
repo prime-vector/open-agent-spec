@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from typing import Any
+
 from .base import IntelligenceProvider, ProviderError
 
 
@@ -10,9 +12,17 @@ class CodexProvider(IntelligenceProvider):
 
     Merges system and user into a single prompt string because the codex adapter
     accepts a flat prompt rather than separate roles.
+    History is not forwarded — the Codex adapter uses a flat single-turn prompt.
     """
 
-    def invoke(self, *, system: str, user: str, config: dict) -> str:
+    def invoke(
+        self,
+        *,
+        system: str,
+        user: str,
+        config: dict,
+        history: list[dict[str, Any]] | None = None,
+    ) -> str:
         try:
             from oas_cli.adapters import (
                 codex_adapter,  # local import avoids circular dep

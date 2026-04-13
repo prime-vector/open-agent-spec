@@ -449,6 +449,7 @@ def _invoke_with_tools(
     tools: list,
     intelligence_config: dict[str, Any],
     task_name: str,
+    history: list[dict] | None = None,
 ) -> str:
     """Multi-turn tool-call loop.
 
@@ -459,6 +460,9 @@ def _invoke_with_tools(
 
     Falls back to a single ``invoke_intelligence`` call when the selected provider
     does not support tool use natively (e.g. Codex adapter).
+
+    ``history`` is injected before the current user turn, mirroring the behaviour
+    of the no-tools path so conversation context is never lost.
     """
     provider = get_provider(intelligence_config)
 
@@ -472,9 +476,13 @@ def _invoke_with_tools(
         augmented_system = (
             f"{system}\n\nYou have access to the following tools:\n{tool_descriptions}"
         )
-        return invoke_intelligence(augmented_system, user, intelligence_config)
+        return invoke_intelligence(augmented_system, user, intelligence_config, history)
 
-    messages: list[dict[str, Any]] = [{"role": "user", "content": user}]
+    # Seed the message list: prior turns first, then current user turn.
+    messages: list[dict[str, Any]] = []
+    if history:
+        messages.extend(history)
+    messages.append({"role": "user", "content": user})
 
     for iteration in range(_MAX_TOOL_ITERATIONS):
         result: InvokeResult = provider.invoke_with_tools(
@@ -669,14 +677,17 @@ def _run_single_task(
     )
     intelligence_config = _build_intelligence_config(spec_data)
 
+    # history is a reserved input convention — never stored by OAS, just forwarded.
+    history: list[dict] | None = input_data.get("history") or None
+
     try:
         tools = resolve_task_tools(spec_data, task_name)
         if tools:
             raw_output = _invoke_with_tools(
-                system, user, tools, intelligence_config, task_name
+                system, user, tools, intelligence_config, task_name, history
             )
         else:
-            raw_output = invoke_intelligence(system, user, intelligence_config)
+            raw_output = invoke_intelligence(system, user, intelligence_config, history)
     except (ProviderError, ToolError) as exc:
         raise OARunError(
             str(exc),

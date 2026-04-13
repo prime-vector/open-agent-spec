@@ -1,0 +1,102 @@
+open_agent_spec: "1.4.0"
+
+agent:
+  name: memory-retriever
+  description: >
+    LLM-powered memory re-ranker.  Your application fetches raw candidate
+    turns from an external store (vector DB, Redis, SQLite FTS, etc.) and
+    passes them in as `candidates`.  This spec uses the LLM to select the
+    most contextually relevant turns, re-order them oldest-first, and return
+    them as a `history` array ready to inject into any chat-capable OAS task.
+
+    OAS never stores or manages memory — the store is external infrastructure.
+    This spec is purely a re-ranking interface between your store and the model.
+
+    Typical pipeline usage:
+      1. Application fetches top-N candidates from your memory store.
+      2. Delegate to this spec — pass `query` and `candidates`.
+      3. Use `depends_on` to feed the returned `history` into a chat task.
+  role: memory
+
+intelligence:
+  type: llm
+  engine: openai
+  model: gpt-4o-mini
+  config:
+    temperature: 0.0
+
+tasks:
+  retrieve:
+    description: >
+      Re-rank and filter `candidates` to return only the turns most relevant
+      to `query`, ordered oldest-first as a `history` array.
+    input:
+      type: object
+      properties:
+        query:
+          type: string
+          description: The user's current message or search phrase.
+        candidates:
+          type: array
+          description: >
+            Raw candidate turns fetched from your memory store.
+            Each item must have `role` ("user" or "assistant") and `content`.
+          items:
+            type: object
+            properties:
+              role:
+                type: string
+                enum: [user, assistant]
+              content:
+                type: string
+            required: [role, content]
+        top_k:
+          type: integer
+          description: Maximum number of prior turns to return (default 5).
+      required:
+        - query
+        - candidates
+    output:
+      type: object
+      properties:
+        history:
+          type: array
+          description: >
+            The most relevant prior turns, ordered oldest-first, ready to
+            pass as `history` input to any OAS chat task.
+          items:
+            type: object
+            properties:
+              role:
+                type: string
+                enum: [user, assistant]
+              content:
+                type: string
+            required: [role, content]
+        memory_count:
+          type: integer
+          description: Number of turns returned in `history`.
+      required:
+        - history
+        - memory_count
+    prompts:
+      system: >
+        You are a memory re-ranking assistant.  Select the conversation turns
+        most relevant to the user's current message, re-order them
+        oldest-first, and return valid JSON only — no prose, no markdown.
+      user: |
+        Current user message:
+        "{query}"
+
+        Candidate prior turns (may be in any order):
+        {candidates}
+
+        Return up to {top_k} of the most relevant turns, oldest-first.
+        Respond with JSON only:
+        {
+          "history": [
+            {"role": "user"|"assistant", "content": "…"},
+            …
+          ],
+          "memory_count": <integer>
+        }

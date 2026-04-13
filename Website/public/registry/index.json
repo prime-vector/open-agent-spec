@@ -67,6 +67,19 @@
       "usage": "spec: oa://prime-vector/code-reviewer",
       "task": "review_code",
       "url": "https://openagentspec.dev/registry/prime-vector/code-reviewer/latest/spec.yaml"
+    },
+    {
+      "id": "prime-vector/memory-retriever",
+      "name": "Memory Retriever",
+      "description": "Retrieve semantically relevant prior conversation turns from an external store and return them as a history context block ready to pass to any chat-capable OAS task.",
+      "namespace": "prime-vector",
+      "slug": "memory-retriever",
+      "latest": "1.0.0",
+      "versions": ["1.0.0"],
+      "tags": ["memory", "chat", "context", "retrieval"],
+      "usage": "spec: oa://prime-vector/memory-retriever",
+      "task": "retrieve",
+      "url": "https://openagentspec.dev/registry/prime-vector/memory-retriever/latest/spec.yaml"
     }
   ]
 }

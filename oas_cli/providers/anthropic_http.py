@@ -26,7 +26,14 @@ class AnthropicProvider(IntelligenceProvider):
     Reads ANTHROPIC_API_KEY from the environment (or api_key_env in the spec).
     """
 
-    def invoke(self, *, system: str, user: str, config: dict) -> str:
+    def invoke(
+        self,
+        *,
+        system: str,
+        user: str,
+        config: dict,
+        history: list[dict[str, Any]] | None = None,
+    ) -> str:
         api_key_env = config.get("api_key_env", "ANTHROPIC_API_KEY")
         api_key = os.environ.get(api_key_env)
         if not api_key:
@@ -44,9 +51,14 @@ class AnthropicProvider(IntelligenceProvider):
         max_tokens = int(config.get("max_tokens", 1000))
         timeout = int(config.get("timeout", _DEFAULT_TIMEOUT))
 
+        messages: list[dict[str, Any]] = []
+        if history:
+            messages.extend(history)
+        messages.append({"role": "user", "content": user})
+
         payload: dict[str, Any] = {
             "model": model,
-            "messages": [{"role": "user", "content": user}],
+            "messages": messages,
             "max_tokens": max_tokens,
             "temperature": temperature,
         }

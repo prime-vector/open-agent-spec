@@ -1,4 +1,4 @@
-import type { ProviderConfig } from "../types.js";
+import type { ProviderConfig, ChatMessage } from "../types.js";
 import { OAError } from "../loader.js";
 import { invokeOpenAI } from "./openai.js";
 import { invokeAnthropic } from "./anthropic.js";
@@ -10,14 +10,15 @@ export async function invokeProvider(
   system: string,
   user: string,
   config: ProviderConfig,
+  history?: ChatMessage[],
 ): Promise<string> {
   const engine = config.engine.toLowerCase();
 
   if (OPENAI_COMPATIBLE.has(engine)) {
-    return invokeOpenAI(system, user, config);
+    return invokeOpenAI(system, user, config, history);
   }
   if (ANTHROPIC_COMPATIBLE.has(engine)) {
-    return invokeAnthropic(system, user, config);
+    return invokeAnthropic(system, user, config, history);
   }
 
   throw new OAError(

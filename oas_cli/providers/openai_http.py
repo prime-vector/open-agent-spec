@@ -28,7 +28,14 @@ class OpenAIProvider(IntelligenceProvider):
     Reads OPENAI_API_KEY from the environment (or api_key_env in the spec).
     """
 
-    def invoke(self, *, system: str, user: str, config: dict) -> str:
+    def invoke(
+        self,
+        *,
+        system: str,
+        user: str,
+        config: dict,
+        history: list[dict[str, Any]] | None = None,
+    ) -> str:
         api_key_env: str | None = config.get("api_key_env", "OPENAI_API_KEY")
         api_key: str | None = os.environ.get(api_key_env) if api_key_env else None
 
@@ -54,10 +61,12 @@ class OpenAIProvider(IntelligenceProvider):
         timeout = int(config.get("timeout", _DEFAULT_TIMEOUT))
 
         if endpoint.endswith("/responses"):
-            payload = _build_responses_payload(system, user, model, temperature)
+            payload = _build_responses_payload(
+                system, user, model, temperature, history
+            )
         else:
             payload = _build_chat_completions_payload(
-                system, user, model, temperature, max_tokens
+                system, user, model, temperature, max_tokens, history
             )
 
         extra_headers: dict[str, str] = {}
@@ -134,28 +143,39 @@ class OpenAIProvider(IntelligenceProvider):
 
 
 def _build_chat_completions_payload(
-    system: str, user: str, model: str, temperature: float, max_tokens: int
+    system: str,
+    user: str,
+    model: str,
+    temperature: float,
+    max_tokens: int,
+    history: list[dict[str, Any]] | None = None,
 ) -> dict[str, Any]:
+    messages: list[dict[str, Any]] = [{"role": "system", "content": system}]
+    if history:
+        messages.extend(history)
+    messages.append({"role": "user", "content": user})
     return {
         "model": model,
-        "messages": [
-            {"role": "system", "content": system},
-            {"role": "user", "content": user},
-        ],
+        "messages": messages,
         "temperature": temperature,
         "max_tokens": max_tokens,
     }
 
 
 def _build_responses_payload(
-    system: str, user: str, model: str, temperature: float
+    system: str,
+    user: str,
+    model: str,
+    temperature: float,
+    history: list[dict[str, Any]] | None = None,
 ) -> dict[str, Any]:
+    turns: list[dict[str, Any]] = [{"role": "system", "content": system}]
+    if history:
+        turns.extend(history)
+    turns.append({"role": "user", "content": user})
     return {
         "model": model,
-        "input": [
-            {"role": "system", "content": system},
-            {"role": "user", "content": user},
-        ],
+        "input": turns,
         "temperature": temperature,
     }
 

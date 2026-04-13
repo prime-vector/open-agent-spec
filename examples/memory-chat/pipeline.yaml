@@ -1,0 +1,40 @@
+open_agent_spec: "1.4.0"
+
+agent:
+  name: memory-chat-pipeline
+  description: >
+    Two-task pipeline: LLM re-ranks pre-fetched memory candidates, then
+    replies to the user with the selected context injected as history.
+
+    Your application code fetches raw candidates from the memory store and
+    passes them in as `candidates`.  OAS never touches the store directly.
+
+    1. `recall`  — delegates to oa://prime-vector/memory-retriever.
+       Takes `query` and `candidates`; returns `history` and `memory_count`.
+
+    2. `respond` — delegates to the local chat-agent spec.
+       depends_on `recall` so the runner merges `history` into its input
+       automatically before calling the model.
+  role: assistant
+
+intelligence:
+  type: llm
+  engine: openai
+  model: gpt-4o-mini
+
+tasks:
+  recall:
+    description: >
+      Re-rank pre-fetched memory candidates and return the most relevant
+      turns as a history array.
+    spec: oa://prime-vector/memory-retriever
+    task: retrieve
+
+  respond:
+    description: >
+      Reply to the user's message using the retrieved history context.
+      The `history` field from `recall` is merged in automatically.
+    depends_on:
+      - recall
+    spec: ../chat-agent/spec.yaml
+    task: chat

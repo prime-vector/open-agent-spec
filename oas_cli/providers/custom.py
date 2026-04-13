@@ -15,6 +15,7 @@ When ``module`` is absent the provider falls back to the ``OpenAIProvider``
 from __future__ import annotations
 
 import importlib
+from typing import Any
 
 from .base import IntelligenceProvider, ProviderError
 
@@ -22,20 +23,40 @@ from .base import IntelligenceProvider, ProviderError
 class CustomProvider(IntelligenceProvider):
     """Routes to a user-supplied Python class, or falls back to HTTP."""
 
-    def invoke(self, *, system: str, user: str, config: dict) -> str:
+    def invoke(
+        self,
+        *,
+        system: str,
+        user: str,
+        config: dict,
+        history: list[dict[str, Any]] | None = None,
+    ) -> str:
         module_path: str | None = config.get("module")
 
         if not module_path:
             # No module specified — behave as a plain OpenAI-compatible endpoint.
             from .openai_http import OpenAIProvider
 
-            return OpenAIProvider().invoke(system=system, user=user, config=config)
+            return OpenAIProvider().invoke(
+                system=system, user=user, config=config, history=history
+            )
 
-        return self._invoke_class(module_path, system, user, config)
+        return self._invoke_class(module_path, system, user, config, history)
 
     @staticmethod
-    def _invoke_class(module_path: str, system: str, user: str, config: dict) -> str:
-        """Dynamically load ``module_path`` and call ``run()`` on an instance."""
+    def _invoke_class(
+        module_path: str,
+        system: str,
+        user: str,
+        config: dict,
+        history: list[dict[str, Any]] | None = None,
+    ) -> str:
+        """Dynamically load ``module_path`` and call ``run()`` on an instance.
+
+        Custom router classes use a flat single-string prompt interface.
+        History turns are serialised and prepended to that prompt so
+        conversation context is not silently lost.
+        """
         if "." not in module_path:
             raise ProviderError(
                 f"intelligence.module must be 'module.ClassName', got: '{module_path}'"
@@ -65,7 +86,17 @@ class CustomProvider(IntelligenceProvider):
             ) from exc
 
         # The legacy interface takes a single merged prompt string.
-        prompt = f"{system}\n\n{user}".strip() if system else user
+        # Prepend history turns so context is not silently dropped.
+        parts: list[str] = []
+        if system:
+            parts.append(system)
+        if history:
+            for turn in history:
+                role = turn.get("role", "user").capitalize()
+                content = turn.get("content", "")
+                parts.append(f"{role}: {content}")
+        parts.append(user)
+        prompt = "\n\n".join(parts)
         try:
             result = router.run(prompt)
         except Exception as exc:

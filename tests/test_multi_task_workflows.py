@@ -151,7 +151,7 @@ def _run(
     )
     captured: dict = {}
 
-    def fake_invoke(system: str, user: str, config: dict) -> str:
+    def fake_invoke(system: str, user: str, config: dict, history=None) -> str:
         captured["prompt"] = f"{system}\n\n{user}"
         captured["config"] = config
         return resolved_response
@@ -579,7 +579,7 @@ class TestOutputNormalisation:
         """If invoke_intelligence returns a dict, pass it straight through."""
         spec = _spec({"t": _task(system="s", user="{{ q }}")})
 
-        def fake_invoke(system: str, user: str, config: dict) -> dict:
+        def fake_invoke(system: str, user: str, config: dict, history=None) -> dict:
             return {"result": "direct"}
 
         with patch("oas_cli.runner.invoke_intelligence", fake_invoke):
@@ -985,7 +985,7 @@ def _cli_run(
 ) -> object:
     captured: dict = {}
 
-    def fake_invoke(system: str, user: str, config: dict) -> str:
+    def fake_invoke(system: str, user: str, config: dict, history=None) -> str:
         captured["prompt"] = f"{system}\n\n{user}"
         return fake_response
 
@@ -1096,7 +1096,7 @@ class TestCLIIntegration:
         # Greet task has a single required string field — file should be accepted
         captured: dict = {}
 
-        def fake_invoke(system: str, user: str, config: dict) -> str:
+        def fake_invoke(system: str, user: str, config: dict, history=None) -> str:
             captured["prompt"] = f"{system}\n\n{user}"
             return '{"response": "hi"}'
 
@@ -1125,7 +1125,7 @@ class TestCLIIntegration:
 
         captured: dict = {}
 
-        def fake_invoke(system: str, user: str, config: dict) -> str:
+        def fake_invoke(system: str, user: str, config: dict, history=None) -> str:
             captured["prompt"] = f"{system}\n\n{user}"
             return '{"response": "hi"}'
 

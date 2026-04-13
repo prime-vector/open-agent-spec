@@ -76,7 +76,12 @@ def get_provider(config: dict) -> IntelligenceProvider:
     )
 
 
-def invoke_intelligence(system: str, user: str, config: dict) -> str:
+def invoke_intelligence(
+    system: str,
+    user: str,
+    config: dict,
+    history: list[dict] | None = None,
+) -> str:
     """Select the right provider and call it with retry.
 
     Engine-specific defaults are applied here so that ``get_provider`` and the
@@ -84,9 +89,13 @@ def invoke_intelligence(system: str, user: str, config: dict) -> str:
     defaults — later dict keys win in Python's ``{**defaults, **config}``).
 
     Args:
-        system: System prompt string.
-        user:   Rendered user prompt string.
-        config: Intelligence config produced by ``_build_intelligence_config``.
+        system:  System prompt string.
+        user:    Rendered user prompt string.
+        config:  Intelligence config produced by ``_build_intelligence_config``.
+        history: Optional prior-turn messages (OpenAI wire format).
+                 When provided, they are inserted between the system message and
+                 the current user turn.  OAS never stores or manages history —
+                 it is simply forwarded from ``input.history``.
 
     Returns:
         Raw string response from the model.
@@ -101,7 +110,9 @@ def invoke_intelligence(system: str, user: str, config: dict) -> str:
     resolved = {**defaults, **config}
     provider = get_provider(resolved)
     return _with_retry(
-        lambda: provider.invoke(system=system, user=user, config=resolved)
+        lambda: provider.invoke(
+            system=system, user=user, config=resolved, history=history
+        )
     )
 
 

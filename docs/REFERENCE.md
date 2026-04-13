@@ -619,6 +619,102 @@ This repository's own `.agents/` directory contains four specs used for developm
 
 ---
 
+## Memory management
+
+OAS is **stateless by design** — it never stores, summarises, or manages
+conversation history.  This keeps specs portable and infrastructure-agnostic.
+Two patterns cover the common memory use-cases without breaking that boundary.
+
+### Pattern 1 — Short-term history (within a session)
+
+Pass prior turns as the reserved `history` input field.  The runner
+automatically injects them between the system prompt and the current user
+message before calling the model.  Your application code manages the list;
+OAS just forwards it.
+
+```yaml
+tasks:
+  chat:
+    input:
+      type: object
+      properties:
+        message:  { type: string }
+        history:
+          type: array
+          description: >
+            Prior turns — [{"role": "user"|"assistant", "content": "…"}, …].
+            Injected by the runner automatically. OAS never writes to this field.
+          items:
+            type: object
+            properties:
+              role:    { type: string, enum: [user, assistant] }
+              content: { type: string }
+      required: [message]
+```
+
+Caller example (Python):
+
+```python
+history = []
+
+while True:
+    message = input("You: ")
+    result = run_task(spec_path, "chat", {"message": message, "history": history})
+    reply = result["reply"]
+    print(f"Agent: {reply}")
+
+    history.append({"role": "user",      "content": message})
+    history.append({"role": "assistant", "content": reply})
+```
+
+See [`examples/chat-agent/`](../examples/chat-agent/) for a full working example.
+
+### Pattern 2 — Long-term memory (across sessions)
+
+OAS specs are pure LLM interfaces — they cannot make HTTP calls during prompt
+rendering.  The long-term memory pattern therefore has two distinct layers:
+
+| Layer | Owner | Responsibility |
+|---|---|---|
+| Memory **store** | Your infrastructure | Persist, index, and search prior turns |
+| Memory **re-ranker** | `oa://prime-vector/memory-retriever` | Use the LLM to select the most relevant candidates |
+
+Your application code fetches raw candidate turns from the store, then passes
+them as the `candidates` input field.  The `memory-retriever` spec uses the
+LLM to re-rank and select the most relevant ones, returning a `history` array
+ready for `depends_on` chaining.
+
+```yaml
+tasks:
+  recall:
+    spec: oa://prime-vector/memory-retriever
+    task: retrieve
+    # input: { query, candidates: [...pre-fetched turns], top_k }
+
+  respond:
+    depends_on: [recall]
+    spec: ../chat-agent/spec.yaml
+    task: chat
+    # history from recall is merged in automatically
+```
+
+The runner merges `recall`'s output (including `history`) into `respond`'s
+input automatically — no glue code required in the spec.
+
+See [`examples/memory-chat/`](../examples/memory-chat/) for a runnable
+pipeline with a pre-populated `candidates` input.
+
+### What OAS deliberately does NOT do
+
+| Capability | Where it belongs |
+|---|---|
+| Session persistence | Your application / infrastructure |
+| History summarisation | A dedicated summarisation spec (`oa://prime-vector/summariser`) |
+| Memory write / upsert | Your memory store's write endpoint |
+| Branching on memory content | Outside OAS (OAS has no conditionals) |
+
+---
+
 ## Generated project layout
 
 ```
