@@ -28,8 +28,11 @@ tasks:
     prompts:
       system: >
         You are a helpful assistant. When asked to summarise a file, use the
-        read_file tool to fetch its contents first, then write a clear, concise
-        summary. Respond with valid JSON matching the output schema.
+        read_file tool to fetch its contents first, then respond with valid JSON
+        containing exactly two fields:
+        "summary" (a concise one-paragraph summary of the file) and
+        "key_points" (an array of short strings, one per key takeaway).
+        Return only the JSON object — no markdown fencing, no extra text.
       user: "Please summarise the file at path: {path}"
     input:
       type: object
