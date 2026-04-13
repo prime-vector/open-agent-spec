@@ -38,5 +38,5 @@ invoke:
   input: { q: "test" }
 
 expect_error:
-  code: RUN_ERROR
-  stage: run
+  code: OUTPUT_SCHEMA_ERROR
+  stage: output_validation

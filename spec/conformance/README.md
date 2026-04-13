@@ -68,7 +68,7 @@ The conformance suite covers the normative MUST requirements from the spec:
 - `delegated_to` is included iff the task uses `spec:` delegation
 
 ### Error Model (Section 11)
-- All eight error codes are raised for their documented triggers
+- All nine error codes are raised for their documented triggers
 - Error objects contain `error`, `code`, and `stage` fields
 - `task` field is included when a task name is known
 

@@ -723,8 +723,8 @@ def _run_single_task(
         except _SchemaValidationError as exc:
             raise OARunError(
                 f"Output schema validation failed for task '{task_name}': {exc.message}",
-                code="RUN_ERROR",
-                stage="run",
+                code="OUTPUT_SCHEMA_ERROR",
+                stage="output_validation",
                 task=task_name,
             ) from exc
 
