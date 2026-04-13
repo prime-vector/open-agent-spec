@@ -31,8 +31,6 @@ from rich.syntax import Syntax
 from rich.table import Table
 from rich.text import Text
 
-from .banner import BANNER
-
 # ── Colour palette ─────────────────────────────────────────────────────────
 
 _C_BRAND = "bold cyan"
