@@ -175,6 +175,206 @@ oa validate --spec agent.yaml
 oa run --spec agent.yaml --task greet --input '{"name":"Alice"}' --quiet
 ```
 
+## Features
+
+### Multi-task pipelines with `depends_on`
+
+Chain tasks declaratively. OA merges upstream outputs into downstream inputs automatically — no glue code required.
+
+```yaml
+tasks:
+  extract:
+    description: Pull key facts from raw text.
+    # ... input / output / prompts
+
+  summarise:
+    description: Summarise the extracted facts.
+    depends_on: [extract]   # extract's output is merged into summarise's input
+    # ... prompts
+```
+
+`depends_on` is a **data contract**, not execution control. OA has no branching, loops, or conditionals by design. See [`examples/multi-task/`](examples/multi-task/).
+
+---
+
+### Tools — native, MCP, and custom
+
+Let the model call tools declared in the spec. Three backends, zero SDK dependencies.
+
+```yaml
+tools:
+  reader:
+    type: native
+    native: file.read          # built-in: file.read/write, http.get/post, env.read
+
+  search:
+    type: mcp
+    endpoint: http://localhost:3000   # any MCP server (JSON-RPC 2.0 over HTTP)
+
+  classifier:
+    type: custom
+    module: my_pkg.tools:ClassifierTool   # your own Python class
+
+tasks:
+  analyse:
+    tools: [reader, search, classifier]
+    # ...
+```
+
+See [`examples/file-reader/`](examples/file-reader/) and [`examples/mcp-search/`](examples/mcp-search/).
+
+---
+
+### Spec composition — delegate tasks to other specs
+
+A task can hand off its implementation to another spec entirely. Great for building shared specialist agents that many pipelines reuse.
+
+```yaml
+tasks:
+  sentiment_of_summary:
+    description: Delegate to the shared sentiment specialist.
+    spec: ./shared/sentiment.yaml   # local path or oa:// registry URL
+    task: analyse_sentiment
+    depends_on: [summarise]         # upstream outputs merged in automatically
+```
+
+See [`examples/spec-composition/`](examples/spec-composition/).
+
+---
+
+### Spec Registry — share specs via `oa://`
+
+Publish and consume specs from the hosted registry at `openagentspec.dev/registry/`. Reference them with the `oa://` shorthand — the runner resolves and fetches them automatically.
+
+```yaml
+tasks:
+  review:
+    spec: oa://prime-vector/code-reviewer   # resolves to latest hosted spec
+    task: review
+```
+
+Browse the registry at [openagentspec.dev/registry](https://www.openagentspec.dev/registry). Available specs: `summariser`, `classifier`, `sentiment`, `code-reviewer`, `keyword-extractor`, `memory-retriever`.
+
+---
+
+### History threading — stateless multi-turn chat
+
+Pass prior conversation turns as a `history` input field. OA injects them into the LLM message list between system and user turns. OA never stores history — your application manages the list.
+
+```yaml
+tasks:
+  chat:
+    input:
+      type: object
+      properties:
+        message: {type: string}
+        history:
+          type: array
+          description: Prior turns injected by the caller. OA never writes to this field.
+```
+
+```bash
+oa run --spec spec.yaml --task chat \
+  --input '{"message":"What did I just say?","history":[{"role":"user","content":"Hello"},{"role":"assistant","content":"Hi there!"}]}'
+```
+
+See [`examples/chat-agent/`](examples/chat-agent/).
+
+---
+
+### Memory retriever — LLM re-ranker for long-term memory
+
+Your application fetches candidate turns from an external store. The `memory-retriever` registry spec uses an LLM to select the most relevant ones and returns them as a `history` array ready to inject into any chat task.
+
+```yaml
+tasks:
+  recall:
+    spec: oa://prime-vector/memory-retriever
+    task: retrieve   # input: query + candidates → output: history + memory_count
+
+  respond:
+    depends_on: [recall]
+    spec: ./chat-agent/spec.yaml
+    task: chat
+```
+
+See [`examples/memory-chat/`](examples/memory-chat/).
+
+---
+
+### Immutable Inference Sandboxing (IIS)
+
+Declare hard execution constraints in the spec. The runner enforces them before any tool call reaches the I/O layer — no network connection opened, no file handle created, no exception to catch.
+
+```yaml
+sandbox:
+  tools:
+    allow: [file.read, http.get]     # SANDBOX_TOOL_VIOLATION if anything else is called
+  http:
+    allow_domains: [api.example.com] # SANDBOX_DOMAIN_VIOLATION for other hosts
+  file:
+    allow_paths: [./data/]           # SANDBOX_PATH_VIOLATION for paths outside this prefix
+
+tasks:
+  restricted:
+    sandbox:                         # per-task override tightens the root sandbox
+      tools:
+        allow: [file.read]
+```
+
+See [`examples/sandboxed-agent/`](examples/sandboxed-agent/).
+
+---
+
+### Behavioural contracts
+
+Declare what the model output must contain. The `behavioural-contracts` library enforces the contract after parsing, before the result is returned.
+
+```yaml
+behavioural_contract:
+  version: "1.0"
+  response_contract:
+    output_format:
+      required_fields: [confidence]   # CONTRACT_VIOLATION if missing
+
+tasks:
+  classify:
+    behavioural_contract:
+      response_contract:
+        output_format:
+          required_fields: [label]    # effective required_fields: [confidence, label]
+```
+
+Install: `pip install 'open-agent-spec[contracts]'`
+
+---
+
+### Multiple engines
+
+Switch models by changing one line. All engines except Anthropic and Codex speak the OpenAI Chat Completions API over raw HTTP — no SDK required.
+
+```yaml
+intelligence:
+  type: llm
+  engine: openai       # openai | anthropic | grok | xai | cortex | local | codex | custom
+  model: gpt-4o-mini
+```
+
+---
+
+### npm / Node.js CLI
+
+Run OA specs from Node.js without Python.
+
+```bash
+npm install -g @prime-vector/open-agent-spec
+oa-run --spec agent.yaml --task greet --input '{"name":"Alice"}'
+```
+
+Supports OpenAI and Anthropic, `depends_on` chains, and history threading.
+
+---
+
 ## Generate a Python Scaffold
 
 If you want editable generated code instead of running the YAML directly:
@@ -236,11 +436,11 @@ The formal specification defines what a conforming OA runtime must do, independe
 
 | Resource | Contents |
 |----------|----------|
-| [spec/open-agent-spec-1.4.md](spec/open-agent-spec-1.4.md) | Formal specification — normative MUST/SHOULD/MAY requirements for OA 1.5.0 |
-| [spec/schema/oas-schema-1.4.json](spec/schema/oas-schema-1.4.json) | Canonical JSON Schema for validating spec documents |
+| [spec/open-agent-spec-1.5.md](spec/open-agent-spec-1.5.md) | Formal specification — normative MUST/SHOULD/MAY requirements for OA 1.5.0 |
+| [spec/schema/oas-schema-1.5.json](spec/schema/oas-schema-1.5.json) | Canonical JSON Schema for validating spec documents |
 | [spec/conformance/README.md](spec/conformance/README.md) | Conformance test structure and contribution guide |
 
-An independent implementor can build a conforming runtime from `spec/open-agent-spec-1.4.md` alone.
+An independent implementor can build a conforming runtime from `spec/open-agent-spec-1.5.md` alone.
 
 ## More Detail
 
@@ -258,7 +458,7 @@ An independent implementor can build a conforming runtime from `spec/open-agent-
 - `oa run` requires the relevant provider API key for the engine in your spec.
 
 ## About
-- OA Open Agent Spec was dreamed up by Andrew Whitehouse in late 2024, with a desire to give structure and standardiasation to early agent systems
+- OA Open Agent Spec was dreamed up by Andrew Whitehouse in late 2024, with a desire to give structure and standardisation to early agent systems
 - In early 2025 Prime Vector was formed taking over the public facing project
 
 ## License
