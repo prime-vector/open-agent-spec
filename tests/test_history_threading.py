@@ -308,13 +308,13 @@ tasks:
         )
         return spec
 
-    def test_history_forwarded_to_invoke_with_tools(
-        self, tool_spec: Path, monkeypatch
-    ):
+    def test_history_forwarded_to_invoke_with_tools(self, tool_spec: Path, monkeypatch):
         """History must be passed into _invoke_with_tools, not silently dropped."""
         received: dict = {}
 
-        def fake_invoke_with_tools(system, user, tools, config, task_name, history=None):
+        def fake_invoke_with_tools(
+            system, user, tools, config, task_name, history=None
+        ):
             received["history"] = history
             return '{"reply": "ok"}'
 
@@ -333,13 +333,17 @@ tasks:
             {"role": "user", "content": "earlier message"},
             {"role": "assistant", "content": "earlier reply"},
         ]
-        run_task_from_file(tool_spec, "chat", {"message": "new message", "history": history})
+        run_task_from_file(
+            tool_spec, "chat", {"message": "new message", "history": history}
+        )
         assert received["history"] == history
 
     def test_no_history_tools_path_passes_none(self, tool_spec: Path, monkeypatch):
         received: dict = {}
 
-        def fake_invoke_with_tools(system, user, tools, config, task_name, history=None):
+        def fake_invoke_with_tools(
+            system, user, tools, config, task_name, history=None
+        ):
             received["history"] = history
             return '{"reply": "ok"}'
 
