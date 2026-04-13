@@ -415,6 +415,91 @@ A contract violation on a dependency stops the chain immediately and raises `CON
 
 ---
 
+## Immutable Inference Sandboxing (IIS)
+
+OAS gives every spec a `sandbox:` block that defines **what a task is mechanically permitted to do**. The runner enforces these constraints _before_ any tool call reaches the I/O layer — no network connection is opened, no file handle is created, no exception needs to be caught.
+
+### The boundary
+
+| Layer | Concern | Mechanism |
+|-------|---------|-----------|
+| **OAS `sandbox:`** | Hard execution constraints | Runner blocks before dispatch |
+| **BCE `behavioural_contract:`** | Policy / quality contract | Validated after the run |
+
+OAS controls **what a task can do**. BCE controls **what a task should do**. They are complementary and never overlap.
+
+### Root-level sandbox (applies to all tasks)
+
+```yaml
+sandbox:
+  tools:
+    allow: [file.read, http.get]   # allowlist — anything else is SANDBOX_TOOL_VIOLATION
+    # deny: [file.write]           # denylist alternative (use one or the other)
+  http:
+    allow_domains:
+      - api.example.com            # exact match or any subdomain
+  file:
+    allow_paths:
+      - ./data/                    # resolved to absolute paths at check time
+```
+
+### Per-task sandbox (overrides root)
+
+A `sandbox:` key inside a task definition completely overrides the root sandbox for that task. Use this to _tighten_ constraints on sensitive tasks without changing the global default:
+
+```yaml
+sandbox:
+  tools:
+    allow: [file.read, http.get]
+
+tasks:
+  check_status:
+    sandbox:
+      tools:
+        allow: [http.get]          # file.read now also blocked for this task
+      http:
+        allow_domains: [status.openai.com]
+```
+
+### Error codes
+
+All sandbox violations raise `OARunError` immediately with one of three structured codes:
+
+| Code | Trigger |
+|------|---------|
+| `SANDBOX_TOOL_VIOLATION` | Tool name not in `allow` list, or in `deny` list |
+| `SANDBOX_DOMAIN_VIOLATION` | HTTP host not in `allow_domains` (for `http.get` / `http.post`) |
+| `SANDBOX_PATH_VIOLATION` | File path outside `allow_paths` (for `file.read` / `file.write`) |
+
+Path traversal (`../../`) is caught automatically — paths are resolved to absolute before comparison.
+
+### Input immutability
+
+Every task receives a **deep copy** of its input. Chain outputs merged into downstream inputs never mutate the caller's original dict. This is enforced at three levels:
+
+1. Entry to `run_task_from_spec` (public API boundary)
+2. Each dependency call in `_resolve_chain`
+3. Start of `_run_single_task` (guards delegated specs too)
+
+### What IIS deliberately excludes (belongs in BCE)
+
+| Concern | Why it's BCE |
+|---------|-------------|
+| Prompt injection detection | Requires interpretation — subjective, evolving |
+| PII scanning | Team-specific policy |
+| Compliance tagging | Audit concern, not execution constraint |
+| Session / memory management | Out of scope for a stateless runner |
+
+### Future BCE rename note
+
+The BCE library currently uses `allowed_tools` in `behavioural_contract` as an audit field. A future BCE release will rename this to `expected_tools` to make it unambiguous that this is a _post-run audit assertion_, not an enforcement rule. The OAS `sandbox.tools.allow` list is the enforcement mechanism; BCE's audit field is observational only.
+
+### Example
+
+See [`examples/sandboxed-agent/`](../examples/sandboxed-agent/) for a working demo that exercises tool allowlists, domain restrictions, file path restrictions, and per-task sandbox overrides.
+
+---
+
 ## Engines (quick)
 
 | Engine | Env var | Notes |

@@ -7,6 +7,7 @@ underlying intelligence provider via the runtime abstraction.
 
 from __future__ import annotations
 
+import copy
 import json
 import logging
 import re
@@ -14,6 +15,7 @@ import urllib.error
 import urllib.request
 from pathlib import Path
 from typing import Any
+from urllib.parse import urlparse as _urlparse
 
 import yaml
 
@@ -379,7 +381,7 @@ def _resolve_chain(
         dep_result = _run_single_task(
             spec_data,
             dep_name,
-            dict(merged),
+            copy.deepcopy(dict(merged)),
             override_system=None,
             override_user=None,
             spec_path=spec_path,
@@ -440,6 +442,87 @@ def _resolve_contract(
     return _merge_contracts(global_contract, task_contract)
 
 
+def _resolve_sandbox(spec_data: dict[str, Any], task_name: str) -> dict[str, Any]:
+    """Effective sandbox for a task: root-level merged with task-level (task wins).
+
+    A task-level sandbox key completely replaces the root key of the same name,
+    which matches the "task-level is an override, not an extension" mental model.
+    """
+    root_sandbox: dict[str, Any] = spec_data.get("sandbox") or {}
+    tasks = spec_data.get("tasks") or {}
+    task_sandbox: dict[str, Any] = (tasks.get(task_name) or {}).get("sandbox") or {}
+    if not task_sandbox:
+        return copy.deepcopy(root_sandbox)
+    merged = copy.deepcopy(root_sandbox)
+    merged.update(copy.deepcopy(task_sandbox))
+    return merged
+
+
+def _check_sandbox(
+    tool_name: str,
+    arguments: dict[str, Any],
+    sandbox: dict[str, Any],
+    task_name: str,
+) -> None:
+    """Raise OARunError if a tool call violates sandbox constraints.
+
+    Three distinct codes for precise observability:
+      SANDBOX_TOOL_VIOLATION   — tool name blocked by allow/deny list
+      SANDBOX_DOMAIN_VIOLATION — HTTP domain not in allow_domains
+      SANDBOX_PATH_VIOLATION   — file path outside allow_paths
+    """
+    tools_cfg = sandbox.get("tools") or {}
+    allow = tools_cfg.get("allow")
+    deny = tools_cfg.get("deny")
+
+    if allow is not None and tool_name not in allow:
+        raise OARunError(
+            f"Sandbox violation: tool '{tool_name}' is not in the allow list for task "
+            f"'{task_name}'. Allowed: {allow}",
+            code="SANDBOX_TOOL_VIOLATION",
+            stage="sandbox",
+            task=task_name,
+        )
+    if deny is not None and tool_name in deny:
+        raise OARunError(
+            f"Sandbox violation: tool '{tool_name}' is in the deny list for task '{task_name}'.",
+            code="SANDBOX_TOOL_VIOLATION",
+            stage="sandbox",
+            task=task_name,
+        )
+
+    if tool_name in ("http.get", "http.post"):
+        allow_domains = (sandbox.get("http") or {}).get("allow_domains")
+        if allow_domains is not None:
+            url = arguments.get("url", "")
+            host = _urlparse(url).netloc.split(":")[0]
+            if not any(host == d or host.endswith(f".{d}") for d in allow_domains):
+                raise OARunError(
+                    f"Sandbox violation: domain '{host}' is not in allow_domains for task "
+                    f"'{task_name}'. Allowed: {allow_domains}",
+                    code="SANDBOX_DOMAIN_VIOLATION",
+                    stage="sandbox",
+                    task=task_name,
+                )
+
+    if tool_name in ("file.read", "file.write"):
+        allow_paths = (sandbox.get("file") or {}).get("allow_paths")
+        if allow_paths is not None:
+            file_path = arguments.get("path", "")
+            resolved = str(Path(file_path).resolve())
+            if not any(
+                resolved.startswith(str(Path(p).resolve()))
+                for p in allow_paths
+            ):
+                raise OARunError(
+                    f"Sandbox violation: path '{file_path}' is outside allow_paths for task "
+                    f"'{task_name}'. Allowed: {allow_paths}",
+                    code="SANDBOX_PATH_VIOLATION",
+                    stage="sandbox",
+                    task=task_name,
+                )
+
+
 _MAX_TOOL_ITERATIONS = 10
 
 
@@ -450,6 +533,8 @@ def _invoke_with_tools(
     intelligence_config: dict[str, Any],
     task_name: str,
     history: list[dict] | None = None,
+    *,
+    sandbox: dict[str, Any] | None = None,
 ) -> str:
     """Multi-turn tool-call loop.
 
@@ -463,6 +548,9 @@ def _invoke_with_tools(
 
     ``history`` is injected before the current user turn, mirroring the behaviour
     of the no-tools path so conversation context is never lost.
+
+    ``sandbox`` is checked before every tool dispatch — a violation raises
+    OARunError with a structured SANDBOX_* code rather than calling the tool.
     """
     provider = get_provider(intelligence_config)
 
@@ -525,6 +613,9 @@ def _invoke_with_tools(
 
         # Execute every tool call and append results.
         for tc in result.tool_calls:
+            # Pre-dispatch sandbox check — hard block before any I/O.
+            if sandbox:
+                _check_sandbox(tc.name, tc.arguments, sandbox, task_name)
             try:
                 tool_result = dispatch_tool_call(tc.name, tc.arguments, tools)
             except ToolError as exc:
@@ -561,7 +652,14 @@ def _run_single_task(
     If the task declares ``spec:`` + ``task:`` it is a *delegated* task — the
     runner loads the referenced spec and executes that task transparently,
     returning the result as if it had been defined inline.
+
+    ``input_data`` is treated as an immutable snapshot: we deep-copy it
+    immediately so no downstream mutation (tool calls, merges, delegation)
+    can leak back into the caller's dict.
     """
+    # Immutable input snapshot — every task boundary gets its own copy.
+    input_data = copy.deepcopy(input_data)
+
     tasks = spec_data.get("tasks") or {}
     task_def = tasks.get(task_name) or {}
 
@@ -679,15 +777,20 @@ def _run_single_task(
 
     # history is a reserved input convention — never stored by OAS, just forwarded.
     history: list[dict] | None = input_data.get("history") or None
+    sandbox = _resolve_sandbox(spec_data, task_name)
 
     try:
         tools = resolve_task_tools(spec_data, task_name)
         if tools:
             raw_output = _invoke_with_tools(
-                system, user, tools, intelligence_config, task_name, history
+                system, user, tools, intelligence_config, task_name, history,
+                sandbox=sandbox or None,
             )
         else:
             raw_output = invoke_intelligence(system, user, intelligence_config, history)
+    except OARunError:
+        # Structured errors (e.g. SANDBOX_* violations) pass through unchanged.
+        raise
     except (ProviderError, ToolError) as exc:
         raise OARunError(
             str(exc),
@@ -804,7 +907,9 @@ def run_task_from_spec(
 
     spec_path is used to resolve relative ``spec:`` delegation references.
     """
-    base_input: dict[str, Any] = dict(input_data or {})
+    # Deep copy at the public entry point so the caller's dict is never mutated,
+    # even when a chain merges upstream outputs into downstream inputs.
+    base_input: dict[str, Any] = copy.deepcopy(dict(input_data or {}))
     chosen_task, _ = _choose_task(spec_data, task_name)
 
     # Seed the visited set with the calling spec so direct self-delegation is caught.

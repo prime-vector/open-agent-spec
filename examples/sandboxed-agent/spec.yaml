@@ -1,0 +1,118 @@
+open_agent_spec: "1.4.0"
+
+agent:
+  name: sandboxed-doc-reader
+  description: >
+    A read-only document assistant that can only access approved local files
+    and call approved APIs. Demonstrates OAS Immutable Inference Sandboxing (IIS):
+    the runner blocks any tool call that violates these constraints before it
+    reaches the I/O layer — no network call, no file open, no exception to catch.
+  role: analyst
+
+intelligence:
+  type: llm
+  engine: openai
+  model: gpt-4o-mini
+
+# ── Root-level sandbox ────────────────────────────────────────────────────────
+# Applies to every task in this spec unless a task declares its own sandbox block.
+sandbox:
+  tools:
+    # Only these two tools are permitted. Any other tool (file.write, http.post,
+    # env.read, …) triggers SANDBOX_TOOL_VIOLATION before the model call.
+    allow:
+      - file.read
+      - http.get
+  http:
+    # http.get may only contact the official OpenAI status page.
+    # Any other domain triggers SANDBOX_DOMAIN_VIOLATION.
+    allow_domains:
+      - status.openai.com
+  file:
+    # file.read may only access the data/ subdirectory next to this spec.
+    # Any path outside that prefix triggers SANDBOX_PATH_VIOLATION.
+    allow_paths:
+      - ./data/
+
+tools:
+  reader:
+    type: native
+    native: file.read
+    description: Read a local document file and return its text content.
+
+  api_status:
+    type: native
+    native: http.get
+    description: Check the status of an external API endpoint.
+
+tasks:
+  summarise:
+    description: >
+      Read a document from the approved data/ directory and produce a concise summary.
+      The sandbox ensures the task cannot write files, call unapproved APIs, or
+      read files outside data/ — even if the model attempts to do so.
+    tools:
+      - reader
+    input:
+      type: object
+      properties:
+        filename:
+          type: string
+          description: "Filename inside the data/ directory to summarise (e.g. 'report.txt')."
+      required:
+        - filename
+    output:
+      type: object
+      properties:
+        summary:
+          type: string
+          description: A concise summary of the document.
+        word_count:
+          type: integer
+          description: Approximate word count of the original document.
+      required:
+        - summary
+        - word_count
+    prompts:
+      system: >
+        You are a document summariser. You will be given a file to read.
+        After reading it, return JSON with two fields: "summary" (a concise
+        paragraph) and "word_count" (integer). Return valid JSON only.
+      user: "Summarise the file: data/{filename}"
+
+  check_status:
+    description: >
+      Fetch the OpenAI status page and report whether the API is operational.
+      This task has a stricter per-task sandbox that also disables file.read,
+      demonstrating how task-level sandbox overrides the root-level one.
+    # Per-task sandbox — completely replaces the root sandbox for this task.
+    sandbox:
+      tools:
+        allow:
+          - api_status
+      http:
+        allow_domains:
+          - status.openai.com
+    tools:
+      - api_status
+    input:
+      type: object
+      properties: {}
+    output:
+      type: object
+      properties:
+        status:
+          type: string
+          description: "Current API status (e.g. 'operational', 'degraded', 'outage')."
+        message:
+          type: string
+          description: Human-readable status summary.
+      required:
+        - status
+        - message
+    prompts:
+      system: >
+        You are a system health checker. Fetch the OpenAI status page and return
+        JSON with "status" (one of: operational, degraded, outage) and "message"
+        (a one-sentence plain-English summary). Return valid JSON only.
+      user: "Check https://status.openai.com/api/v2/status.json and report the status."
