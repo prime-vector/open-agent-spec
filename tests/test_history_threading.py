@@ -248,3 +248,110 @@ tasks:
         run_task_from_file(chat_spec, "chat", {"message": "hello", "history": []})
         # empty list → treated as None (no history)
         assert not received["history"]
+
+
+# ---------------------------------------------------------------------------
+# Tools + history: history must not be silently dropped when tools are active
+# ---------------------------------------------------------------------------
+
+
+class TestToolsHistoryThreading:
+    """Regression test: history must reach the provider even when tools are active."""
+
+    @pytest.fixture()
+    def tool_spec(self, tmp_path: Path) -> Path:
+        spec = tmp_path / "tool_chat.yaml"
+        spec.write_text(
+            """
+open_agent_spec: "1.4.0"
+agent:
+  name: tool-chat
+  role: assistant
+intelligence:
+  type: llm
+  engine: openai
+  model: gpt-4o-mini
+tools:
+  echo:
+    type: native
+    native: echo
+    description: Echo text back
+    input_schema:
+      type: object
+      properties:
+        text: {type: string}
+      required: [text]
+tasks:
+  chat:
+    tools: [echo]
+    input:
+      type: object
+      properties:
+        message: {type: string}
+        history:
+          type: array
+          items:
+            type: object
+            properties:
+              role: {type: string}
+              content: {type: string}
+      required: [message]
+    output:
+      type: object
+      properties:
+        reply: {type: string}
+      required: [reply]
+    prompts:
+      system: You are helpful.
+      user: "{message}"
+"""
+        )
+        return spec
+
+    def test_history_forwarded_to_invoke_with_tools(
+        self, tool_spec: Path, monkeypatch
+    ):
+        """History must be passed into _invoke_with_tools, not silently dropped."""
+        received: dict = {}
+
+        def fake_invoke_with_tools(system, user, tools, config, task_name, history=None):
+            received["history"] = history
+            return '{"reply": "ok"}'
+
+        # Stub resolve_task_tools to return a non-empty list without needing real tools.
+        FAKE_TOOL = object()
+
+        monkeypatch.setenv("OPENAI_API_KEY", "k")
+        import oas_cli.runner as runner_mod
+
+        monkeypatch.setattr(runner_mod, "_invoke_with_tools", fake_invoke_with_tools)
+        monkeypatch.setattr(runner_mod, "resolve_task_tools", lambda *_: [FAKE_TOOL])
+
+        from oas_cli.runner import run_task_from_file
+
+        history = [
+            {"role": "user", "content": "earlier message"},
+            {"role": "assistant", "content": "earlier reply"},
+        ]
+        run_task_from_file(tool_spec, "chat", {"message": "new message", "history": history})
+        assert received["history"] == history
+
+    def test_no_history_tools_path_passes_none(self, tool_spec: Path, monkeypatch):
+        received: dict = {}
+
+        def fake_invoke_with_tools(system, user, tools, config, task_name, history=None):
+            received["history"] = history
+            return '{"reply": "ok"}'
+
+        FAKE_TOOL = object()
+
+        monkeypatch.setenv("OPENAI_API_KEY", "k")
+        import oas_cli.runner as runner_mod
+
+        monkeypatch.setattr(runner_mod, "_invoke_with_tools", fake_invoke_with_tools)
+        monkeypatch.setattr(runner_mod, "resolve_task_tools", lambda *_: [FAKE_TOOL])
+
+        from oas_cli.runner import run_task_from_file
+
+        run_task_from_file(tool_spec, "chat", {"message": "hello"})
+        assert received["history"] is None

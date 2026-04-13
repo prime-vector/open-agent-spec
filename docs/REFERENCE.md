@@ -671,32 +671,38 @@ See [`examples/chat-agent/`](../examples/chat-agent/) for a full working example
 
 ### Pattern 2 — Long-term memory (across sessions)
 
-Use the `oa://prime-vector/memory-retriever` registry spec as a first task
-in a pipeline.  It calls your external memory store, retrieves relevant prior
-turns, and returns them as a `history` array.  A downstream `chat` task picks
-that up via `depends_on`.
+OAS specs are pure LLM interfaces — they cannot make HTTP calls during prompt
+rendering.  The long-term memory pattern therefore has two distinct layers:
+
+| Layer | Owner | Responsibility |
+|---|---|---|
+| Memory **store** | Your infrastructure | Persist, index, and search prior turns |
+| Memory **re-ranker** | `oa://prime-vector/memory-retriever` | Use the LLM to select the most relevant candidates |
+
+Your application code fetches raw candidate turns from the store, then passes
+them as the `candidates` input field.  The `memory-retriever` spec uses the
+LLM to re-rank and select the most relevant ones, returning a `history` array
+ready for `depends_on` chaining.
 
 ```yaml
 tasks:
   recall:
     spec: oa://prime-vector/memory-retriever
     task: retrieve
+    # input: { query, candidates: [...pre-fetched turns], top_k }
 
   respond:
     depends_on: [recall]
     spec: ../chat-agent/spec.yaml
     task: chat
+    # history from recall is merged in automatically
 ```
 
 The runner merges `recall`'s output (including `history`) into `respond`'s
-input automatically — no glue code required.
+input automatically — no glue code required in the spec.
 
-Your memory store is external infrastructure (vector DB, Redis, SQLite with
-semantic search, etc.) — OAS is not opinionated about the store technology,
-only about the retrieval interface.
-
-See [`examples/memory-chat/`](../examples/memory-chat/) for a complete
-pipeline spec and a minimal mock memory-store script.
+See [`examples/memory-chat/`](../examples/memory-chat/) for a runnable
+pipeline with a pre-populated `candidates` input.
 
 ### What OAS deliberately does NOT do
 

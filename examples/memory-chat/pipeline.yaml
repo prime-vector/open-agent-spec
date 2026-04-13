@@ -3,19 +3,18 @@ open_agent_spec: "1.4.0"
 agent:
   name: memory-chat-pipeline
   description: >
-    Two-task pipeline combining long-term memory retrieval with a chat reply.
+    Two-task pipeline: LLM re-ranks pre-fetched memory candidates, then
+    replies to the user with the selected context injected as history.
 
-    1. `recall`  — delegates to oa://prime-vector/memory-retriever to search
-       the external memory store for turns relevant to the user's message.
-       Returns `history` and `memory_count`.
+    Your application code fetches raw candidates from the memory store and
+    passes them in as `candidates`.  OAS never touches the store directly.
 
-    2. `respond` — delegates to the local chat-agent spec.  It depends_on
-       `recall`, so the runner merges recall's output (including `history`)
-       into respond's input automatically before the model is called.
+    1. `recall`  — delegates to oa://prime-vector/memory-retriever.
+       Takes `query` and `candidates`; returns `history` and `memory_count`.
 
-    OAS never stores or manages memory — the memory store is external
-    infrastructure.  This spec is purely a declarative retrieval + reply
-    pipeline.
+    2. `respond` — delegates to the local chat-agent spec.
+       depends_on `recall` so the runner merges `history` into its input
+       automatically before calling the model.
   role: assistant
 
 intelligence:
@@ -25,13 +24,15 @@ intelligence:
 
 tasks:
   recall:
-    description: Retrieve relevant memory context for the user's message.
+    description: >
+      Re-rank pre-fetched memory candidates and return the most relevant
+      turns as a history array.
     spec: oa://prime-vector/memory-retriever
     task: retrieve
 
   respond:
     description: >
-      Reply to the user's message using retrieved memory context.
+      Reply to the user's message using the retrieved history context.
       The `history` field from `recall` is merged in automatically.
     depends_on:
       - recall

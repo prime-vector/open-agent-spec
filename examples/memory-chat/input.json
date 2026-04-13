@@ -1,5 +1,12 @@
 {
   "message": "What did we talk about last time regarding the project timeline?",
-  "memory_store_url": "http://localhost:8765",
-  "top_k": 5
+  "candidates": [
+    {"role": "user",      "content": "We need to decide on the project timeline."},
+    {"role": "assistant", "content": "I'd suggest targeting Q3 for the initial release."},
+    {"role": "user",      "content": "What about the API design review?"},
+    {"role": "assistant", "content": "The API review is scheduled for next week."},
+    {"role": "user",      "content": "Can we move the deadline to Q2?"},
+    {"role": "assistant", "content": "Q2 is very tight — let's keep Q3 as the target."}
+  ],
+  "top_k": 3
 }
