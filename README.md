@@ -230,6 +230,18 @@ OA deliberately does not prescribe:
 | `oa init --spec agent.yaml --output ./agent` | Generate a Python scaffold |
 | `oa update --spec agent.yaml --output ./agent` | Regenerate an existing scaffold |
 
+## Specification
+
+The formal specification defines what a conforming OAS runtime must do, independent of any specific implementation.
+
+| Resource | Contents |
+|----------|----------|
+| [spec/open-agent-spec-1.4.md](spec/open-agent-spec-1.4.md) | Formal specification — normative MUST/SHOULD/MAY requirements for OAS 1.4.0 |
+| [spec/schema/oas-schema-1.4.json](spec/schema/oas-schema-1.4.json) | Canonical JSON Schema for validating spec documents |
+| [spec/conformance/README.md](spec/conformance/README.md) | Conformance test structure and contribution guide |
+
+An independent implementor can build a conforming runtime from `spec/open-agent-spec-1.4.md` alone.
+
 ## More Detail
 
 | Resource | Contents |

@@ -1,0 +1,36 @@
+# Spec §7.3 — Local relative paths resolve from the calling spec's directory.
+description: "Delegation via local relative path resolves and executes"
+spec_section: "7.3"
+
+# NOTE: This test uses an external file (delegated-spec.yaml) in the same
+# directory. The runner must write the spec to a temp directory alongside
+# delegated-spec.yaml for the relative path to resolve.
+uses_files:
+  - delegated-spec.yaml
+
+spec: |
+  open_agent_spec: "1.4.0"
+  agent:
+    name: coordinator
+    description: delegates to another spec
+  intelligence:
+    type: llm
+    engine: openai
+    model: gpt-4o
+  tasks:
+    summarise:
+      description: delegate summarisation
+      spec: "./delegated-spec.yaml"
+      task: summarise
+
+mock_responses:
+  summarise: '{"summary": "delegated result"}'
+
+invoke:
+  task: summarise
+  input: { text: "A long document about AI agents." }
+
+expect:
+  result.task: summarise
+  result.output.summary: "delegated result"
+  result.has_key: delegated_to

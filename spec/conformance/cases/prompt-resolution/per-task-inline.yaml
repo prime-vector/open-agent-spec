@@ -1,0 +1,47 @@
+# Spec §9.1 — Per-task inline prompts (priority 2) beat global fallback.
+description: "Per-task inline prompts override global fallback"
+spec_section: "9.1"
+
+spec: |
+  open_agent_spec: "1.4.0"
+  agent:
+    name: test
+    description: test
+  intelligence:
+    type: llm
+    engine: openai
+    model: gpt-4o
+  tasks:
+    greet:
+      description: say hello
+      input:
+        type: object
+        properties:
+          name: { type: string }
+        required: [name]
+      output:
+        type: object
+        properties:
+          response: { type: string }
+        required: [response]
+      prompts:
+        system: "per-task system prompt"
+        user: "per-task {{ name }}"
+  prompts:
+    system: "global system prompt"
+    user: "global {{ name }}"
+
+mock_responses:
+  greet: '{"response": "ok"}'
+
+invoke:
+  task: greet
+  input: { name: "Alice" }
+
+expect:
+  result.prompt_contains_all:
+    - "per-task system prompt"
+    - "per-task Alice"
+  result.prompt_not_contains_all:
+    - "global system prompt"
+    - "global Alice"

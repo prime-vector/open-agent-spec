@@ -1,0 +1,45 @@
+# Spec §7.2 — Transitive circular dependency MUST raise CHAIN_CYCLE_ERROR.
+description: "Three-task transitive cycle raises CHAIN_CYCLE_ERROR"
+spec_section: "7.2"
+
+spec: |
+  open_agent_spec: "1.4.0"
+  agent:
+    name: test
+    description: test
+  intelligence:
+    type: llm
+    engine: openai
+    model: gpt-4o
+  tasks:
+    a:
+      description: task a
+      depends_on: [c]
+      output:
+        type: object
+        properties:
+          x: { type: string }
+    b:
+      description: task b
+      depends_on: [a]
+      output:
+        type: object
+        properties:
+          y: { type: string }
+    c:
+      description: task c
+      depends_on: [b]
+      output:
+        type: object
+        properties:
+          z: { type: string }
+
+mock_responses: {}
+
+invoke:
+  task: c
+  input: {}
+
+expect_error:
+  code: CHAIN_CYCLE_ERROR
+  stage: routing

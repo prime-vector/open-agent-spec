@@ -15,17 +15,16 @@ intelligence:
     max_tokens: 64
 
 tools:
-  - id: file_writer
+  file_writer:
+    type: native
+    native: file.write
     description: Safely write content to a file on disk
-    type: file
-    allowed_paths:
-      - ./output
 
 tasks:
   save-greeting:
     description: Save a personalized greeting to a file
     timeout: 30
-    tool: file_writer
+    tools: [file_writer]
     input:
       type: object
       properties:

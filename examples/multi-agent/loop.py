@@ -29,6 +29,10 @@ from collections.abc import Callable
 from datetime import date, timedelta
 from typing import Any
 
+from board import TaskBoard, TaskPriority
+from registry import AgentRegistry
+from runner import AgentRunner
+
 
 def _easter_sunday(year: int) -> date:
     """Compute Easter Sunday for a given year (Anonymous Gregorian algorithm).
@@ -65,10 +69,6 @@ def _date_context() -> str:
         f"Easter Monday {easter_monday.strftime('%d %B')}."
     )
 
-
-from board import TaskBoard, TaskPriority
-from registry import AgentRegistry
-from runner import AgentRunner
 
 logger = logging.getLogger(__name__)
 

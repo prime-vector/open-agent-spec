@@ -5,6 +5,18 @@ All notable changes to **open-agent-spec** (Open Agent CLI) will be documented i
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.4.1] - 2026-04-12
+
+### Added
+- **Formal specification** — `spec/open-agent-spec-1.4.md`, an RFC 2119-style document defining the complete OAS 1.4.0 standard. An independent implementor can build a conforming runtime from this document alone.
+- **Conformance test suite** — 29 YAML test cases across 6 categories (schema validation, prompt resolution, depends_on chains, delegation, response format, error model) with a reference runner at `spec/conformance/runner/conformance_runner.py`.
+- **Extensions documentation** — `spec/extensions/README.md` describing the three extension mechanisms: tools (native/mcp/custom), behavioural contracts, and custom engines.
+- **Canonical schema** — `spec/schema/oas-schema-1.4.json` placed alongside the spec as a normative artifact.
+- **Output schema validation** — the runner now validates parsed JSON output against the declared output schema (`response_format: "json"`). Missing required fields raise `RUN_ERROR`.
+
+### Changed
+- `TASK_NOT_FOUND` error stage clarified: uses `routing` for direct task lookup and `depends_on` references, `delegation` when the task is missing in a delegated spec.
+
 ## [1.4.0] - 2026-03-19
 
 ### Added

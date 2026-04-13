@@ -711,6 +711,23 @@ def _run_single_task(
     else:
         parsed_output = raw_output
 
+    # Output schema validation — AFTER parsing, BEFORE contract enforcement.
+    # Only applies when response_format is "json" and an output schema is declared.
+    output_schema = task_def.get("output")
+    if response_format == "json" and output_schema and isinstance(parsed_output, dict):
+        try:
+            from jsonschema import validate as _schema_validate
+            from jsonschema.exceptions import ValidationError as _SchemaValidationError
+
+            _schema_validate(instance=parsed_output, schema=output_schema)
+        except _SchemaValidationError as exc:
+            raise OARunError(
+                f"Output schema validation failed for task '{task_name}': {exc.message}",
+                code="OUTPUT_SCHEMA_ERROR",
+                stage="output_validation",
+                task=task_name,
+            ) from exc
+
     # Behavioural contract validation — AFTER parsing, BEFORE returning.
     # Runs for every task including chain dependencies, so a bad dep output is
     # caught before it can be merged into the next task's input.

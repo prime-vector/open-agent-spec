@@ -528,7 +528,12 @@ class TestDependsOn:
             lambda s, u, c: "{}",  # dep returns empty output
         )
         spec = _chain_spec()
-        # extract output missing 'facts', summarize needs nothing required — swap:
+        # Remove required from extract's output so empty {} passes output
+        # schema validation — but the field still won't appear in the merge.
+        spec["tasks"]["extract"]["output"] = {
+            "type": "object",
+            "properties": {"facts": {"type": "string"}},
+        }
         # Make summarize require 'facts' but dep returns nothing
         spec["tasks"]["summarize"]["input"] = {
             "type": "object",

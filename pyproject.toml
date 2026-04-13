@@ -122,3 +122,6 @@ ignore = [
     "RUF022",  # __all__ sorting
 ]
 
+[tool.ruff.lint.per-file-ignores]
+"examples/multi-agent/*" = ["N999"]  # directory name contains hyphen
+
