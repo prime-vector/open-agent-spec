@@ -24,15 +24,13 @@ examples/memory-chat/ for that pattern.
 
 from __future__ import annotations
 
-import json
 import sys
 from pathlib import Path
 
 # Allow running directly from repo root without `pip install -e .`
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
-from oas_cli.runner import run_task  # noqa: E402
-
+from oas_cli.runner import run_task
 
 SPEC_PATH = Path(__file__).parent / "spec.yaml"
 

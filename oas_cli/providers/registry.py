@@ -110,7 +110,9 @@ def invoke_intelligence(
     resolved = {**defaults, **config}
     provider = get_provider(resolved)
     return _with_retry(
-        lambda: provider.invoke(system=system, user=user, config=resolved, history=history)
+        lambda: provider.invoke(
+            system=system, user=user, config=resolved, history=history
+        )
     )
 
 

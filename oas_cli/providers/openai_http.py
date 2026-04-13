@@ -61,7 +61,9 @@ class OpenAIProvider(IntelligenceProvider):
         timeout = int(config.get("timeout", _DEFAULT_TIMEOUT))
 
         if endpoint.endswith("/responses"):
-            payload = _build_responses_payload(system, user, model, temperature, history)
+            payload = _build_responses_payload(
+                system, user, model, temperature, history
+            )
         else:
             payload = _build_chat_completions_payload(
                 system, user, model, temperature, max_tokens, history

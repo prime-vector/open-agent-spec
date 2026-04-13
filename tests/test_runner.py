@@ -313,7 +313,9 @@ class TestResponseFormatText:
     def test_text_mode_does_not_parse_fenced_json(self, monkeypatch):
         """Even fenced JSON should be returned as-is in text mode (no fence stripping)."""
         raw = '```json\n{"key": "val"}\n```'
-        monkeypatch.setattr("oas_cli.runner.invoke_intelligence", lambda s, u, c, h=None: raw)
+        monkeypatch.setattr(
+            "oas_cli.runner.invoke_intelligence", lambda s, u, c, h=None: raw
+        )
         result = run_task_from_spec(
             _text_spec(), task_name="prose", input_data={"topic": "x"}
         )

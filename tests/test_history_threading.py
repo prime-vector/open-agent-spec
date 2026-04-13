@@ -2,18 +2,15 @@
 
 from __future__ import annotations
 
-import json
 from pathlib import Path
-from unittest.mock import MagicMock, patch
 
 import pytest
 
 from oas_cli.providers.openai_http import (
+    OpenAIProvider,
     _build_chat_completions_payload,
     _build_responses_payload,
 )
-from oas_cli.providers.anthropic_http import AnthropicProvider
-from oas_cli.providers.openai_http import OpenAIProvider
 from oas_cli.providers.registry import invoke_intelligence
 
 # ---------------------------------------------------------------------------
@@ -79,7 +76,7 @@ class TestOpenAIProviderHistory:
     def test_history_forwarded_to_payload(self, monkeypatch):
         captured: dict = {}
 
-        def fake_http_post(url, payload, headers, timeout):  # noqa: ARG001
+        def fake_http_post(url, payload, headers, timeout):
             captured["payload"] = payload
             return '{"choices":[{"message":{"content":"{\\"reply\\":\\"ok\\"}"}}]}'
 
@@ -92,7 +89,10 @@ class TestOpenAIProviderHistory:
             system="sys",
             user="hello again",
             config={"engine": "openai", "model": "gpt-4o-mini"},
-            history=[{"role": "user", "content": "first"}, {"role": "assistant", "content": "reply"}],
+            history=[
+                {"role": "user", "content": "first"},
+                {"role": "assistant", "content": "reply"},
+            ],
         )
 
         msgs = captured["payload"]["messages"]
@@ -207,7 +207,9 @@ tasks:
             {"role": "user", "content": "first message"},
             {"role": "assistant", "content": "first reply"},
         ]
-        result = run_task_from_file(chat_spec, "chat", {"message": "second", "history": history})
+        result = run_task_from_file(
+            chat_spec, "chat", {"message": "second", "history": history}
+        )
 
         assert result["output"]["reply"] == "got it"
         assert received["history"] == history
