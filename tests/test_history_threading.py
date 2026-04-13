@@ -319,13 +319,13 @@ tasks:
             return '{"reply": "ok"}'
 
         # Stub resolve_task_tools to return a non-empty list without needing real tools.
-        FAKE_TOOL = object()
+        fake_tool = object()
 
         monkeypatch.setenv("OPENAI_API_KEY", "k")
         import oas_cli.runner as runner_mod
 
         monkeypatch.setattr(runner_mod, "_invoke_with_tools", fake_invoke_with_tools)
-        monkeypatch.setattr(runner_mod, "resolve_task_tools", lambda *_: [FAKE_TOOL])
+        monkeypatch.setattr(runner_mod, "resolve_task_tools", lambda *_: [fake_tool])
 
         from oas_cli.runner import run_task_from_file
 
@@ -347,13 +347,13 @@ tasks:
             received["history"] = history
             return '{"reply": "ok"}'
 
-        FAKE_TOOL = object()
+        fake_tool = object()
 
         monkeypatch.setenv("OPENAI_API_KEY", "k")
         import oas_cli.runner as runner_mod
 
         monkeypatch.setattr(runner_mod, "_invoke_with_tools", fake_invoke_with_tools)
-        monkeypatch.setattr(runner_mod, "resolve_task_tools", lambda *_: [FAKE_TOOL])
+        monkeypatch.setattr(runner_mod, "resolve_task_tools", lambda *_: [fake_tool])
 
         from oas_cli.runner import run_task_from_file
 
