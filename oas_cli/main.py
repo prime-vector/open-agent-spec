@@ -709,9 +709,14 @@ def run(
         elapsed = time.monotonic() - t0
 
         if quiet:
-            # Print only the agent's output (e.g. decision + summary) for clean piping
+            # Print only the agent's output for clean piping.
+            # dict/list → pretty JSON; plain string → written directly so no
+            # \n escaping or extra quotes corrupt the output.
             out = result.get("output", result)
-            typer.echo(json.dumps(out, indent=2))
+            if isinstance(out, (dict, list)):
+                typer.echo(json.dumps(out, indent=2))
+            else:
+                typer.echo(str(out) if out is not None else "")
         else:
             print_result_panel(console, result, elapsed_s=elapsed)
 

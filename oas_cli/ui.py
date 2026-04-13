@@ -47,20 +47,22 @@ _C_SUBTLE = "grey50"
 # ── Banner ──────────────────────────────────────────────────────────────────
 
 
-def print_banner(console: Console, version: str = "") -> None:
-    """Print the OA bot-face banner with an optional version string."""
+def _banner_body(version: str = "") -> str:
+    """Return the bot-face markup string (no Panel wrapper)."""
     ver_str = f"  [dim]v{version}[/]" if version else ""
-    lines = BANNER.rstrip("\n").split("\n")
-    # Inject version on the last non-empty line
-    if ver_str and lines:
-        for i in range(len(lines) - 1, -1, -1):
-            if lines[i].strip():
-                lines[i] = lines[i] + ver_str
-                break
-    body = "\n".join(lines)
+    return (
+        f"[{_C_BRAND}]  ╔═══╗[/]  [{_C_BRAND}]Open Agent Spec[/]{ver_str}\n"
+        f"[{_C_BRAND}]  ║◈ ◈║[/]  [dim]Agents as code.[/]\n"
+        f"[{_C_BRAND}]  ╚═╤═╝[/]\n"
+        f"[{_C_BRAND}]    ╧[/]"
+    )
+
+
+def print_banner(console: Console, version: str = "") -> None:
+    """Print the compact OA bot-face banner before a run."""
     console.print(
-        Panel(
-            f"[{_C_BRAND}]{body}[/]",
+        Panel.fit(
+            _banner_body(version),
             border_style="cyan",
             padding=(0, 2),
         )
@@ -275,15 +277,20 @@ def print_error_panel(console: Console, title: str, message: str) -> None:
 
 
 def print_help_panel(console: Console, version: str = "") -> None:
-    """Print the startup help panel shown when oa is run with no subcommand."""
-    print_banner(console, version)
+    """Print the unified startup panel: bot-face + command reference in one box."""
+    body = (
+        f"{_banner_body(version)}\n"
+        "\n"
+        f"  [{_C_BRAND}]oa run[/]    [white]--spec path.yaml --task name --input '\\{{…\\}}'[/]\n"
+        f"  [{_C_BRAND}]oa init[/]   [white]aac | --spec path.yaml --output dir/[/]\n"
+        f"  [{_C_BRAND}]oa test[/]   [white]agent.test.yaml[/]\n"
+        f"  [{_C_BRAND}]oa update[/] [white]--spec path.yaml --output dir/[/]\n"
+        "\n"
+        f"  [dim]--quiet / -q[/]  [dim]JSON-only output for pipes and CI[/]"
+    )
     console.print(
         Panel.fit(
-            "  [bold magenta]oa run[/]    [white]--spec path.yaml --task name --input '\\{…\\}'[/]\n"
-            "  [bold magenta]oa init[/]   [white]aac | --spec path.yaml --output dir/[/]\n"
-            "  [bold magenta]oa test[/]   [white]agent.test.yaml[/]\n"
-            "  [bold magenta]oa update[/] [white]--spec path.yaml --output dir/[/]\n\n"
-            "  [dim]--quiet / -q[/]  [dim]JSON-only output for pipes and CI[/]",
+            body,
             title=f"[{_C_BRAND}]oa[/]  [dim]Open Agent Spec CLI[/]",
             border_style="cyan",
             padding=(1, 3),
