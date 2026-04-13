@@ -52,7 +52,7 @@ export function createCli(): Command {
   program
     .name("oa")
     .description("Open Agent Spec runner — execute YAML agent specs from the command line.")
-    .version("1.5.0");
+    .version("1.5.1");
 
   program
     .command("run")

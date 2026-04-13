@@ -1,6 +1,6 @@
 {
   "name": "@prime-vector/open-agent-spec",
-  "version": "1.5.0",
+  "version": "1.5.1",
   "description": "Run Open Agent Spec YAML files from Node.js — no Python required.",
   "keywords": [
     "ai",
