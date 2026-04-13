@@ -4,7 +4,7 @@ spec_section: "10.4"
 requires: contracts
 
 spec: |
-  open_agent_spec: "1.4.0"
+  open_agent_spec: "1.5.0"
   agent:
     name: test
     description: test

@@ -89,7 +89,7 @@ export default function HomePage() {
                   Open source · MIT
                 </span>
                 <span className="rounded-full border border-stone-400/50 bg-white/60 px-3 py-1 text-[10px] font-medium text-stone-700 backdrop-blur-sm">
-                  Spec v1.4.0
+                  Spec v1.5.0
                 </span>
                 <span className="rounded-full border border-stone-400/50 bg-white/60 px-3 py-1 text-[10px] font-medium text-stone-700 backdrop-blur-sm">
                   Python · Node.js
@@ -125,11 +125,11 @@ export default function HomePage() {
               </Link>
             </div>
 
-            {/* What's new in 1.4.0 */}
+            {/* What's new in 1.5.0 */}
             <div id="whats-new" className="mt-8 scroll-mt-6">
               <div className="mb-4 flex flex-wrap items-baseline gap-2">
                 <span className="inline-block rounded bg-stone-900 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-stone-100">
-                  New in 1.4.0
+                  New in 1.5.0
                 </span>
                 <p className="text-sm font-semibold text-stone-900">
                   Tool use, spec composition, and a test harness | all from YAML.
@@ -517,7 +517,7 @@ tasks:
                 Open source · MIT
               </span>
               <span className="rounded-full border border-stone-400/50 bg-stone-100/80 px-3 py-1">
-                Spec v1.4.0
+                Spec v1.5.0
               </span>
             </div>
           </section>

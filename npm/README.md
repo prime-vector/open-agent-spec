@@ -22,7 +22,7 @@ npx @prime-vector/open-agent-spec run --spec agent.yaml --task summarise --input
 
 ```yaml
 # agent.yaml
-open_agent_spec: "1.4.0"
+open_agent_spec: "1.5.0"
 
 agent:
   name: my-agent

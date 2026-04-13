@@ -1,4 +1,4 @@
-export const TOOLS_SPEC_YAML = `open_agent_spec: "1.4.0"
+export const TOOLS_SPEC_YAML = `open_agent_spec: "1.5.0"
 
 agent:
   name: file-analyst

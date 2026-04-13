@@ -2,12 +2,12 @@
 
 For a short intro, see the [README](../README.md). This page is the longer reference moved out of the main README so PyPI stays simple.
 
-> **Formal specification:** The normative definition of OAS 1.4.0 — what a conforming runtime MUST do — lives at [`spec/open-agent-spec-1.4.md`](../spec/open-agent-spec-1.4.md). This reference guide covers practical usage of the CLI and reference implementation. When this guide and the spec disagree, the spec is authoritative.
+> **Formal specification:** The normative definition of OAS 1.5.0 — what a conforming runtime MUST do — lives at [`spec/open-agent-spec-1.4.md`](../spec/open-agent-spec-1.4.md). This reference guide covers practical usage of the CLI and reference implementation. When this guide and the spec disagree, the spec is authoritative.
 
 ## Spec file structure
 
 ```yaml
-open_agent_spec: "1.4.0"
+open_agent_spec: "1.5.0"
 
 agent:
   name: "hello-world-agent"

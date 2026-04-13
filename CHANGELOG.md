@@ -5,6 +5,31 @@ All notable changes to **open-agent-spec** (Open Agent CLI) will be documented i
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.5.0] - 2026-04-13
+
+### Added
+- **Immutable Inference Sandboxing (IIS)** — a new `sandbox:` spec key that lets you declare hard execution constraints enforced by the runner *before* any tool call reaches the I/O layer. Three constraint types: `tools.allow`/`deny` (tool allowlist/denylist), `http.allow_domains` (HTTP host restriction for `http.get`/`http.post`), `file.allow_paths` (file path restriction for `file.read`/`file.write`). Sandbox can be declared at root level (all tasks) or per-task (overrides root). Three structured error codes: `SANDBOX_TOOL_VIOLATION`, `SANDBOX_DOMAIN_VIOLATION`, `SANDBOX_PATH_VIOLATION`.
+- **Chain-wide input immutability** — every task boundary now receives a deep copy of its input. Upstream chain mutations can never leak into downstream inputs or back to the caller's original dict.
+- **History threading** — pass a `history` array in the input to any task and it is injected into the LLM message list between system and user turns, enabling stateless multi-turn conversations without OAS managing persistence.
+- **Memory-retriever registry spec** (`oa://prime-vector/memory-retriever`) — an LLM re-ranker that accepts pre-fetched `candidates` (prior conversation turns from your own store) and returns the most contextually relevant ones as a `history` array, ready to inject into any chat-capable task.
+- **Spec Registry** — `openagentspec.dev/registry/` hosts shareable specs via `oa://` shorthand URLs. Includes seed specs: `oa://prime-vector/summariser`, `classifier`, `sentiment`, `code-reviewer`, `keyword-extractor`, and `memory-retriever`.
+- **npm CLI** (`@prime-vector/open-agent-spec`) — a native TypeScript port of `oa run` for Node.js environments. Supports OpenAI and Anthropic providers, `depends_on` chains, and history threading. No Python required.
+- **CLI terminal UI redesign** — new compact bot-face banner (`Panel.fit`), live inference spinner, syntax-highlighted JSON output panel, smart string rendering (Markdown for prose, extracted fenced JSON), and a unified help panel combining the bot face and command reference.
+- **`examples/sandboxed-agent/`** — demo spec showing root-level sandbox, per-task sandbox override, and the OAS vs BCE boundary.
+- **`examples/chat-agent/`** and **`examples/memory-chat/`** — reference implementations for history threading and the memory-retriever re-ranker pattern.
+- **Formal spec** `spec/open-agent-spec-1.5.md` and canonical schema `spec/schema/oas-schema-1.5.json` updated with all new keys (`sandbox:`, `history` threading convention).
+
+### Changed
+- `--quiet` mode: plain-string outputs are now written directly (no `json.dumps` quoting/escaping). Dict/list outputs remain pretty-printed JSON.
+- `OARunError` now propagates through the `except Exception` catch block in `_run_single_task` so structured errors (sandbox violations, delegation errors) are never re-wrapped as `RUN_ERROR`.
+- `oa://` registry URL scheme formalised — the runner resolves `oa://<owner>/<name>` to `https://openagentspec.dev/registry/<owner>/<name>/latest/spec.yaml`.
+- BCE `allowed_tools` field noted as a future rename to `expected_tools` (audit-not-enforcement semantics) in docs and REFERENCE.md.
+
+### Fixed
+- Banner `Panel()` replaced with `Panel.fit()` — banner no longer stretches to full terminal width.
+- `--input <file.txt>` correctly maps file content to the single required string field; `.json` files are always parsed as JSON objects.
+- File-reader example prompt now explicitly names required output fields (`summary`, `key_points`) to prevent the model omitting them.
+
 ## [1.4.1] - 2026-04-12
 
 ### Added

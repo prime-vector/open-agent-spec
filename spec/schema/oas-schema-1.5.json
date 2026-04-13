@@ -1,0 +1,522 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://openagents.org/schemas/oas-schema.json",
+  "title": "Open Agent Spec",
+  "description": "Schema for Open Agent Spec YAML files",
+  "type": "object",
+  "required": [
+    "open_agent_spec",
+    "agent",
+    "intelligence",
+    "tasks"
+  ],
+  "properties": {
+    "open_agent_spec": {
+      "type": "string",
+      "pattern": "^(1\\.(0\\.[4-9]|[1-9]\\.[0-9]+)|[2-9]\\.[0-9]+\\.[0-9]+)$",
+      "description": "Version of the Open Agent Spec (minimum 1.0.4)"
+    },
+    "agent": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "description": {
+          "type": "string",
+          "description": "Free text description of what the agent does"
+        },
+        "role": {
+          "type": "string",
+          "enum": [
+            "analyst",
+            "reviewer",
+            "chat",
+            "retriever",
+            "planner",
+            "executor"
+          ],
+          "description": "Optional role type for the agent"
+        }
+      },
+      "required": [
+        "name",
+        "description"
+      ]
+    },
+    "intelligence": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": [
+            "llm"
+          ],
+          "description": "Type of intelligence (currently only LLM supported)"
+        },
+        "engine": {
+          "type": "string",
+          "enum": [
+            "openai",
+            "anthropic",
+            "grok",
+            "xai",
+            "cortex",
+            "codex",
+            "local",
+            "custom"
+          ],
+          "description": "LLM engine provider (e.g., openai, anthropic, grok/xai, cortex, codex, local, custom)"
+        },
+        "model": {
+          "type": "string",
+          "description": "Model name/identifier"
+        },
+        "endpoint": {
+          "type": "string",
+          "pattern": "^(https?://)[^\\s]+$",
+          "description": "API endpoint URL for the LLM service (must be HTTP/HTTPS)"
+        },
+        "config": {
+          "type": "object",
+          "properties": {
+            "temperature": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 2,
+              "description": "Sampling temperature (0-2)"
+            },
+            "max_tokens": {
+              "type": "integer",
+              "minimum": 1,
+              "description": "Maximum number of tokens to generate"
+            },
+            "top_p": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1,
+              "description": "Nucleus sampling parameter (0-1)"
+            },
+            "frequency_penalty": {
+              "type": "number",
+              "minimum": -2,
+              "maximum": 2,
+              "description": "Frequency penalty (-2 to 2)"
+            },
+            "presence_penalty": {
+              "type": "number",
+              "minimum": -2,
+              "maximum": 2,
+              "description": "Presence penalty (-2 to 2)"
+            },
+            "enable_layer3": {
+              "type": "boolean",
+              "description": "Enable Layer 3 intelligence capabilities (Cortex-specific)"
+            },
+            "enable_onnx": {
+              "type": "boolean",
+              "description": "Enable ONNX runtime optimization (Cortex-specific)"
+            },
+            "openai_api_key": {
+              "type": "string",
+              "description": "OpenAI API key for Cortex integration"
+            },
+            "claude_api_key": {
+              "type": "string",
+              "description": "Claude API key for Cortex integration"
+            }
+          },
+          "description": "Configuration parameters for the LLM"
+        }
+      },
+      "required": [
+        "type",
+        "engine",
+        "model"
+      ]
+    },
+    "tasks": {
+      "type": "object",
+      "patternProperties": {
+        "^[a-zA-Z0-9_-]+$": {
+          "type": "object",
+          "properties": {
+            "description": {
+              "type": "string",
+              "description": "Description of what this task does"
+            },
+            "timeout": {
+              "type": "integer",
+              "minimum": 1,
+              "description": "Timeout in seconds for this task"
+            },
+            "input": {
+              "type": "object",
+              "properties": {
+                "type": {
+                  "type": "string",
+                  "enum": [
+                    "object"
+                  ],
+                  "default": "object",
+                  "description": "Type of input (currently only object supported)"
+                },
+                "properties": {
+                  "type": "object",
+                  "patternProperties": {
+                    "^[a-zA-Z_][a-zA-Z0-9_]*$": {
+                      "type": "object",
+                      "properties": {
+                        "type": {
+                          "type": "string",
+                          "enum": [
+                            "string",
+                            "number",
+                            "integer",
+                            "boolean",
+                            "array",
+                            "object"
+                          ],
+                          "description": "JSON Schema type for this property"
+                        },
+                        "description": {
+                          "type": "string",
+                          "description": "Description of this input property"
+                        },
+                        "default": {
+                          "description": "Default value for this property"
+                        },
+                        "enum": {
+                          "type": "array",
+                          "description": "Allowed values for this property"
+                        },
+                        "minimum": {
+                          "type": "number",
+                          "description": "Minimum value for numeric properties"
+                        },
+                        "maximum": {
+                          "type": "number",
+                          "description": "Maximum value for numeric properties"
+                        },
+                        "minLength": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "description": "Minimum length for string properties"
+                        },
+                        "maxLength": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "description": "Maximum length for string properties"
+                        },
+                        "pattern": {
+                          "type": "string",
+                          "description": "Regex pattern for string validation"
+                        },
+                        "items": {
+                          "type": "object",
+                          "description": "Schema for array items"
+                        },
+                        "properties": {
+                          "type": "object",
+                          "description": "Properties for object type"
+                        }
+                      },
+                      "required": [
+                        "type"
+                      ]
+                    }
+                  },
+                  "additionalProperties": false,
+                  "description": "Input properties schema"
+                },
+                "required": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  },
+                  "description": "List of required input properties"
+                }
+              },
+              "description": "Input schema for this task"
+            },
+            "output": {
+              "type": "object",
+              "properties": {
+                "type": {
+                  "type": "string",
+                  "enum": [
+                    "object"
+                  ],
+                  "default": "object",
+                  "description": "Type of output (currently only object supported)"
+                },
+                "properties": {
+                  "type": "object",
+                  "patternProperties": {
+                    "^[a-zA-Z_][a-zA-Z0-9_]*$": {
+                      "type": "object",
+                      "properties": {
+                        "type": {
+                          "type": "string",
+                          "enum": [
+                            "string",
+                            "number",
+                            "integer",
+                            "boolean",
+                            "array",
+                            "object"
+                          ],
+                          "description": "JSON Schema type for this property"
+                        },
+                        "description": {
+                          "type": "string",
+                          "description": "Description of this output property"
+                        },
+                        "default": {
+                          "description": "Default value for this property"
+                        },
+                        "enum": {
+                          "type": "array",
+                          "description": "Allowed values for this property"
+                        },
+                        "minimum": {
+                          "type": "number",
+                          "description": "Minimum value for numeric properties"
+                        },
+                        "maximum": {
+                          "type": "number",
+                          "description": "Maximum value for numeric properties"
+                        },
+                        "minLength": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "description": "Minimum length for string properties"
+                        },
+                        "maxLength": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "description": "Maximum length for string properties"
+                        },
+                        "pattern": {
+                          "type": "string",
+                          "description": "Regex pattern for string validation"
+                        },
+                        "items": {
+                          "type": "object",
+                          "description": "Schema for array items"
+                        },
+                        "properties": {
+                          "type": "object",
+                          "description": "Properties for object type"
+                        }
+                      },
+                      "required": [
+                        "type"
+                      ]
+                    }
+                  },
+                  "additionalProperties": false,
+                  "description": "Output properties schema"
+                },
+                "required": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  },
+                  "description": "List of required output properties"
+                }
+              },
+              "description": "Output schema for this task"
+            },
+            "prompts": {
+              "type": "object",
+              "properties": {
+                "system": {
+                  "type": "string",
+                  "description": "System prompt for this task (overrides global prompts.system)"
+                },
+                "user": {
+                  "type": "string",
+                  "description": "User prompt template for this task (overrides global prompts.user)"
+                }
+              },
+              "description": "Per-task prompts. Takes priority over the global prompts section."
+            },
+            "response_format": {
+              "type": "string",
+              "enum": [
+                "json",
+                "text"
+              ],
+              "default": "json",
+              "description": "Output format. 'json' (default): runner parses model output as JSON. 'text': raw model output is returned as-is; output schema validation is skipped."
+            },
+            "depends_on": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "description": "Declares data dependencies: the named tasks must produce output before this task can run, and their outputs are merged into this task's input (later entries win on key collision). IMPORTANT \u2014 this is a data contract, not execution control. OAS intentionally prohibits: branching, conditionals, loops, retries, fallbacks, parallel execution, and dynamic task selection. If you need any of those, they belong outside OAS in the calling platform. Linear chains only."
+            },
+            "behavioural_contract": {
+              "type": "object",
+              "description": "Per-task behavioural contract. Merged with the top-level behavioural_contract (arrays are unioned, scalars use per-task-wins). Install behavioural-contracts to enable runtime enforcement."
+            },
+            "tools": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "description": "Names of tools from the top-level tools: block that this task is allowed to use."
+            },
+            "spec": {
+              "type": "string",
+              "description": "Path to another spec YAML file whose task implements this task. Relative paths are resolved from the directory of the calling spec. When present, this task is delegated \u2014 inline prompts and output schema are ignored in favour of the referenced spec's task definition."
+            },
+            "task": {
+              "type": "string",
+              "description": "Name of the task to run in the referenced spec (used with 'spec:'). Defaults to the same name as this task when omitted."
+            }
+          },
+          "required": [
+            "description"
+          ]
+        }
+      },
+      "description": "Tasks that this agent can perform"
+    },
+    "prompts": {
+      "type": "object",
+      "properties": {
+        "system": {
+          "type": "string",
+          "description": "Global fallback system prompt used when a task has no per-task prompts"
+        },
+        "user": {
+          "type": "string",
+          "description": "Global fallback user prompt template"
+        }
+      },
+      "description": "Global prompt fallbacks. Per-task prompts (tasks.<name>.prompts) take priority."
+    },
+    "logging": {
+      "type": "object",
+      "properties": {
+        "enabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "Whether to enable DACP logging"
+        },
+        "level": {
+          "type": "string",
+          "enum": [
+            "DEBUG",
+            "INFO",
+            "WARNING",
+            "ERROR",
+            "CRITICAL"
+          ],
+          "default": "INFO",
+          "description": "Logging level"
+        },
+        "format_style": {
+          "type": "string",
+          "enum": [
+            "emoji",
+            "detailed",
+            "simple"
+          ],
+          "default": "emoji",
+          "description": "Logging format style"
+        },
+        "include_timestamp": {
+          "type": "boolean",
+          "default": true,
+          "description": "Include timestamps in logs"
+        },
+        "log_file": {
+          "type": "string",
+          "description": "Optional: log to file (auto-creates directories)"
+        },
+        "env_overrides": {
+          "type": "object",
+          "properties": {
+            "level": {
+              "type": "string",
+              "description": "Environment variable that overrides level"
+            },
+            "format_style": {
+              "type": "string",
+              "description": "Environment variable that overrides format_style"
+            },
+            "log_file": {
+              "type": "string",
+              "description": "Environment variable that overrides log_file"
+            }
+          },
+          "description": "Environment variable overrides for runtime configuration"
+        }
+      },
+      "description": "DACP logging configuration"
+    },
+    "behavioural_contract": {
+      "type": "object"
+    },
+    "interface": {
+      "type": "object"
+    },
+    "tools": {
+      "type": "object",
+      "patternProperties": {
+        "^[a-zA-Z0-9_-]+$": {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
+              "enum": [
+                "native",
+                "mcp",
+                "custom"
+              ],
+              "description": "Tool backend type. 'native' uses built-in OAS tools. 'mcp' connects to any MCP server (JSON-RPC 2.0 over HTTP). 'custom' loads a user-defined Python class."
+            },
+            "native": {
+              "type": "string",
+              "description": "Native tool ID (e.g. file.read, file.write, http.get, http.post, env.read). Required when type is 'native'."
+            },
+            "module": {
+              "type": "string",
+              "description": "Python dotted path to a class implementing ToolProvider. Required when type is 'custom'."
+            },
+            "description": {
+              "type": "string",
+              "description": "Human-readable description of what this tool does (used in model prompts)."
+            },
+            "parameters": {
+              "type": "object",
+              "description": "JSON Schema for tool arguments. Required for custom tools without a describe() method."
+            },
+            "endpoint": {
+              "type": "string",
+              "description": "HTTP endpoint of the MCP server. Required when type is 'mcp'."
+            },
+            "headers": {
+              "type": "object",
+              "description": "Optional HTTP headers sent with every MCP request. Values may use ${ENV_VAR} substitution."
+            },
+            "timeout": {
+              "type": "integer",
+              "minimum": 1,
+              "description": "Request timeout in seconds (default 30)."
+            }
+          },
+          "required": [
+            "type"
+          ],
+          "description": "A single tool declaration."
+        }
+      },
+      "description": "Tool declarations available to tasks. Tasks reference tools by name in their tools: list."
+    }
+  }
+}
