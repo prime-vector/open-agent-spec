@@ -376,6 +376,10 @@
             "task": {
               "type": "string",
               "description": "Name of the task to run in the referenced spec (used with 'spec:'). Defaults to the same name as this task when omitted."
+            },
+            "sandbox": {
+              "$ref": "#/$defs/sandboxDef",
+              "description": "Per-task sandbox overrides. Takes priority over the root-level sandbox block."
             }
           },
           "required": [
@@ -459,6 +463,9 @@
       },
       "description": "DACP logging configuration"
     },
+    "sandbox": {
+      "$ref": "#/$defs/sandboxDef"
+    },
     "behavioural_contract": {
       "type": "object"
     },
@@ -517,6 +524,57 @@
         }
       },
       "description": "Tool declarations available to tasks. Tasks reference tools by name in their tools: list."
+    }
+  },
+  "$defs": {
+    "sandboxDef": {
+      "type": "object",
+      "description": "Execution constraints: what this spec/task is mechanically permitted to do. Enforced by the runner before each tool dispatch.",
+      "properties": {
+        "tools": {
+          "type": "object",
+          "description": "Tool allow/deny list. Specify exactly one of allow or deny.",
+          "properties": {
+            "allow": {
+              "type": "array",
+              "items": {"type": "string"},
+              "description": "Exhaustive list of tool names this task may call. Any other tool triggers SANDBOX_TOOL_VIOLATION."
+            },
+            "deny": {
+              "type": "array",
+              "items": {"type": "string"},
+              "description": "List of tool names this task must NOT call. Complement of allow — use one or the other."
+            }
+          },
+          "not": {"required": ["allow", "deny"]},
+          "additionalProperties": false
+        },
+        "http": {
+          "type": "object",
+          "description": "HTTP call constraints.",
+          "properties": {
+            "allow_domains": {
+              "type": "array",
+              "items": {"type": "string"},
+              "description": "Allowed hostnames (and subdomains) for http.get / http.post. Requests to other hosts trigger SANDBOX_DOMAIN_VIOLATION."
+            }
+          },
+          "additionalProperties": false
+        },
+        "file": {
+          "type": "object",
+          "description": "File I/O constraints.",
+          "properties": {
+            "allow_paths": {
+              "type": "array",
+              "items": {"type": "string"},
+              "description": "Allowed directory prefixes for file.read / file.write. Paths outside these prefixes trigger SANDBOX_PATH_VIOLATION."
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
     }
   }
 }

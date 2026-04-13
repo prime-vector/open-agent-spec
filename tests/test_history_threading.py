@@ -387,7 +387,7 @@ tasks:
         received: dict = {}
 
         def fake_invoke_with_tools(
-            system, user, tools, config, task_name, history=None
+            system, user, tools, config, task_name, history=None, *, sandbox=None
         ):
             received["history"] = history
             return '{"reply": "ok"}'
@@ -416,7 +416,7 @@ tasks:
         received: dict = {}
 
         def fake_invoke_with_tools(
-            system, user, tools, config, task_name, history=None
+            system, user, tools, config, task_name, history=None, *, sandbox=None
         ):
             received["history"] = history
             return '{"reply": "ok"}'
