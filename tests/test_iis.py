@@ -11,8 +11,6 @@ Covers:
 from __future__ import annotations
 
 import copy
-import json
-from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -24,15 +22,16 @@ from oas_cli.runner import (
     run_task_from_spec,
 )
 
-
 # ── Helpers ───────────────────────────────────────────────────────────────────
+
 
 def _minimal_spec(*, tasks: dict | None = None, sandbox: dict | None = None) -> dict:
     spec: dict = {
         "open_agent_spec": "1.4.0",
         "agent": {"name": "test-agent", "description": "test", "role": "analyst"},
         "intelligence": {"type": "llm", "engine": "openai", "model": "gpt-4o-mini"},
-        "tasks": tasks or {
+        "tasks": tasks
+        or {
             "run": {
                 "description": "test task",
                 "output": {
@@ -49,6 +48,7 @@ def _minimal_spec(*, tasks: dict | None = None, sandbox: dict | None = None) -> 
 
 
 # ── _resolve_sandbox ──────────────────────────────────────────────────────────
+
 
 class TestResolveSandbox:
     def test_returns_empty_dict_when_no_sandbox(self):
@@ -88,6 +88,7 @@ class TestResolveSandbox:
 
 
 # ── _check_sandbox — tool enforcement ────────────────────────────────────────
+
 
 class TestCheckSandboxToolViolation:
     def test_allow_list_permits_listed_tool(self):
@@ -129,19 +130,26 @@ class TestCheckSandboxToolViolation:
 
 # ── _check_sandbox — domain enforcement ──────────────────────────────────────
 
+
 class TestCheckSandboxDomainViolation:
     def test_allows_exact_domain_match(self):
         sandbox = {"http": {"allow_domains": ["api.example.com"]}}
-        _check_sandbox("http.get", {"url": "https://api.example.com/v1"}, sandbox, "task")
+        _check_sandbox(
+            "http.get", {"url": "https://api.example.com/v1"}, sandbox, "task"
+        )
 
     def test_allows_subdomain(self):
         sandbox = {"http": {"allow_domains": ["example.com"]}}
-        _check_sandbox("http.get", {"url": "https://api.example.com/v1"}, sandbox, "task")
+        _check_sandbox(
+            "http.get", {"url": "https://api.example.com/v1"}, sandbox, "task"
+        )
 
     def test_blocks_unlisted_domain(self):
         sandbox = {"http": {"allow_domains": ["api.example.com"]}}
         with pytest.raises(OARunError) as exc_info:
-            _check_sandbox("http.post", {"url": "https://evil.io/exfil"}, sandbox, "task")
+            _check_sandbox(
+                "http.post", {"url": "https://evil.io/exfil"}, sandbox, "task"
+            )
         err = exc_info.value
         assert err.code == "SANDBOX_DOMAIN_VIOLATION"
         assert "evil.io" in str(err)
@@ -149,7 +157,9 @@ class TestCheckSandboxDomainViolation:
     def test_blocks_domain_with_port(self):
         sandbox = {"http": {"allow_domains": ["api.example.com"]}}
         with pytest.raises(OARunError) as exc_info:
-            _check_sandbox("http.get", {"url": "https://attacker.com:443/steal"}, sandbox, "task")
+            _check_sandbox(
+                "http.get", {"url": "https://attacker.com:443/steal"}, sandbox, "task"
+            )
         assert exc_info.value.code == "SANDBOX_DOMAIN_VIOLATION"
 
     def test_domain_check_skipped_for_non_http_tool(self):
@@ -164,19 +174,24 @@ class TestCheckSandboxDomainViolation:
 
 # ── _check_sandbox — path enforcement ────────────────────────────────────────
 
+
 class TestCheckSandboxPathViolation:
     def test_allows_path_inside_allow_paths(self, tmp_path):
         data_dir = tmp_path / "data"
         data_dir.mkdir()
         sandbox = {"file": {"allow_paths": [str(data_dir)]}}
-        _check_sandbox("file.read", {"path": str(data_dir / "report.txt")}, sandbox, "task")
+        _check_sandbox(
+            "file.read", {"path": str(data_dir / "report.txt")}, sandbox, "task"
+        )
 
     def test_blocks_path_outside_allow_paths(self, tmp_path):
         data_dir = tmp_path / "data"
         data_dir.mkdir()
         sandbox = {"file": {"allow_paths": [str(data_dir)]}}
         with pytest.raises(OARunError) as exc_info:
-            _check_sandbox("file.read", {"path": str(tmp_path / "secret.txt")}, sandbox, "task")
+            _check_sandbox(
+                "file.read", {"path": str(tmp_path / "secret.txt")}, sandbox, "task"
+            )
         err = exc_info.value
         assert err.code == "SANDBOX_PATH_VIOLATION"
         assert "secret.txt" in str(err) or "allow_paths" in str(err).lower()
@@ -204,11 +219,14 @@ class TestCheckSandboxPathViolation:
         data_dir.mkdir()
         sandbox = {"file": {"allow_paths": [str(data_dir)]}}
         with pytest.raises(OARunError) as exc_info:
-            _check_sandbox("file.write", {"path": str(tmp_path / "exfil.txt")}, sandbox, "task")
+            _check_sandbox(
+                "file.write", {"path": str(tmp_path / "exfil.txt")}, sandbox, "task"
+            )
         assert exc_info.value.code == "SANDBOX_PATH_VIOLATION"
 
 
 # ── Integration: sandbox fires before dispatch in _invoke_with_tools ──────────
+
 
 class TestSandboxIntegration:
     """Use run_task_from_spec with a mocked provider + tool to verify the
@@ -249,7 +267,9 @@ class TestSandboxIntegration:
         from oas_cli.tool_providers.base import InvokeResult, ToolCall
 
         # Provider returns a tool call for 'file.read' but sandbox blocks it.
-        fake_tc = ToolCall(id="tc1", name="file.read", arguments={"path": "data/report.txt"})
+        fake_tc = ToolCall(
+            id="tc1", name="file.read", arguments={"path": "data/report.txt"}
+        )
         fake_result = InvokeResult(is_final=False, text="", tool_calls=[fake_tc])
 
         spec = self._make_spec_with_tool_and_sandbox(
@@ -274,7 +294,9 @@ class TestSandboxIntegration:
         """When the tool is in the allow list, dispatch proceeds normally."""
         from oas_cli.tool_providers.base import InvokeResult, ToolCall
 
-        fake_tc = ToolCall(id="tc1", name="file.read", arguments={"path": "data/report.txt"})
+        fake_tc = ToolCall(
+            id="tc1", name="file.read", arguments={"path": "data/report.txt"}
+        )
         intermediate = InvokeResult(is_final=False, text="", tool_calls=[fake_tc])
         final = InvokeResult(is_final=True, text='{"content": "hello"}', tool_calls=[])
 
@@ -288,7 +310,9 @@ class TestSandboxIntegration:
 
         with (
             patch("oas_cli.runner.get_provider", return_value=mock_provider),
-            patch("oas_cli.runner.dispatch_tool_call", return_value="file contents") as mock_dispatch,
+            patch(
+                "oas_cli.runner.dispatch_tool_call", return_value="file contents"
+            ) as mock_dispatch,
         ):
             result = run_task_from_spec(spec, task_name="read", input_data={})
 
@@ -297,6 +321,7 @@ class TestSandboxIntegration:
 
 
 # ── Chain-wide immutability ───────────────────────────────────────────────────
+
 
 class TestInputImmutability:
     """Verify that no task in the chain mutates its caller's input dict."""
@@ -367,6 +392,9 @@ class TestInputImmutability:
             )
 
         # Both runs should see identical upstream chain outputs.
-        assert result1["chain"]["upstream"]["input"] == result2["chain"]["upstream"]["input"], (
+        assert (
+            result1["chain"]["upstream"]["input"]
+            == result2["chain"]["upstream"]["input"]
+        ), (
             "Upstream task received different inputs across runs — input leaked between runs"
         )

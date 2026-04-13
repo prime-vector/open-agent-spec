@@ -511,8 +511,7 @@ def _check_sandbox(
             file_path = arguments.get("path", "")
             resolved = str(Path(file_path).resolve())
             if not any(
-                resolved.startswith(str(Path(p).resolve()))
-                for p in allow_paths
+                resolved.startswith(str(Path(p).resolve())) for p in allow_paths
             ):
                 raise OARunError(
                     f"Sandbox violation: path '{file_path}' is outside allow_paths for task "
@@ -783,7 +782,12 @@ def _run_single_task(
         tools = resolve_task_tools(spec_data, task_name)
         if tools:
             raw_output = _invoke_with_tools(
-                system, user, tools, intelligence_config, task_name, history,
+                system,
+                user,
+                tools,
+                intelligence_config,
+                task_name,
+                history,
                 sandbox=sandbox or None,
             )
         else:
