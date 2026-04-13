@@ -17,11 +17,14 @@ Nothing here should import from runner.py to avoid circular deps.
 
 from __future__ import annotations
 
+import json
+import re
 from collections.abc import Generator
 from contextlib import contextmanager
 from typing import Any
 
 from rich.console import Console
+from rich.markdown import Markdown
 from rich.panel import Panel
 from rich.rule import Rule
 from rich.syntax import Syntax
@@ -133,6 +136,69 @@ def inference_spinner(
 
 # ── Result panel ─────────────────────────────────────────────────────────────
 
+_FENCED_JSON_RE = re.compile(
+    r"```(?:json)?\s*(\{[\s\S]*?\}|\[[\s\S]*?\])\s*```", re.IGNORECASE
+)
+
+
+def _render_output(output: Any) -> Any:
+    """Return a Rich renderable for the task output.
+
+    • dict / list      → monokai JSON syntax block
+    • str with fenced JSON  → strip prose, render the JSON block highlighted
+    • plain str        → Markdown (handles headers, bullets, bold naturally)
+    """
+    if isinstance(output, (dict, list)):
+        return Syntax(
+            json.dumps(output, indent=2, ensure_ascii=False),
+            "json",
+            theme="monokai",
+            word_wrap=True,
+        )
+
+    if isinstance(output, str):
+        # Try to pull a JSON block out of a markdown-fenced response.
+        match = _FENCED_JSON_RE.search(output)
+        if match:
+            try:
+                extracted = json.loads(match.group(1))
+                prose = output[: match.start()].strip()
+                if prose:
+                    # Show any introductory prose above the JSON block.
+                    return _VStack([Markdown(prose), _json_syntax(extracted)])
+                return _json_syntax(extracted)
+            except json.JSONDecodeError:
+                pass
+        # Plain text — render via Markdown so headings/bullets/bold work.
+        return Markdown(output)
+
+    # Fallback: anything else (int, None, …)
+    return Syntax(
+        json.dumps(output, indent=2, ensure_ascii=False),
+        "json",
+        theme="monokai",
+        word_wrap=True,
+    )
+
+
+def _json_syntax(obj: Any) -> Syntax:
+    return Syntax(
+        json.dumps(obj, indent=2, ensure_ascii=False),
+        "json",
+        theme="monokai",
+        word_wrap=True,
+    )
+
+
+class _VStack:
+    """Minimal vertical stack of Rich renderables (no extra deps)."""
+
+    def __init__(self, items: list) -> None:
+        self._items = items
+
+    def __rich_console__(self, console: Console, options: Any):
+        yield from self._items
+
 
 def print_result_panel(
     console: Console,
@@ -143,7 +209,8 @@ def print_result_panel(
 
     Shows:
     • A ✓ header with task name and optional elapsed time
-    • The output JSON with syntax highlighting
+    • Output rendered appropriately: JSON dicts highlighted, plain strings
+      as Markdown, fenced-JSON-in-prose extracted and highlighted
     • Chain intermediate results collapsed in a dimmed sub-panel (when present)
     """
     task_name: str = result.get("task") or "output"
@@ -151,17 +218,14 @@ def print_result_panel(
     output: Any = result.get("output", result)
     chain: dict | None = result.get("chain")
 
-    import json
-
-    output_json = json.dumps(output, indent=2, ensure_ascii=False)
-    syntax = Syntax(output_json, "json", theme="monokai", word_wrap=True)
+    content = _render_output(output)
 
     elapsed_str = f"  [dim]{elapsed_s:.1f}s[/]" if elapsed_s is not None else ""
     model_str = f"  [{_C_SUBTLE}]{model}[/]" if model else ""
 
     console.print(
         Panel(
-            syntax,
+            content,
             title=f"[{_C_OK}]✓[/] [{_C_KEY}]{task_name}[/]",
             title_align="left",
             subtitle=f"{elapsed_str}{model_str}",

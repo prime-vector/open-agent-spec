@@ -670,7 +670,8 @@ def run(
         spec_data_preview = _load_spec(spec)
         intel = spec_data_preview.get("intelligence") or {}
         _model = intel.get("model") or "model"
-        _task_label = task or ""
+        # Resolve the actual task name (handles auto-selection when --task omitted)
+        _task_label, _ = _choose_task(spec_data_preview, task)
 
         # Show run header (agent name, task, model) before calling the model.
         if not quiet:
