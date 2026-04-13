@@ -124,7 +124,9 @@ def inference_spinner(
         with inference_spinner(console, "gpt-4o-mini", "reply"):
             result = run_task_from_file(...)
     """
-    label = f"[{_C_SUBTLE}]calling[/] [{_C_KEY}]{model}[/] [dim]·[/] [dim]{task_name}[/]"
+    label = (
+        f"[{_C_SUBTLE}]calling[/] [{_C_KEY}]{model}[/] [dim]·[/] [dim]{task_name}[/]"
+    )
     with console.status(label, spinner="dots", spinner_style=_C_BRAND):
         yield
 
@@ -173,7 +175,9 @@ def print_result_panel(
     if chain:
         rows: list[str] = []
         for dep_task, dep_result in chain.items():
-            dep_out = dep_result.get("output") if isinstance(dep_result, dict) else dep_result
+            dep_out = (
+                dep_result.get("output") if isinstance(dep_result, dict) else dep_result
+            )
             dep_json = json.dumps(dep_out, indent=2, ensure_ascii=False)
             rows.append(f"[dim]── {dep_task}[/]\n[grey39]{dep_json}[/]")
         console.print(
