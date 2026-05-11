@@ -1,9 +1,26 @@
 import { readFileSync } from "node:fs";
-import { resolve } from "node:path";
+import { dirname, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 import { Command } from "commander";
 import { runTask } from "./runner.js";
-import { OAError } from "./loader.js";
+import { loadSpecFromFile, OAError } from "./loader.js";
 import type { RunInput } from "./types.js";
+
+function readPackageVersion(): string {
+  const here = dirname(fileURLToPath(import.meta.url));
+  for (const candidate of [
+    resolve(here, "..", "package.json"),
+    resolve(here, "..", "..", "package.json"),
+  ]) {
+    try {
+      const pkg = JSON.parse(readFileSync(candidate, "utf8")) as { version?: string };
+      if (pkg.version) return pkg.version;
+    } catch {
+      // try next candidate
+    }
+  }
+  return "unknown";
+}
 
 function parseInput(raw: string): RunInput {
   const trimmed = raw.trim();
@@ -52,7 +69,26 @@ export function createCli(): Command {
   program
     .name("oa")
     .description("Open Agent Spec runner — execute YAML agent specs from the command line.")
-    .version("1.5.1");
+    .version(readPackageVersion());
+
+  program
+    .command("validate")
+    .description("Validate a spec file against the Open Agent Spec schema (no model calls).")
+    .requiredOption("--spec <path>", "Path to the spec YAML file")
+    .action((opts: { spec: string }) => {
+      const specPath = resolve(opts.spec);
+      try {
+        loadSpecFromFile(specPath);
+      } catch (err) {
+        if (err instanceof OAError) {
+          console.error(`Error [${err.code}]: ${err.message}`);
+        } else {
+          console.error(`Error: ${String(err)}`);
+        }
+        process.exit(1);
+      }
+      console.log(`Spec is valid: ${specPath}`);
+    });
 
   program
     .command("run")

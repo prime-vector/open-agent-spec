@@ -360,6 +360,94 @@ intelligence:
   model: gpt-4o-mini
 ```
 
+The same `oa run` command works against any engine — drop the `intelligence:` block below into your spec, export the matching key, and run.
+
+#### OpenAI
+
+```yaml
+intelligence:
+  type: llm
+  engine: openai
+  model: gpt-4o-mini
+```
+
+```bash
+export OPENAI_API_KEY=sk-...
+oa run --spec agent.yaml --task greet --input '{"name":"Alice"}' --quiet
+```
+
+#### Anthropic (Claude)
+
+```yaml
+intelligence:
+  type: llm
+  engine: anthropic
+  model: claude-3-5-sonnet-20241022
+```
+
+```bash
+export ANTHROPIC_API_KEY=sk-ant-...
+oa run --spec agent.yaml --task greet --input '{"name":"Alice"}' --quiet
+```
+
+#### Grok / xAI
+
+```yaml
+intelligence:
+  type: llm
+  engine: grok          # or "xai" — same provider
+  model: grok-3-latest
+```
+
+```bash
+export XAI_API_KEY=xai-...
+oa run --spec agent.yaml --task greet --input '{"name":"Alice"}' --quiet
+```
+
+#### Local (Ollama, LM Studio, vLLM, llama.cpp)
+
+```yaml
+intelligence:
+  type: llm
+  engine: local
+  endpoint: http://localhost:11434/v1   # default: Ollama
+  model: llama3.2
+```
+
+```bash
+# No API key required.
+ollama serve && ollama pull llama3.2
+oa run --spec agent.yaml --task greet --input '{"name":"Alice"}' --quiet
+```
+
+#### Cortex (self-hosted, OpenAI-compatible)
+
+```yaml
+intelligence:
+  type: llm
+  engine: cortex
+  endpoint: https://cortex.mycompany.com/v1
+  model: my-cortex-model
+  config:
+    api_key_env: CORTEX_API_KEY
+```
+
+```bash
+export CORTEX_API_KEY=...
+oa run --spec agent.yaml --task greet --input '{"name":"Alice"}' --quiet
+```
+
+#### Custom (your own Python class)
+
+```yaml
+intelligence:
+  type: llm
+  engine: custom
+  module: my_pkg.providers:MyProvider
+```
+
+Implement `invoke(system, user, config, history)` on `MyProvider`. See [`docs/REFERENCE.md`](docs/REFERENCE.md) for the protocol.
+
 ---
 
 ### npm / Node.js CLI
