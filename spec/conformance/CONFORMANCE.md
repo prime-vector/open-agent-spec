@@ -1,6 +1,6 @@
 # OA Conformance Matrix
 
-| Case | python-reference 1.5.0 | npm 1.5.1 |
+| Case | python-reference 1.5.0 | npm 1.5.2 |
 |---|---|---|
 | schema/invalid-engine | ✅ PASS | ✅ PASS |
 | schema/invalid-version | ✅ PASS | ✅ PASS |
@@ -37,6 +37,6 @@
 | Runtime | Pass | Fail | Unsupported | Adapter errors |
 |---|---|---|---|---|
 | python-reference 1.5.0 | 29 | 0 | 0 | 0 |
-| npm 1.5.1 | 27 | 0 | 2 | 0 |
+| npm 1.5.2 | 27 | 0 | 2 | 0 |
 
 Legend: ✅ PASS · ❌ FAIL · ⬜ UNSUPPORTED (capability not declared) · 💥 adapter error
