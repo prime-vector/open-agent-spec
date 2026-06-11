@@ -54,3 +54,47 @@ jobs:
             coverage.xml
             test_output/
           retention-days: 7
+
+  conformance:
+    name: conformance (python + node)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install Python runtime
+        run: |
+          python -m pip install --upgrade pip
+          pip install ".[dev]"
+
+      - name: Build npm runtime
+        working-directory: npm
+        run: |
+          npm ci
+          npm run build
+
+      - name: Run conformance suite (both runtimes)
+        run: |
+          python -m spec.conformance.harness.harness \
+            --adapter python --adapter node \
+            --matrix-out conformance-matrix.md \
+            --json-out conformance-report.json
+
+      - name: Upload conformance matrix
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: conformance-matrix
+          path: |
+            conformance-matrix.md
+            conformance-report.json
+          retention-days: 30

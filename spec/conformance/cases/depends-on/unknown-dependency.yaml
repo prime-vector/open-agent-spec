@@ -1,6 +1,7 @@
 # Spec §11.2 — Unknown depends_on reference MUST raise TASK_NOT_FOUND.
 description: "Unknown task in depends_on raises TASK_NOT_FOUND"
 spec_section: "11.2"
+requires: depends-on
 
 spec: |
   open_agent_spec: "1.5.0"

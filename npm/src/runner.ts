@@ -1,32 +1,40 @@
 import { resolve, dirname } from "node:path";
-import { loadSpecFromFile, parseSpec, chooseTask, OAError } from "./loader.js";
+import { loadSpecFromFile, chooseTask, OAError } from "./loader.js";
 import { resolvePrompts } from "./prompts.js";
 import { invokeProvider } from "./providers/index.js";
 import { resolveSpecUrl, isRemoteRef, fetchRemoteSpec } from "./registry.js";
-import type { OASpec, RunInput, TaskResult, DelegatedTask } from "./types.js";
+import type {
+  OASpec,
+  RunInput,
+  TaskResult,
+  DelegatedTask,
+  InlineTask,
+  InvokeFn,
+  ChatMessage,
+} from "./types.js";
 
 // ── JSON extraction ────────────────────────────────────────────────────────
 
-function extractJson(raw: string): Record<string, unknown> {
+function extractJson(raw: string): unknown {
   const trimmed = raw.trim();
 
   // Try direct parse first.
   try {
     const parsed = JSON.parse(trimmed);
     if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
-      return parsed as Record<string, unknown>;
+      return parsed;
     }
   } catch {
     /* fall through */
   }
 
   // Strip markdown code fences: ```json ... ``` or ``` ... ```
-  const fenced = trimmed.match(/```(?:json)?\s*([\s\S]+?)```/);
+  const fenced = trimmed.match(/```(?:json)?\s*([\s\S]+?)```/i);
   if (fenced?.[1]) {
     try {
       const parsed = JSON.parse(fenced[1].trim());
       if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
-        return parsed as Record<string, unknown>;
+        return parsed;
       }
     } catch {
       /* fall through */
@@ -40,18 +48,23 @@ function extractJson(raw: string): Record<string, unknown> {
     try {
       const parsed = JSON.parse(trimmed.slice(braceStart, braceEnd + 1));
       if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
-        return parsed as Record<string, unknown>;
+        return parsed;
       }
     } catch {
       /* fall through */
     }
   }
 
-  throw new OAError(
-    `Model response did not contain a valid JSON object: ${trimmed.slice(0, 200)}`,
-    "OUTPUT_PARSE_ERROR",
-    "output_parsing",
-  );
+  // Mirror the reference runtime: unparseable output is returned raw.
+  return raw;
+}
+
+// ── Execution context ──────────────────────────────────────────────────────
+
+interface ExecContext {
+  invoke: InvokeFn;
+  overrideSystem?: string | null;
+  overrideUser?: string | null;
 }
 
 // ── Single task execution ──────────────────────────────────────────────────
@@ -62,14 +75,18 @@ async function runSingleTask(
   input: RunInput,
   specPath: string | null,
   visitedSpecs: ReadonlySet<string>,
+  ctx: ExecContext,
 ): Promise<TaskResult> {
+  // Immutable input snapshot — every task boundary gets its own copy.
+  input = structuredClone(input);
+
   const taskDef = spec.tasks[taskName];
   if (!taskDef) {
     const available = Object.keys(spec.tasks).join(", ");
     throw new OAError(
       `Task '${taskName}' not found. Available: ${available}`,
       "TASK_NOT_FOUND",
-      "task_selection",
+      "routing",
     );
   }
 
@@ -136,6 +153,7 @@ async function runSingleTask(
       input,
       nextSpecPath,
       newVisited,
+      ctx,
     );
 
     return {
@@ -146,7 +164,24 @@ async function runSingleTask(
   }
 
   // ── Inline task ──────────────────────────────────────────────────────
-  const prompts = resolvePrompts(spec, taskName, taskDef, input);
+  const inline = taskDef as InlineTask;
+
+  // Validate required inputs before touching the model.
+  const requiredFields = inline.input?.required ?? [];
+  const missing = requiredFields.filter((f) => !(f in input));
+  if (missing.length > 0) {
+    throw new OAError(
+      `Missing required input field(s) for task '${taskName}': ${missing.join(", ")}`,
+      "CHAIN_INPUT_MISSING",
+      "input_validation",
+      taskName,
+    );
+  }
+
+  const prompts = resolvePrompts(spec, taskName, taskDef, input, {
+    system: ctx.overrideSystem,
+    user: ctx.overrideUser,
+  });
 
   const providerConfig = {
     engine: spec.intelligence.engine,
@@ -156,48 +191,106 @@ async function runSingleTask(
 
   // history is a reserved input convention — never stored by OA, just forwarded.
   const history = Array.isArray(input["history"])
-    ? (input["history"] as import("./types.js").ChatMessage[])
+    ? (input["history"] as ChatMessage[])
     : undefined;
 
-  const raw = await invokeProvider(prompts.system, prompts.user, providerConfig, history);
-  const output = extractJson(raw);
+  const raw = await ctx.invoke(prompts.system, prompts.user, providerConfig, history);
+
+  // response_format: text → raw passthrough, no JSON parsing.
+  const output = inline.response_format === "text" ? raw : extractJson(raw);
 
   return {
     task: taskName,
-    output,
-    provider: spec.intelligence.engine,
+    input,
+    prompt: `${prompts.system}\n\n${prompts.user}`.trim(),
+    engine: spec.intelligence.engine,
     model: spec.intelligence.model,
+    raw_output: raw,
+    output,
   };
 }
 
 // ── Dependency chain resolution ────────────────────────────────────────────
 
+/**
+ * Transitive cycle check over the depends_on graph (spec §7.2).
+ * Mirrors the reference runtime: detection is transitive even though
+ * execution only runs *direct* dependencies.
+ */
+function checkChainCycles(spec: OASpec, taskName: string): void {
+  const seen = new Set<string>([taskName]);
+
+  const walk = (name: string): void => {
+    const deps = (spec.tasks[name] as { depends_on?: string[] })?.depends_on ?? [];
+    for (const dep of deps) {
+      if (seen.has(dep)) {
+        throw new OAError(
+          `Circular dependency detected: '${dep}' is already in the chain`,
+          "CHAIN_CYCLE_ERROR",
+          "routing",
+          name,
+        );
+      }
+      seen.add(dep);
+      walk(dep);
+    }
+  };
+
+  walk(taskName);
+}
+
+/**
+ * Resolve the depends_on chain for a task (spec §7.2).
+ *
+ * Direct dependencies run in listed order; each dependency's output is merged
+ * into the accumulating input (later entries win on key collision). Returns
+ * the merged input plus the chain of intermediate result envelopes.
+ */
 async function resolveChain(
   spec: OASpec,
   taskName: string,
   baseInput: RunInput,
   specPath: string | null,
-): Promise<TaskResult> {
+  ctx: ExecContext,
+): Promise<{ merged: RunInput; chain: Record<string, TaskResult> }> {
   const taskDef = spec.tasks[taskName];
-  if (!taskDef) {
-    throw new OAError(
-      `Task '${taskName}' not found`,
-      "TASK_NOT_FOUND",
-      "task_selection",
+  const deps: string[] =
+    (taskDef as { depends_on?: string[] } | undefined)?.depends_on ?? [];
+
+  if (deps.length === 0) {
+    return { merged: structuredClone(baseInput), chain: {} };
+  }
+
+  checkChainCycles(spec, taskName);
+
+  const merged: RunInput = structuredClone(baseInput);
+  const chain: Record<string, TaskResult> = {};
+
+  for (const dep of deps) {
+    if (!(dep in spec.tasks)) {
+      throw new OAError(
+        `depends_on references unknown task '${dep}'`,
+        "TASK_NOT_FOUND",
+        "routing",
+        dep,
+      );
+    }
+    const depResult = await runSingleTask(
+      spec,
+      dep,
+      structuredClone(merged),
+      specPath,
+      new Set(),
+      // Dependencies never receive caller prompt overrides.
+      { invoke: ctx.invoke },
     );
+    chain[dep] = depResult;
+    if (depResult.output && typeof depResult.output === "object" && !Array.isArray(depResult.output)) {
+      Object.assign(merged, depResult.output);
+    }
   }
 
-  const dependsOn: string[] = (taskDef as { depends_on?: string[] }).depends_on ?? [];
-  const mergedInput: RunInput = { ...baseInput };
-
-  // Resolve each upstream dependency first (sequential — preserves data contract).
-  for (const dep of dependsOn) {
-    const depResult = await resolveChain(spec, dep, baseInput, specPath);
-    // Merge upstream output fields into this task's input.
-    Object.assign(mergedInput, depResult.output);
-  }
-
-  return runSingleTask(spec, taskName, mergedInput, specPath, new Set());
+  return { merged, chain };
 }
 
 // ── Public API ─────────────────────────────────────────────────────────────
@@ -206,8 +299,10 @@ export interface RunOptions {
   specPath: string;
   taskName?: string;
   input?: RunInput;
-  systemPromptOverride?: string;
-  userPromptOverride?: string;
+  systemPromptOverride?: string | null;
+  userPromptOverride?: string | null;
+  /** Custom provider invocation — for embedding, testing, and conformance. */
+  invokeFn?: InvokeFn;
 }
 
 /**
@@ -223,8 +318,17 @@ export interface RunOptions {
 export async function runTask(options: RunOptions): Promise<TaskResult> {
   const { specPath, input = {} } = options;
   const spec = loadSpecFromFile(specPath);
-  const [resolvedTaskName] = chooseTask(spec, options.taskName);
-  return resolveChain(spec, resolvedTaskName, input, specPath);
+  return runTaskFromSpec(spec, options.taskName, input, specPath, {
+    systemPromptOverride: options.systemPromptOverride,
+    userPromptOverride: options.userPromptOverride,
+    invokeFn: options.invokeFn,
+  });
+}
+
+export interface RunFromSpecOptions {
+  systemPromptOverride?: string | null;
+  userPromptOverride?: string | null;
+  invokeFn?: InvokeFn;
 }
 
 /**
@@ -232,10 +336,45 @@ export async function runTask(options: RunOptions): Promise<TaskResult> {
  */
 export async function runTaskFromSpec(
   spec: OASpec,
-  taskName: string,
+  taskName?: string,
   input: RunInput = {},
   specPath: string | null = null,
+  options: RunFromSpecOptions = {},
 ): Promise<TaskResult> {
   const [resolvedTaskName] = chooseTask(spec, taskName);
-  return resolveChain(spec, resolvedTaskName, input, specPath);
+
+  const ctx: ExecContext = {
+    invoke: options.invokeFn ?? invokeProvider,
+    overrideSystem: options.systemPromptOverride,
+    overrideUser: options.userPromptOverride,
+  };
+
+  // Deep copy at the public entry point so the caller's object is never mutated.
+  const baseInput = structuredClone(input);
+
+  const { merged, chain } = await resolveChain(
+    spec,
+    resolvedTaskName,
+    baseInput,
+    specPath,
+    ctx,
+  );
+
+  const visited = new Set<string>();
+  if (specPath) visited.add(resolve(specPath));
+
+  const result = await runSingleTask(
+    spec,
+    resolvedTaskName,
+    merged,
+    specPath,
+    visited,
+    ctx,
+  );
+
+  if (Object.keys(chain).length > 0) {
+    result.chain = chain;
+  }
+
+  return result;
 }

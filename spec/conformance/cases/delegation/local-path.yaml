@@ -1,6 +1,7 @@
 # Spec §7.3 — Local relative paths resolve from the calling spec's directory.
 description: "Delegation via local relative path resolves and executes"
 spec_section: "7.3"
+requires: delegation
 
 # NOTE: This test uses an external file (delegated-spec.yaml) in the same
 # directory. The runner must write the spec to a temp directory alongside

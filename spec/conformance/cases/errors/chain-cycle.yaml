@@ -1,6 +1,7 @@
 # Spec §7.2 — Transitive circular dependency MUST raise CHAIN_CYCLE_ERROR.
 description: "Three-task transitive cycle raises CHAIN_CYCLE_ERROR"
 spec_section: "7.2"
+requires: depends-on
 
 spec: |
   open_agent_spec: "1.5.0"

@@ -1,7 +1,6 @@
 # Spec §7.1 — Missing required input fields MUST raise CHAIN_INPUT_MISSING.
 description: "Missing required input raises CHAIN_INPUT_MISSING"
 spec_section: "7.1"
-
 spec: |
   open_agent_spec: "1.5.0"
   agent:

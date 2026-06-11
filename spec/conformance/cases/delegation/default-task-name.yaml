@@ -1,6 +1,7 @@
 # Spec §7.3 — Target task defaults to the calling task's name when task: is omitted.
 description: "Delegation defaults to calling task's name when task: omitted"
 spec_section: "7.3"
+requires: delegation
 
 uses_files:
   - delegated-spec.yaml

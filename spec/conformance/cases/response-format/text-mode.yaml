@@ -1,6 +1,7 @@
 # Spec §8.1 — response_format "text" returns raw string, skips JSON parsing.
 description: "Text mode returns raw string without JSON parsing"
 spec_section: "8.1"
+requires: response-format-text
 
 spec: |
   open_agent_spec: "1.5.0"
