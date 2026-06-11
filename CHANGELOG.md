@@ -5,6 +5,15 @@ All notable changes to **open-agent-spec** (Open Agent CLI) will be documented i
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.5.2] - 2026-05-11
+
+### Added
+- **npm CLI `oa validate`** — `oa validate --spec <path>` in the Node.js CLI now mirrors the Python command, performing the same required-field check (`open_agent_spec`, `agent`, `intelligence`, `tasks`) without any model call. Closes #25 for the npm port.
+- **Per-engine README examples** — README "Multiple engines" section now ships a runnable block per engine (OpenAI, Anthropic, Grok/xAI, Local, Cortex, Custom), each showing the `intelligence:` YAML, the env var to export, and the matching `oa run` command. Closes #22.
+
+### Changed
+- **npm CLI `--version`** — the Node CLI now reads the version dynamically from `package.json` instead of a hard-coded literal, so `oa --version` cannot drift from the published release. Closes #23 for the npm port. The Python CLI has read its version from package metadata since 1.5.0.
+
 ## [1.5.1] - 2026-04-13
 
 ### Changed
