@@ -14,6 +14,8 @@ import shlex
 from pathlib import Path
 from typing import Any
 
+from oas_cli.reasoning import codex_reasoning_flags
+
 
 def _build_codex_command(prompt: str, config: dict[str, Any]) -> tuple[list[str], str]:
     """Build the Codex CLI command and working directory from config."""
@@ -29,6 +31,11 @@ def _build_codex_command(prompt: str, config: dict[str, Any]) -> tuple[list[str]
         sandbox,
         prompt,
     ]
+
+    # Reasoning effort → `-c model_reasoning_effort=<tier>` config override.
+    reasoning_flags = codex_reasoning_flags(config.get("reasoning_effort"))
+    if reasoning_flags:
+        cmd[1:1] = reasoning_flags
 
     # Optionally allow callers to pass through extra CLI flags
     extra_args = config.get("extra_args")

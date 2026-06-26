@@ -91,6 +91,15 @@
               "minimum": 1,
               "description": "Maximum number of tokens to generate"
             },
+            "reasoning_effort": {
+              "type": "string",
+              "enum": [
+                "low",
+                "medium",
+                "high"
+              ],
+              "description": "Reasoning-effort tier mapped to each engine's native control (OpenAI/Codex effort, Anthropic extended-thinking budget). Only meaningful for reasoning-capable models."
+            },
             "top_p": {
               "type": "number",
               "minimum": 0,
