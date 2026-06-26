@@ -7,7 +7,12 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from oas_cli.providers import EngineNotSupportedError, ProviderError, get_provider
+from oas_cli.providers import (
+    EngineNotSupportedError,
+    InvokeOutcome,
+    ProviderError,
+    get_provider,
+)
 from oas_cli.providers.anthropic_http import AnthropicProvider
 from oas_cli.providers.codex import CodexProvider
 from oas_cli.providers.custom import CustomProvider
@@ -79,16 +84,16 @@ class TestEngineDefaults:
 
         def fake_invoke(*, system, user, config, history=None):
             captured.update(config)
-            return '{"ok": true}'
+            return InvokeOutcome(text='{"ok": true}', usage=None)
 
         base = {"engine": engine, "model": "test-model", **(extra or {})}
         with patch("oas_cli.providers.registry.OpenAIProvider") as mock_cls:
             mock_instance = MagicMock()
-            mock_instance.invoke.side_effect = fake_invoke
+            mock_instance.invoke_verbose.side_effect = fake_invoke
             mock_cls.return_value = mock_instance
             invoke_intelligence("sys", "usr", base)
 
-        return mock_instance.invoke.call_args[1]["config"]
+        return mock_instance.invoke_verbose.call_args[1]["config"]
 
     def test_grok_default_endpoint(self):
         cfg = self._captured_invoke("grok")
@@ -143,11 +148,12 @@ class TestOpenAIProviderAuth:
 
         def fake_http_post(url, payload, headers, timeout=60):
             captured_headers.update(headers)
-            return '{"choices": [{"message": {"content": "hi"}}]}'
+            return {"choices": [{"message": {"content": "hi"}}]}
 
         with patch.dict("os.environ", env_vars, clear=False):
             with patch(
-                "oas_cli.providers.openai_http._http_post", side_effect=fake_http_post
+                "oas_cli.providers.openai_http._http_post_raw",
+                side_effect=fake_http_post,
             ):
                 provider = OpenAIProvider()
                 config: dict = {
@@ -174,10 +180,10 @@ class TestOpenAIProviderAuth:
 
         def fake_http_post(url, payload, headers, timeout=60):
             captured_headers.update(headers)
-            return '{"choices": [{"message": {"content": "hi"}}]}'
+            return {"choices": [{"message": {"content": "hi"}}]}
 
         with patch(
-            "oas_cli.providers.openai_http._http_post", side_effect=fake_http_post
+            "oas_cli.providers.openai_http._http_post_raw", side_effect=fake_http_post
         ):
             provider = OpenAIProvider()
             provider.invoke(

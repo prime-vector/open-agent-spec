@@ -3,10 +3,25 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
+from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     from oas_cli.tool_providers.base import InvokeResult
+
+
+@dataclass
+class InvokeOutcome:
+    """A provider invocation result: the raw text plus optional token usage.
+
+    ``usage`` is the canonical token-count dict
+    ``{"prompt_tokens", "completion_tokens", "total_tokens"}`` when the provider
+    can report it, else ``None`` — e.g. local servers that omit usage, the Codex
+    CLI, or custom router classes that only return text.
+    """
+
+    text: str
+    usage: dict[str, int] | None = None
 
 
 class ProviderError(RuntimeError):
@@ -50,6 +65,24 @@ class IntelligenceProvider(ABC):
         Raises:
             ProviderError: On any HTTP or response-shape failure.
         """
+
+    def invoke_verbose(
+        self,
+        *,
+        system: str,
+        user: str,
+        config: dict,
+        history: list[dict[str, Any]] | None = None,
+    ) -> InvokeOutcome:
+        """Invoke the model and additionally report token usage when available.
+
+        The default implementation delegates to :meth:`invoke` and reports no
+        usage, so providers that only return text (custom routers, the Codex
+        CLI, third-party subclasses) keep working unchanged. HTTP providers
+        override this to capture the API ``usage`` object.
+        """
+        text = self.invoke(system=system, user=user, config=config, history=history)
+        return InvokeOutcome(text=text, usage=None)
 
     def supports_tools(self) -> bool:
         """Return True if this provider natively supports multi-turn tool calling."""

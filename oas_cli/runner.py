@@ -19,7 +19,7 @@ from urllib.parse import urlparse as _urlparse
 
 import yaml
 
-from .providers import ProviderError, invoke_intelligence
+from .providers import ProviderError, invoke_intelligence, pop_last_usage
 from .providers.registry import get_provider
 from .tool_providers import (
     ToolError,
@@ -778,6 +778,10 @@ def _run_single_task(
     history: list[dict] | None = input_data.get("history") or None
     sandbox = _resolve_sandbox(spec_data, task_name)
 
+    # Token usage for this task's model call, attached to the envelope below.
+    # Captured only for the single-call path; the multi-turn tool loop spans
+    # several calls and is left as a follow-up (usage stays None there).
+    usage: dict[str, Any] | None = None
     try:
         tools = resolve_task_tools(spec_data, task_name)
         if tools:
@@ -792,6 +796,7 @@ def _run_single_task(
             )
         else:
             raw_output = invoke_intelligence(system, user, intelligence_config, history)
+            usage = pop_last_usage()
     except OARunError:
         # Structured errors (e.g. SANDBOX_* violations) pass through unchanged.
         raise
@@ -889,6 +894,7 @@ def _run_single_task(
         "model": intelligence_config.get("model"),
         "raw_output": raw_output,
         "output": parsed_output,
+        "usage": usage,
     }
 
 

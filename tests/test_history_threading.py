@@ -78,12 +78,12 @@ class TestOpenAIProviderHistory:
 
         def fake_http_post(url, payload, headers, timeout):
             captured["payload"] = payload
-            return '{"choices":[{"message":{"content":"{\\"reply\\":\\"ok\\"}"}}]}'
+            return {"choices": [{"message": {"content": '{"reply":"ok"}'}}]}
 
         monkeypatch.setenv("OPENAI_API_KEY", "test-key")
         import oas_cli.providers.openai_http as m
 
-        monkeypatch.setattr(m, "_http_post", fake_http_post)
+        monkeypatch.setattr(m, "_http_post_raw", fake_http_post)
 
         OpenAIProvider().invoke(
             system="sys",
