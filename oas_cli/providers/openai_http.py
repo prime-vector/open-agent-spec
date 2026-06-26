@@ -8,6 +8,7 @@ import urllib.error
 import urllib.request
 from typing import Any
 
+from oas_cli.reasoning import openai_reasoning_params
 from oas_cli.tool_providers.base import InvokeResult, ToolCall
 from oas_cli.usage import from_openai
 
@@ -73,13 +74,14 @@ class OpenAIProvider(IntelligenceProvider):
         max_tokens = int(config.get("max_tokens", 1000))
         timeout = int(config.get("timeout", _DEFAULT_TIMEOUT))
 
+        reasoning_effort = config.get("reasoning_effort")
         if endpoint.endswith("/responses"):
             payload = _build_responses_payload(
-                system, user, model, temperature, history
+                system, user, model, temperature, history, reasoning_effort
             )
         else:
             payload = _build_chat_completions_payload(
-                system, user, model, temperature, max_tokens, history
+                system, user, model, temperature, max_tokens, history, reasoning_effort
             )
 
         extra_headers: dict[str, str] = {}
@@ -130,6 +132,9 @@ class OpenAIProvider(IntelligenceProvider):
             "temperature": temperature,
             "max_tokens": max_tokens,
         }
+        payload.update(
+            openai_reasoning_params(config.get("reasoning_effort"), responses_api=False)
+        )
         if tools:
             payload["tools"] = tools
             payload["tool_choice"] = "auto"
@@ -166,17 +171,20 @@ def _build_chat_completions_payload(
     temperature: float,
     max_tokens: int,
     history: list[dict[str, Any]] | None = None,
+    reasoning_effort: object = None,
 ) -> dict[str, Any]:
     messages: list[dict[str, Any]] = [{"role": "system", "content": system}]
     if history:
         messages.extend(history)
     messages.append({"role": "user", "content": user})
-    return {
+    payload: dict[str, Any] = {
         "model": model,
         "messages": messages,
         "temperature": temperature,
         "max_tokens": max_tokens,
     }
+    payload.update(openai_reasoning_params(reasoning_effort, responses_api=False))
+    return payload
 
 
 def _build_responses_payload(
@@ -185,16 +193,19 @@ def _build_responses_payload(
     model: str,
     temperature: float,
     history: list[dict[str, Any]] | None = None,
+    reasoning_effort: object = None,
 ) -> dict[str, Any]:
     turns: list[dict[str, Any]] = [{"role": "system", "content": system}]
     if history:
         turns.extend(history)
     turns.append({"role": "user", "content": user})
-    return {
+    payload: dict[str, Any] = {
         "model": model,
         "input": turns,
         "temperature": temperature,
     }
+    payload.update(openai_reasoning_params(reasoning_effort, responses_api=True))
+    return payload
 
 
 def _http_post_raw(

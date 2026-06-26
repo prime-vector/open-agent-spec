@@ -8,6 +8,7 @@ import urllib.error
 import urllib.request
 from typing import Any
 
+from oas_cli.reasoning import anthropic_thinking_budget
 from oas_cli.tool_providers.base import InvokeResult, ToolCall
 from oas_cli.usage import from_anthropic
 
@@ -19,6 +20,47 @@ _DEFAULT_ENDPOINT = "https://api.anthropic.com/v1/messages"
 _DEFAULT_MODEL = "claude-3-5-sonnet-20241022"
 _DEFAULT_TIMEOUT = 60
 _ANTHROPIC_VERSION = "2023-06-01"
+
+
+def _apply_thinking(payload: dict[str, Any], reasoning_effort: object) -> None:
+    """Enable extended thinking on *payload* for the given effort tier, in place.
+
+    Anthropic maps the portable effort tier to a thinking *token budget*. The API
+    additionally requires ``temperature: 1`` while thinking is enabled, and
+    ``max_tokens`` greater than the budget (max_tokens covers thinking + output),
+    so both are adjusted here. No-op when no effort is set.
+    """
+    budget = anthropic_thinking_budget(reasoning_effort)
+    if budget is None:
+        return
+    payload["thinking"] = {"type": "enabled", "budget_tokens": budget}
+    payload["temperature"] = 1.0
+    if payload.get("max_tokens", 0) <= budget:
+        # Keep the original output allowance on top of the thinking budget.
+        payload["max_tokens"] = budget + int(payload.get("max_tokens") or 1000)
+
+
+def _extract_text_blocks(data: dict[str, Any]) -> str:
+    """Join the text block(s) from an Anthropic message response.
+
+    With extended thinking enabled the content array leads with ``thinking``
+    blocks, so the answer is not necessarily ``content[0]``. Prefer blocks
+    explicitly typed ``text``; fall back to any block carrying ``text`` (older
+    payloads / test doubles) while still skipping thinking blocks.
+    """
+    blocks = data["content"]
+    texts = [
+        b["text"] for b in blocks if isinstance(b, dict) and b.get("type") == "text"
+    ]
+    if not texts:
+        texts = [
+            b["text"]
+            for b in blocks
+            if isinstance(b, dict) and "text" in b and b.get("type") != "thinking"
+        ]
+    if not texts:
+        raise KeyError("no text block in Anthropic response content")
+    return "\n".join(texts)
 
 
 class AnthropicProvider(IntelligenceProvider):
@@ -77,6 +119,7 @@ class AnthropicProvider(IntelligenceProvider):
         }
         if system:
             payload["system"] = system
+        _apply_thinking(payload, config.get("reasoning_effort"))
 
         headers = {
             "x-api-key": api_key,
@@ -98,7 +141,7 @@ class AnthropicProvider(IntelligenceProvider):
             raise ProviderError(f"Anthropic request failed: {exc}") from exc
 
         try:
-            text = data["content"][0]["text"]
+            text = _extract_text_blocks(data)
         except (KeyError, IndexError, TypeError) as exc:
             raise ProviderError(f"Unexpected Anthropic response shape: {data}") from exc
 
@@ -154,6 +197,7 @@ class AnthropicProvider(IntelligenceProvider):
             payload["system"] = system
         if anthropic_tools:
             payload["tools"] = anthropic_tools
+        _apply_thinking(payload, config.get("reasoning_effort"))
 
         headers = {
             "x-api-key": api_key,
