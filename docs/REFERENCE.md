@@ -320,6 +320,38 @@ The final result includes all intermediate results in a `chain` key:
 
 Tasks with no `depends_on` do not include a `chain` key.
 
+### Token usage and cost
+
+When the engine reports token counts, the result envelope includes a `usage` key
+so you can track and budget spend without a separate accounting layer:
+
+```json
+{
+  "task": "summarize",
+  "output": {"summary": "..."},
+  "usage": {
+    "prompt_tokens": 1200,
+    "completion_tokens": 350,
+    "total_tokens": 1550,
+    "estimated_cost_usd": 0.0065
+  }
+}
+```
+
+- `prompt_tokens` / `completion_tokens` / `total_tokens` are normalised across
+  engines (OpenAI's `prompt`/`completion` and Anthropic's `input`/`output`
+  shapes both map to these keys).
+- `estimated_cost_usd` is **best-effort** — present only for models in the
+  built-in price table (`oas_cli/usage.py`), and omitted otherwise rather than
+  guessed. List prices drift, so treat it as indicative, not billing.
+- `usage` is `null` when the engine does not report counts (e.g. some local
+  servers, the Codex CLI, custom routers) and for the multi-turn tool-call path
+  (per-call usage there is a planned follow-up).
+
+`oa run` (without `--quiet`) shows a compact `<total> tok · ~$<cost>` summary in
+the result panel; `--quiet` emits only the task output, so read `usage` from the
+full envelope returned by the Python API when scripting.
+
 ---
 
 ## Behavioural contracts (optional BCE integration)

@@ -9,8 +9,9 @@ import urllib.request
 from typing import Any
 
 from oas_cli.tool_providers.base import InvokeResult, ToolCall
+from oas_cli.usage import from_anthropic
 
-from .base import IntelligenceProvider, ProviderError
+from .base import IntelligenceProvider, InvokeOutcome, ProviderError
 
 _DEFAULT_ENDPOINT = "https://api.anthropic.com/v1/messages"
 # TODO: model names go stale — consider requiring specs to always declare
@@ -34,6 +35,18 @@ class AnthropicProvider(IntelligenceProvider):
         config: dict,
         history: list[dict[str, Any]] | None = None,
     ) -> str:
+        return self.invoke_verbose(
+            system=system, user=user, config=config, history=history
+        ).text
+
+    def invoke_verbose(
+        self,
+        *,
+        system: str,
+        user: str,
+        config: dict,
+        history: list[dict[str, Any]] | None = None,
+    ) -> InvokeOutcome:
         api_key_env = config.get("api_key_env", "ANTHROPIC_API_KEY")
         api_key = os.environ.get(api_key_env)
         if not api_key:
@@ -85,9 +98,11 @@ class AnthropicProvider(IntelligenceProvider):
             raise ProviderError(f"Anthropic request failed: {exc}") from exc
 
         try:
-            return data["content"][0]["text"]
+            text = data["content"][0]["text"]
         except (KeyError, IndexError, TypeError) as exc:
             raise ProviderError(f"Unexpected Anthropic response shape: {data}") from exc
+
+        return InvokeOutcome(text=text, usage=from_anthropic(data.get("usage")))
 
     def supports_tools(self) -> bool:
         return True

@@ -200,6 +200,21 @@ class _VStack:
         yield from self._items
 
 
+def _format_usage(usage: Any) -> str:
+    """Render a compact token / cost suffix for the result panel subtitle.
+
+    Returns an empty string when no usage was reported (local servers, the Codex
+    CLI, custom routers, or the multi-turn tool path).
+    """
+    if not isinstance(usage, dict) or not usage.get("total_tokens"):
+        return ""
+    parts = [f"{usage['total_tokens']} tok"]
+    cost = usage.get("estimated_cost_usd")
+    if cost is not None:
+        parts.append(f"~${cost:.6f}")
+    return f"  [{_C_SUBTLE}]{' · '.join(parts)}[/]"
+
+
 def print_result_panel(
     console: Console,
     result: dict[str, Any],
@@ -222,13 +237,14 @@ def print_result_panel(
 
     elapsed_str = f"  [dim]{elapsed_s:.1f}s[/]" if elapsed_s is not None else ""
     model_str = f"  [{_C_SUBTLE}]{model}[/]" if model else ""
+    usage_str = _format_usage(result.get("usage"))
 
     console.print(
         Panel(
             content,
             title=f"[{_C_OK}]✓[/] [{_C_KEY}]{task_name}[/]",
             title_align="left",
-            subtitle=f"{elapsed_str}{model_str}",
+            subtitle=f"{elapsed_str}{model_str}{usage_str}",
             subtitle_align="right",
             border_style="green",
             padding=(1, 2),

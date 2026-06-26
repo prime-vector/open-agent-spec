@@ -9,8 +9,9 @@ import urllib.request
 from typing import Any
 
 from oas_cli.tool_providers.base import InvokeResult, ToolCall
+from oas_cli.usage import from_openai
 
-from .base import IntelligenceProvider, ProviderError
+from .base import IntelligenceProvider, InvokeOutcome, ProviderError
 
 # Default to the Chat Completions API; set intelligence.endpoint in your spec
 # to switch to the Responses API (https://api.openai.com/v1/responses) or a
@@ -36,6 +37,18 @@ class OpenAIProvider(IntelligenceProvider):
         config: dict,
         history: list[dict[str, Any]] | None = None,
     ) -> str:
+        return self.invoke_verbose(
+            system=system, user=user, config=config, history=history
+        ).text
+
+    def invoke_verbose(
+        self,
+        *,
+        system: str,
+        user: str,
+        config: dict,
+        history: list[dict[str, Any]] | None = None,
+    ) -> InvokeOutcome:
         api_key_env: str | None = config.get("api_key_env", "OPENAI_API_KEY")
         api_key: str | None = os.environ.get(api_key_env) if api_key_env else None
 
@@ -73,7 +86,11 @@ class OpenAIProvider(IntelligenceProvider):
         if api_key:
             extra_headers["Authorization"] = f"Bearer {api_key}"
 
-        return _http_post(endpoint, payload, headers=extra_headers, timeout=timeout)
+        data = _http_post_raw(endpoint, payload, headers=extra_headers, timeout=timeout)
+        return InvokeOutcome(
+            text=_extract_text(data, endpoint),
+            usage=from_openai(data.get("usage")),
+        )
 
     def supports_tools(self) -> bool:
         return True
@@ -198,13 +215,6 @@ def _http_post_raw(
         raise ProviderError(f"OpenAI HTTP {exc.code}: {detail}") from exc
     except Exception as exc:
         raise ProviderError(f"OpenAI request failed: {exc}") from exc
-
-
-def _http_post(
-    url: str, payload: dict, headers: dict, timeout: int = _DEFAULT_TIMEOUT
-) -> str:
-    data = _http_post_raw(url, payload, headers=headers, timeout=timeout)
-    return _extract_text(data, url)
 
 
 def _extract_text(data: dict, url: str) -> str:
