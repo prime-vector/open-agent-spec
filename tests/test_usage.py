@@ -159,3 +159,30 @@ class TestEnvelopeUsage:
         )
         result = run_task_from_spec(_spec(), task_name="t", input_data={"q": "hi"})
         assert result["usage"] is None
+
+    def test_envelope_usage_captured_on_tool_fallback(self, monkeypatch):
+        # A tool-declared task on a text-only provider falls back through
+        # invoke_intelligence (which records usage). The runner must capture it
+        # from the tools branch, not just the no-tools branch.
+        pop_last_usage()  # clear residue
+
+        def fake_invoke_with_tools(*args, **kwargs):
+            from oas_cli.providers import registry
+
+            registry._LAST_USAGE.set(
+                {"prompt_tokens": 7, "completion_tokens": 3, "total_tokens": 10}
+            )
+            return '{"ok": true}'
+
+        # Force the tools branch without standing up real tool providers.
+        monkeypatch.setattr(
+            "oas_cli.runner.resolve_task_tools", lambda spec, name: [("t", object())]
+        )
+        monkeypatch.setattr("oas_cli.runner._invoke_with_tools", fake_invoke_with_tools)
+
+        result = run_task_from_spec(_spec(), task_name="t", input_data={"q": "hi"})
+        assert result["usage"] == {
+            "prompt_tokens": 7,
+            "completion_tokens": 3,
+            "total_tokens": 10,
+        }

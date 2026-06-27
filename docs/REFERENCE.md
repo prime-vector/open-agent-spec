@@ -345,8 +345,9 @@ so you can track and budget spend without a separate accounting layer:
   built-in price table (`oas_cli/usage.py`), and omitted otherwise rather than
   guessed. List prices drift, so treat it as indicative, not billing.
 - `usage` is `null` when the engine does not report counts (e.g. some local
-  servers, the Codex CLI, custom routers) and for the multi-turn tool-call path
-  (per-call usage there is a planned follow-up).
+  servers, the Codex CLI, custom routers) and for the **native** multi-turn
+  tool-call loop (per-call usage there is a planned follow-up). The text-only
+  tool fallback routes through a single call, so its usage *is* captured.
 
 `oa run` (without `--quiet`) shows a compact `<total> tok · ~$<cost>` summary in
 the result panel; `--quiet` emits only the task output, so read `usage` from the
