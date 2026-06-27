@@ -190,6 +190,7 @@ When `oa run --quiet` encounters a failure it emits a machine-readable JSON obje
 | `CHAIN_CYCLE_ERROR` | `routing` | Circular `depends_on` chain detected |
 | `CHAIN_INPUT_MISSING` | `input_validation` | Required input field missing after dependency merge |
 | `CONTRACT_VIOLATION` | `contract` | Task output failed behavioural contract validation |
+| `PRICING_CONFIG_ERROR` | `cost` | A cost-rate override (`config.pricing` / `OA_PRICING`) is present but invalid |
 
 Verbose mode (`oa run` without `--quiet`) prints the error to the terminal as plain text, unchanged from prior behaviour.
 
@@ -399,10 +400,12 @@ still re-enable it with explicit rates).
 **Invalid overrides fail closed.** A pricing override that is *present but
 malformed* — a negative rate, a `pricing` string other than `none`, or an
 `OA_PRICING` value that isn't valid JSON / `none` — raises rather than silently
-reverting to the built-in list price. (`oa validate` also rejects a bad per-spec
-`pricing` up front; the runtime check additionally guards the Python API and
-`OA_PRICING`.) A model simply *not listed* in a valid `OA_PRICING` map is not an
-error — it falls through to the built-in table as intended.
+reverting to the built-in list price. Through the runner it surfaces as the
+dedicated structured error `PRICING_CONFIG_ERROR` (stage `cost`), distinct from a
+model/run failure, so operator misconfiguration is actionable. (`oa validate`
+also rejects a bad per-spec `pricing` up front; the runtime check additionally
+guards the Python API and `OA_PRICING`.) A model simply *not listed* in a valid
+`OA_PRICING` map is not an error — it falls through to the built-in table.
 
 ### Reasoning effort (cost tiering) — experimental
 

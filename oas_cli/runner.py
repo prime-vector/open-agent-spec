@@ -32,6 +32,7 @@ from .tool_providers import (
     resolve_task_tools,
 )
 from .tool_providers.base import InvokeResult
+from .usage import InvalidPricingError
 
 # ── Registry constants ────────────────────────────────────────────────────────
 _REGISTRY_BASE = "https://openagentspec.dev/registry"
@@ -833,6 +834,14 @@ def _run_single_task(
     except OARunError:
         # Structured errors (e.g. SANDBOX_* violations) pass through unchanged.
         raise
+    except InvalidPricingError as exc:
+        # Operator misconfiguration of cost rates — distinct from a model failure.
+        raise OARunError(
+            str(exc),
+            code="PRICING_CONFIG_ERROR",
+            stage="cost",
+            task=task_name,
+        ) from exc
     except (ProviderError, ToolError) as exc:
         raise OARunError(
             str(exc),
