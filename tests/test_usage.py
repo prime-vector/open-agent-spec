@@ -4,11 +4,18 @@ from __future__ import annotations
 
 from typing import ClassVar
 
+import pytest
+
 from oas_cli.providers import InvokeOutcome
 from oas_cli.providers.registry import invoke_intelligence, pop_last_usage
 from oas_cli.runner import _invoke_with_tools, run_task_from_spec
 from oas_cli.tool_providers.base import InvokeResult, ToolCall, ToolDefinition
-from oas_cli.usage import estimate_cost_usd, from_anthropic, from_openai
+from oas_cli.usage import (
+    InvalidPricingError,
+    estimate_cost_usd,
+    from_anthropic,
+    from_openai,
+)
 
 # ---------------------------------------------------------------------------
 # Normalisation
@@ -105,9 +112,47 @@ class TestCostOverride:
         monkeypatch.setenv("OA_PRICING", '{"gpt-4o": {"input": 1, "output": 1}}')
         assert estimate_cost_usd("gpt-4o", self.USAGE, pricing="none") is None
 
-    def test_malformed_env_falls_through_to_builtin(self, monkeypatch):
-        monkeypatch.setenv("OA_PRICING", "{not valid json")
+    def test_model_absent_from_env_falls_through_to_builtin(self, monkeypatch):
+        # A valid OA_PRICING that simply doesn't list this model → built-in.
+        monkeypatch.setenv("OA_PRICING", '{"other-model": {"input": 1, "output": 1}}')
         assert estimate_cost_usd("gpt-4o", self.USAGE) == 2.5  # built-in
+
+
+class TestCostOverrideFailsClosed:
+    """Invalid overrides must raise, not silently revert to the list price."""
+
+    USAGE: ClassVar[dict] = {"prompt_tokens": 1_000_000, "completion_tokens": 0}
+
+    def test_negative_spec_rate_raises(self):
+        with pytest.raises(InvalidPricingError):
+            estimate_cost_usd(
+                "gpt-4o",
+                self.USAGE,
+                pricing={"input_per_1m": -5, "output_per_1m": 1},
+            )
+
+    def test_spec_dict_missing_key_raises(self):
+        with pytest.raises(InvalidPricingError):
+            estimate_cost_usd("gpt-4o", self.USAGE, pricing={"input_per_1m": 5})
+
+    def test_unrecognised_spec_string_raises(self):
+        with pytest.raises(InvalidPricingError):
+            estimate_cost_usd("gpt-4o", self.USAGE, pricing="disabled")
+
+    def test_negative_env_rate_raises(self, monkeypatch):
+        monkeypatch.setenv("OA_PRICING", '{"gpt-4o": {"input": -1, "output": 1}}')
+        with pytest.raises(InvalidPricingError):
+            estimate_cost_usd("gpt-4o", self.USAGE)
+
+    def test_malformed_env_json_raises(self, monkeypatch):
+        monkeypatch.setenv("OA_PRICING", "{not valid json")
+        with pytest.raises(InvalidPricingError):
+            estimate_cost_usd("gpt-4o", self.USAGE)
+
+    def test_env_non_object_raises(self, monkeypatch):
+        monkeypatch.setenv("OA_PRICING", "[1, 2, 3]")
+        with pytest.raises(InvalidPricingError):
+            estimate_cost_usd("gpt-4o", self.USAGE)
 
 
 # ---------------------------------------------------------------------------
