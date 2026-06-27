@@ -55,19 +55,29 @@ class TestOpenAIReasoning:
     def test_unset_returns_empty(self):
         assert openai_reasoning_params(None, responses_api=False) == {}
 
-    def test_chat_payload_includes_effort(self):
+    def test_chat_payload_reasoning_model_shape(self):
+        # Reasoning models: max_completion_tokens (NOT max_tokens) and no
+        # temperature — both are rejected by o-series / GPT-5 reasoning models.
         payload = _build_chat_completions_payload(
-            "sys", "usr", "gpt-5", 0.7, 1000, None, "medium"
+            "sys", "usr", "o4-mini", 0.7, 1000, None, "medium"
         )
         assert payload["reasoning_effort"] == "medium"
+        assert payload["max_completion_tokens"] == 1000
+        assert "max_tokens" not in payload
+        assert "temperature" not in payload
 
-    def test_chat_payload_omits_when_unset(self):
+    def test_chat_payload_standard_model_shape(self):
+        # Standard models / OpenAI-compatible servers keep max_tokens + temperature.
         payload = _build_chat_completions_payload("sys", "usr", "gpt-4o", 0.7, 1000)
         assert "reasoning_effort" not in payload
+        assert payload["max_tokens"] == 1000
+        assert "max_completion_tokens" not in payload
+        assert payload["temperature"] == 0.7
 
-    def test_responses_payload_includes_effort(self):
+    def test_responses_payload_includes_effort_drops_temperature(self):
         payload = _build_responses_payload("sys", "usr", "o4-mini", 0.7, None, "high")
         assert payload["reasoning"] == {"effort": "high"}
+        assert "temperature" not in payload
 
 
 # ---------------------------------------------------------------------------

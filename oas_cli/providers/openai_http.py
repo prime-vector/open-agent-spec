@@ -8,7 +8,7 @@ import urllib.error
 import urllib.request
 from typing import Any
 
-from oas_cli.reasoning import openai_reasoning_params
+from oas_cli.reasoning import normalise_effort, openai_reasoning_params
 from oas_cli.tool_providers.base import InvokeResult, ToolCall
 from oas_cli.usage import from_openai
 
@@ -126,14 +126,13 @@ class OpenAIProvider(IntelligenceProvider):
         timeout = int(config.get("timeout", _DEFAULT_TIMEOUT))
 
         all_messages = [{"role": "system", "content": system}, *messages]
-        payload: dict[str, Any] = {
-            "model": model,
-            "messages": all_messages,
-            "temperature": temperature,
-            "max_tokens": max_tokens,
-        }
-        payload.update(
-            openai_reasoning_params(config.get("reasoning_effort"), responses_api=False)
+        payload: dict[str, Any] = {"model": model, "messages": all_messages}
+        _apply_sampling_and_reasoning(
+            payload,
+            max_tokens=max_tokens,
+            temperature=temperature,
+            reasoning_effort=config.get("reasoning_effort"),
+            responses_api=False,
         )
         if tools:
             payload["tools"] = tools
@@ -165,6 +164,35 @@ class OpenAIProvider(IntelligenceProvider):
         return InvokeResult(is_final=True, text=text, usage=usage)
 
 
+def _apply_sampling_and_reasoning(
+    payload: dict[str, Any],
+    *,
+    max_tokens: int | None,
+    temperature: float,
+    reasoning_effort: object,
+    responses_api: bool,
+) -> None:
+    """Set token-limit, temperature and reasoning params on *payload*, in place.
+
+    Reasoning models (those given a ``reasoning_effort``) diverge from standard
+    chat models on the OpenAI API: Chat Completions requires
+    ``max_completion_tokens`` (``max_tokens`` is rejected), and a non-default
+    ``temperature`` is rejected — so it is omitted. Standard models and
+    OpenAI-compatible servers (grok / local / cortex) keep ``max_tokens`` +
+    ``temperature`` for maximum compatibility.
+    """
+    effort = normalise_effort(reasoning_effort)
+    if effort is None:
+        if not responses_api and max_tokens is not None:
+            payload["max_tokens"] = max_tokens
+        payload["temperature"] = temperature
+    elif not responses_api and max_tokens is not None:
+        payload["max_completion_tokens"] = max_tokens
+    payload.update(
+        openai_reasoning_params(reasoning_effort, responses_api=responses_api)
+    )
+
+
 def _build_chat_completions_payload(
     system: str,
     user: str,
@@ -178,13 +206,14 @@ def _build_chat_completions_payload(
     if history:
         messages.extend(history)
     messages.append({"role": "user", "content": user})
-    payload: dict[str, Any] = {
-        "model": model,
-        "messages": messages,
-        "temperature": temperature,
-        "max_tokens": max_tokens,
-    }
-    payload.update(openai_reasoning_params(reasoning_effort, responses_api=False))
+    payload: dict[str, Any] = {"model": model, "messages": messages}
+    _apply_sampling_and_reasoning(
+        payload,
+        max_tokens=max_tokens,
+        temperature=temperature,
+        reasoning_effort=reasoning_effort,
+        responses_api=False,
+    )
     return payload
 
 
@@ -200,12 +229,14 @@ def _build_responses_payload(
     if history:
         turns.extend(history)
     turns.append({"role": "user", "content": user})
-    payload: dict[str, Any] = {
-        "model": model,
-        "input": turns,
-        "temperature": temperature,
-    }
-    payload.update(openai_reasoning_params(reasoning_effort, responses_api=True))
+    payload: dict[str, Any] = {"model": model, "input": turns}
+    _apply_sampling_and_reasoning(
+        payload,
+        max_tokens=None,
+        temperature=temperature,
+        reasoning_effort=reasoning_effort,
+        responses_api=True,
+    )
     return payload
 
 

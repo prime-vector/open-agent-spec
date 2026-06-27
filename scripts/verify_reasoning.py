@@ -30,6 +30,7 @@ from __future__ import annotations
 import argparse
 import os
 import sys
+import time
 
 # Allow running from a source checkout without installing.
 _ROOT = os.path.join(os.path.dirname(__file__), "..")
@@ -162,10 +163,17 @@ def main() -> int:
         default=1,
         help="samples per tier; >1 averages out adaptive-thinking noise",
     )
+    parser.add_argument(
+        "--sleep",
+        type=float,
+        default=0.0,
+        help="seconds to wait between calls; use ~21 for low-tier OpenAI (3 RPM)",
+    )
     args = parser.parse_args()
 
     efforts = args.effort or ["low", "high"]
     repeat = max(1, args.repeat)
+    sleep_s = max(0.0, args.sleep)
     engines = ENGINES
     if args.engine:
         wanted = {e.lower() for e in args.engine}
@@ -184,12 +192,16 @@ def main() -> int:
         ran_any = True
         print(f"\n{engine} ({model}):")
         means: dict[str, float] = {}
+        first_call = True
         for eff in efforts:
-            samples = [
-                u
-                for _ in range(repeat)
-                if (u := _run_one(engine, model, eff, endpoint)) is not None
-            ]
+            samples = []
+            for _ in range(repeat):
+                if not first_call and sleep_s:
+                    time.sleep(sleep_s)
+                first_call = False
+                u = _run_one(engine, model, eff, endpoint)
+                if u is not None:
+                    samples.append(u)
             if samples:
                 tot = [s["total_tokens"] for s in samples]
                 means[eff] = sum(tot) / len(tot)
