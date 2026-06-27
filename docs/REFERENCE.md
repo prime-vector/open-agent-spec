@@ -382,10 +382,17 @@ Notes:
   Non-reasoning OpenAI models (e.g. `gpt-4o`) reject the parameter; Anthropic's
   `effort` requires a capable model (Opus 4.5+, Sonnet 4.6, Fable 5 — it errors
   on Sonnet 4.5 / Haiku 4.5).
-- **Status: experimental spike.** Validate against live models with
-  `python scripts/verify_reasoning.py` (needs API keys) — it fires `low` vs
-  `high` per engine and prints the token deltas. Mappings live in
-  `oas_cli/reasoning.py` and `anthropic_http._apply_reasoning`.
+- **Provider-specific request shaping.** When `reasoning_effort` is set, OpenAI
+  reasoning models need `max_completion_tokens` (not `max_tokens`) and reject a
+  non-default `temperature`, so OA switches the token field and omits
+  `temperature`; Anthropic likewise drops `temperature` alongside adaptive
+  thinking. Standard models and OpenAI-compatible servers are unaffected.
+- **Status: experimental spike.** Validated live against Opus 4.8 and OpenAI
+  `o4-mini` with `python scripts/verify_reasoning.py` (needs API keys) — it fires
+  `low` vs `high` per engine and prints the token deltas (`--repeat N` to average,
+  `--sleep N` to space out low-rate-limit accounts). Mappings live in
+  `oas_cli/reasoning.py`, `openai_http._apply_sampling_and_reasoning`, and
+  `anthropic_http._apply_reasoning`.
 - `oa validate` checks the value against the `low|medium|high` enum.
 
 ---
