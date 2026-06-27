@@ -362,7 +362,7 @@ and OA maps it to each engine's native knob:
 intelligence:
   type: "llm"
   engine: "anthropic"
-  model: "claude-opus-4"
+  model: "claude-opus-4-8"
   config:
     reasoning_effort: "low"   # low | medium | high
 ```
@@ -372,16 +372,19 @@ intelligence:
 | `openai` (Chat Completions) | `reasoning_effort` request field |
 | `openai` (Responses API) | `reasoning.effort` |
 | `codex` | `-c model_reasoning_effort=<tier>` CLI override |
-| `anthropic` | extended-thinking **token budget** (`low`→1024, `medium`→4096, `high`→16384); OA also sets `temperature: 1` and raises `max_tokens` above the budget, as the API requires |
+| `anthropic` | `output_config.effort` (a near 1:1 tier mapping), paired with adaptive thinking. OA also drops `temperature`, which current Claude models reject alongside adaptive thinking. |
 
 Notes:
 
 - **Opt-in and model-specific.** `reasoning_effort` is only meaningful for
   reasoning-capable models — the author pairs it with a suitable model/engine.
-  Non-reasoning models (e.g. `gpt-4o`) will reject the parameter.
-- **Status: experimental spike.** The Anthropic budget figures are starting
-  points to validate against real models, not tuned defaults. Mapped centrally
-  in `oas_cli/reasoning.py` so they are easy to adjust.
+  Non-reasoning OpenAI models (e.g. `gpt-4o`) reject the parameter; Anthropic's
+  `effort` requires a capable model (Opus 4.5+, Sonnet 4.6, Fable 5 — it errors
+  on Sonnet 4.5 / Haiku 4.5).
+- **Status: experimental spike.** Validate against live models with
+  `python scripts/verify_reasoning.py` (needs API keys) — it fires `low` vs
+  `high` per engine and prints the token deltas. Mappings live in
+  `oas_cli/reasoning.py` and `anthropic_http._apply_reasoning`.
 - `oa validate` checks the value against the `low|medium|high` enum.
 
 ---

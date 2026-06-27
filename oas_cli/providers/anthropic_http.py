@@ -8,7 +8,7 @@ import urllib.error
 import urllib.request
 from typing import Any
 
-from oas_cli.reasoning import anthropic_thinking_budget
+from oas_cli.reasoning import normalise_effort
 from oas_cli.tool_providers.base import InvokeResult, ToolCall
 from oas_cli.usage import from_anthropic
 
@@ -22,22 +22,26 @@ _DEFAULT_TIMEOUT = 60
 _ANTHROPIC_VERSION = "2023-06-01"
 
 
-def _apply_thinking(payload: dict[str, Any], reasoning_effort: object) -> None:
-    """Enable extended thinking on *payload* for the given effort tier, in place.
+def _apply_reasoning(payload: dict[str, Any], reasoning_effort: object) -> None:
+    """Apply a reasoning-effort tier to an Anthropic request, in place.
 
-    Anthropic maps the portable effort tier to a thinking *token budget*. The API
-    additionally requires ``temperature: 1`` while thinking is enabled, and
-    ``max_tokens`` greater than the budget (max_tokens covers thinking + output),
-    so both are adjusted here. No-op when no effort is set.
+    Current Claude models (Opus 4.5+, Sonnet 4.6, Fable 5) expose the tier
+    directly via ``output_config.effort`` (GA — no beta header), paired with
+    adaptive thinking. The legacy ``thinking.budget_tokens`` control is rejected
+    with a 400 on these models, and ``temperature`` is rejected alongside
+    adaptive thinking on the latest models — so it is dropped when effort is set.
+    No-op when no effort is requested.
+
+    The author opts in by setting ``reasoning_effort``; ``effort`` errors on
+    models without effort support (e.g. Sonnet 4.5, Haiku 4.5), so it must be
+    paired with a capable model.
     """
-    budget = anthropic_thinking_budget(reasoning_effort)
-    if budget is None:
+    effort = normalise_effort(reasoning_effort)
+    if effort is None:
         return
-    payload["thinking"] = {"type": "enabled", "budget_tokens": budget}
-    payload["temperature"] = 1.0
-    if payload.get("max_tokens", 0) <= budget:
-        # Keep the original output allowance on top of the thinking budget.
-        payload["max_tokens"] = budget + int(payload.get("max_tokens") or 1000)
+    payload.setdefault("output_config", {})["effort"] = effort
+    payload["thinking"] = {"type": "adaptive"}
+    payload.pop("temperature", None)
 
 
 def _extract_text_blocks(data: dict[str, Any]) -> str:
@@ -119,7 +123,7 @@ class AnthropicProvider(IntelligenceProvider):
         }
         if system:
             payload["system"] = system
-        _apply_thinking(payload, config.get("reasoning_effort"))
+        _apply_reasoning(payload, config.get("reasoning_effort"))
 
         headers = {
             "x-api-key": api_key,
@@ -197,7 +201,7 @@ class AnthropicProvider(IntelligenceProvider):
             payload["system"] = system
         if anthropic_tools:
             payload["tools"] = anthropic_tools
-        _apply_thinking(payload, config.get("reasoning_effort"))
+        _apply_reasoning(payload, config.get("reasoning_effort"))
 
         headers = {
             "x-api-key": api_key,

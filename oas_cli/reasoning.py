@@ -7,12 +7,15 @@ difficulty without rewriting the spec per provider:
 
 - OpenAI / Codex expose reasoning effort as ``low``/``medium``/``high`` directly
   (an API parameter, or a CLI ``-c`` override for Codex).
-- Anthropic has no tier — it takes an extended-thinking *token budget*, so the
-  tier is mapped to a budget here.
+- Current Claude models (Opus 4.5+, Sonnet 4.6, Fable 5) expose the same tier
+  via ``output_config.effort`` — a near 1:1 mapping. Applied in the Anthropic
+  provider (``anthropic_http._apply_reasoning``), which also pairs it with
+  adaptive thinking and drops the now-rejected ``temperature`` field.
 
-Status: **spike.** The per-engine values below — especially the Anthropic token
-budgets — are starting points to validate against real models (Opus 4.x, Codex),
-not tuned production figures. The point is to prove the mapping works end to end.
+Status: **spike.** Mappings target the current OpenAI / Codex / Opus-4.x line and
+are exercised by ``scripts/verify_reasoning.py`` against live models. Older Claude
+models (Sonnet 4.5, Haiku 4.5) do not support ``effort`` — the spec author opts in
+by pairing ``reasoning_effort`` with a capable model/engine.
 """
 
 from __future__ import annotations
@@ -57,19 +60,6 @@ def openai_reasoning_params(value: object, *, responses_api: bool) -> dict[str, 
     if responses_api:
         return {"reasoning": {"effort": effort}}
     return {"reasoning_effort": effort}
-
-
-# Anthropic has no tier control — extended thinking takes a token budget. These
-# are spike defaults, tunable once validated against Opus 4.x.
-_ANTHROPIC_THINKING_BUDGET = {"low": 1024, "medium": 4096, "high": 16384}
-
-
-def anthropic_thinking_budget(value: object) -> int | None:
-    """Extended-thinking token budget for an effort tier, or None when unset."""
-    effort = normalise_effort(value)
-    if effort is None:
-        return None
-    return _ANTHROPIC_THINKING_BUDGET[effort]
 
 
 def codex_reasoning_flags(value: object) -> list[str]:

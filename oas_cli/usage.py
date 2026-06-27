@@ -55,15 +55,25 @@ def _canonical(
 
 # USD per 1,000,000 tokens, as (input_rate, output_rate). Hand-maintained and
 # best-effort — list prices drift, so treat these as indicative, not billing.
-# Matched by longest model-id prefix; unknown models resolve to None.
+# Matched by longest model-id prefix; unknown models resolve to None (never
+# guessed). Entries are deliberately specific: older Opus (4.0/4.1) was priced
+# differently, so a broad "claude-opus-4" prefix would misprice them.
 _PRICE_PER_M: dict[str, tuple[float, float]] = {
+    # OpenAI
     "gpt-4o-mini": (0.15, 0.60),
     "gpt-4o": (2.50, 10.00),
     "gpt-4.1-mini": (0.40, 1.60),
     "gpt-4.1": (2.00, 8.00),
-    "claude-3-5-haiku": (0.80, 4.00),
-    "claude-3-5-sonnet": (3.00, 15.00),
-    "claude-3-opus": (15.00, 75.00),
+    # Anthropic (Claude) — current generation
+    "claude-opus-4-5": (5.00, 25.00),
+    "claude-opus-4-6": (5.00, 25.00),
+    "claude-opus-4-7": (5.00, 25.00),
+    "claude-opus-4-8": (5.00, 25.00),
+    "claude-sonnet-4-5": (3.00, 15.00),
+    "claude-sonnet-4-6": (3.00, 15.00),
+    "claude-haiku-4-5": (1.00, 5.00),
+    "claude-fable-5": (10.00, 50.00),
+    # xAI
     "grok-3": (3.00, 15.00),
 }
 
