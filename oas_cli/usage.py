@@ -72,15 +72,20 @@ def from_anthropic(raw: object) -> CanonicalUsage | None:
     return _canonical(raw.get("input_tokens"), raw.get("output_tokens"), None)
 
 
+def _as_int(value: object) -> int:
+    """Coerce a reported token count to int, treating anything non-numeric as 0."""
+    return int(value) if isinstance(value, (int, float)) else 0
+
+
 def _canonical(
     prompt: object, completion: object, total: object
 ) -> CanonicalUsage | None:
     """Build the canonical token dict, or None when nothing usable was reported."""
     if prompt is None and completion is None and total is None:
         return None
-    p = int(prompt or 0)
-    c = int(completion or 0)
-    t = int(total) if total is not None else p + c
+    p = _as_int(prompt)
+    c = _as_int(completion)
+    t = _as_int(total) if total is not None else p + c
     return {"prompt_tokens": p, "completion_tokens": c, "total_tokens": t}
 
 
