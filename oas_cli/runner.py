@@ -590,7 +590,9 @@ def _invoke_with_tools(
 
     def _record() -> None:
         record_usage(
-            dict(totals) if saw_usage else None, intelligence_config.get("model")
+            dict(totals) if saw_usage else None,
+            intelligence_config.get("model"),
+            intelligence_config.get("pricing"),
         )
 
     for iteration in range(_MAX_TOOL_ITERATIONS):

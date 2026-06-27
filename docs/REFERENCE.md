@@ -360,6 +360,42 @@ so you can track and budget spend without a separate accounting layer:
 the result panel; `--quiet` emits only the task output, so read `usage` from the
 full envelope returned by the Python API when scripting.
 
+#### Overriding the cost rate
+
+Because the default is a list price, you can substitute your own rate — or turn
+the dollar figure off where it isn't meaningful (subscription, local model).
+Rates resolve in layers, **first match wins**:
+
+1. **Per-spec** — `intelligence.config.pricing`:
+
+   ```yaml
+   intelligence:
+     engine: anthropic
+     model: claude-opus-4-8
+     config:
+       pricing:
+         input_per_1m: 4.20      # your negotiated rate, USD per 1M tokens
+         output_per_1m: 21.00
+       # or:  pricing: none      # tokens-only, no dollar estimate
+   ```
+
+2. **Global** — the `OA_PRICING` env var, applied to every spec (good for
+   org-wide negotiated rates). JSON mapping model-id → rates, or `none`:
+
+   ```bash
+   export OA_PRICING='{"claude-opus-4-8": {"input": 4.2, "output": 21}}'
+   export OA_PRICING=none        # disable cost everywhere
+   ```
+
+   Model ids match by longest prefix (so a dated suffix still resolves), and
+   `OA_PRICING` entries override the built-in table.
+
+3. **Built-in** — the hand-maintained table in `oas_cli/usage.py`.
+
+A per-spec value overrides `OA_PRICING`, which overrides the built-in table; a
+`none` at any layer disables cost from that layer down (a more specific layer can
+still re-enable it with explicit rates).
+
 ### Reasoning effort (cost tiering) — experimental
 
 Frontier models increasingly expose a reasoning-effort control: spend more

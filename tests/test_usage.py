@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from typing import ClassVar
+
 from oas_cli.providers import InvokeOutcome
 from oas_cli.providers.registry import invoke_intelligence, pop_last_usage
 from oas_cli.runner import _invoke_with_tools, run_task_from_spec
@@ -64,6 +66,48 @@ class TestCostEstimation:
 
     def test_no_usage_returns_none(self):
         assert estimate_cost_usd("gpt-4o", None) is None
+
+
+class TestCostOverride:
+    USAGE: ClassVar[dict] = {"prompt_tokens": 1_000_000, "completion_tokens": 0}
+
+    def test_spec_pricing_dict_overrides_builtin(self):
+        cost = estimate_cost_usd(
+            "gpt-4o", self.USAGE, pricing={"input_per_1m": 1.0, "output_per_1m": 9.0}
+        )
+        assert cost == 1.0  # not the built-in 2.50
+
+    def test_spec_pricing_none_disables_cost(self):
+        assert estimate_cost_usd("gpt-4o", self.USAGE, pricing="none") is None
+
+    def test_env_override_extends_table(self, monkeypatch):
+        monkeypatch.setenv("OA_PRICING", '{"mystery-model": {"input": 7, "output": 9}}')
+        assert estimate_cost_usd("mystery-model-v2", self.USAGE) == 7.0
+
+    def test_env_override_beats_builtin(self, monkeypatch):
+        monkeypatch.setenv("OA_PRICING", '{"gpt-4o": {"input": 1, "output": 1}}')
+        assert estimate_cost_usd("gpt-4o", self.USAGE) == 1.0
+
+    def test_env_none_disables_cost(self, monkeypatch):
+        monkeypatch.setenv("OA_PRICING", "none")
+        assert estimate_cost_usd("gpt-4o", self.USAGE) is None
+
+    def test_spec_beats_env(self, monkeypatch):
+        # spec rate wins over an env override...
+        monkeypatch.setenv("OA_PRICING", '{"gpt-4o": {"input": 1, "output": 1}}')
+        cost = estimate_cost_usd(
+            "gpt-4o", self.USAGE, pricing={"input_per_1m": 3.0, "output_per_1m": 3.0}
+        )
+        assert cost == 3.0
+
+    def test_spec_none_beats_env_rates(self, monkeypatch):
+        # ...and spec "none" wins over env rates.
+        monkeypatch.setenv("OA_PRICING", '{"gpt-4o": {"input": 1, "output": 1}}')
+        assert estimate_cost_usd("gpt-4o", self.USAGE, pricing="none") is None
+
+    def test_malformed_env_falls_through_to_builtin(self, monkeypatch):
+        monkeypatch.setenv("OA_PRICING", "{not valid json")
+        assert estimate_cost_usd("gpt-4o", self.USAGE) == 2.5  # built-in
 
 
 # ---------------------------------------------------------------------------

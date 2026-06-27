@@ -9,11 +9,31 @@ The pricing table is intentionally small and hand-maintained. When a model is
 not listed, cost is reported as ``None`` rather than guessed — a wrong number is
 worse than no number, especially when the point is to give finance a figure they
 can trust.
+
+Cost is a **pay-as-you-go API list-price estimate** and can be overridden, since
+list prices don't reflect subscriptions, committed-use, or negotiated rates.
+Rates resolve in layers (first match wins):
+
+1. **Per-spec** — ``intelligence.config.pricing``: either ``{input_per_1m,
+   output_per_1m}`` or the string ``"none"`` to disable cost for that spec.
+2. **Global** — the ``OA_PRICING`` env var: JSON ``{model_id: {input, output}}``
+   that extends/overrides the built-in table, or ``"none"`` to disable globally.
+3. **Built-in** — the hand-maintained table below.
+
+Token *counts* are always reported regardless — they are the figure to track
+against any plan.
 """
 
 from __future__ import annotations
 
+import json
+import os
+
 CanonicalUsage = dict[str, int]
+
+# Sentinels for layered rate resolution.
+_DISABLED = object()  # cost estimation explicitly turned off at this layer
+_NOT_SET = object()  # no override at this layer — fall through
 
 
 def from_openai(raw: object) -> CanonicalUsage | None:
@@ -89,23 +109,94 @@ _PRICE_PER_M: dict[str, tuple[float, float]] = {
 }
 
 
-def estimate_cost_usd(model: str | None, usage: CanonicalUsage | None) -> float | None:
+def estimate_cost_usd(
+    model: str | None,
+    usage: CanonicalUsage | None,
+    *,
+    pricing: object = None,
+) -> float | None:
     """Best-effort USD cost for *usage* on *model*, or None when price is unknown.
 
-    Matching is by longest model-id prefix so e.g. ``gpt-4o-mini`` wins over
-    ``gpt-4o`` for ``gpt-4o-mini-2024-07-18``.
+    *pricing* is the per-spec override (``intelligence.config.pricing``). Rates
+    resolve per-spec → ``OA_PRICING`` env → built-in table; any layer may set
+    ``"none"`` to disable cost. See the module docstring.
     """
     if not model or not usage:
         return None
-    match: str | None = None
-    for prefix in _PRICE_PER_M:
-        if model.startswith(prefix) and (match is None or len(prefix) > len(match)):
-            match = prefix
-    if match is None:
+    rate = _resolve_rate(model, pricing)
+    if rate is None:
         return None
-    in_rate, out_rate = _PRICE_PER_M[match]
+    in_rate, out_rate = rate
     cost = (
         usage["prompt_tokens"] / 1_000_000 * in_rate
         + usage["completion_tokens"] / 1_000_000 * out_rate
     )
     return round(cost, 6)
+
+
+def _extract_rate(obj: object) -> tuple[float, float] | None:
+    """Pull (input, output) rates from a dict, accepting either key style."""
+    if not isinstance(obj, dict):
+        return None
+    inp = obj.get("input_per_1m", obj.get("input"))
+    out = obj.get("output_per_1m", obj.get("output"))
+    if inp is None or out is None:
+        return None
+    try:
+        return (float(inp), float(out))
+    except (TypeError, ValueError):
+        return None
+
+
+def _table_rate(
+    model: str, table: dict[str, tuple[float, float]]
+) -> tuple[float, float] | None:
+    """Longest model-id prefix match, so ``gpt-4o-mini`` beats ``gpt-4o``."""
+    match: str | None = None
+    for prefix in table:
+        if model.startswith(prefix) and (match is None or len(prefix) > len(match)):
+            match = prefix
+    return table[match] if match is not None else None
+
+
+def _spec_rate(pricing: object) -> object:
+    """Per-spec layer → (in, out) rate, _DISABLED, or _NOT_SET."""
+    if pricing is None:
+        return _NOT_SET
+    if isinstance(pricing, str):
+        return _DISABLED if pricing.strip().lower() == "none" else _NOT_SET
+    rate = _extract_rate(pricing)
+    return rate if rate is not None else _NOT_SET
+
+
+def _env_rate(model: str) -> object:
+    """OA_PRICING env layer → (in, out) rate, _DISABLED, or _NOT_SET."""
+    raw = os.environ.get("OA_PRICING")
+    if not raw or not raw.strip():
+        return _NOT_SET
+    if raw.strip().lower() == "none":
+        return _DISABLED
+    try:
+        data = json.loads(raw)
+    except (ValueError, TypeError):
+        return _NOT_SET
+    if not isinstance(data, dict):
+        return _NOT_SET
+    table = {k: rate for k, v in data.items() if (rate := _extract_rate(v)) is not None}
+    found = _table_rate(model, table) if table else None
+    return found if found is not None else _NOT_SET
+
+
+def _resolve_rate(model: str, pricing: object) -> tuple[float, float] | None:
+    """Resolve the effective rate across layers: per-spec → env → built-in."""
+    spec = _spec_rate(pricing)
+    if spec is _DISABLED:
+        return None
+    if spec is not _NOT_SET:
+        return spec  # type: ignore[return-value]
+    env = _env_rate(model)
+    if env is _DISABLED:
+        return None
+    if env is not _NOT_SET:
+        return env  # type: ignore[return-value]
+    return _table_rate(model, _PRICE_PER_M)

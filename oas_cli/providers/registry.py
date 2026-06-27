@@ -145,29 +145,31 @@ def invoke_intelligence(
         )
         usage = None
 
-    record_usage(usage, resolved.get("model"))
+    record_usage(usage, resolved.get("model"), resolved.get("pricing"))
     return text
 
 
-def _with_cost(usage: dict | None, model: str | None) -> dict | None:
-    """Attach a best-effort ``estimated_cost_usd`` to *usage* when the price is known."""
+def _with_cost(
+    usage: dict | None, model: str | None, pricing: object = None
+) -> dict | None:
+    """Attach a best-effort ``estimated_cost_usd`` to *usage* when a rate resolves."""
     if not usage:
         return None
     enriched = dict(usage)
-    cost = estimate_cost_usd(model, usage)
+    cost = estimate_cost_usd(model, usage, pricing=pricing)
     if cost is not None:
         enriched["estimated_cost_usd"] = cost
     return enriched
 
 
-def record_usage(usage: dict | None, model: str | None) -> None:
+def record_usage(usage: dict | None, model: str | None, pricing: object = None) -> None:
     """Record token usage (enriched with cost) for the current execution context.
 
     The runner reads it via :func:`pop_last_usage` immediately after the call.
     Used by both the single-call path and the multi-turn tool loop (which passes
-    usage summed across turns).
+    usage summed across turns). *pricing* is the per-spec cost override.
     """
-    _LAST_USAGE.set(_with_cost(usage, model))
+    _LAST_USAGE.set(_with_cost(usage, model, pricing))
 
 
 def pop_last_usage() -> dict | None:
