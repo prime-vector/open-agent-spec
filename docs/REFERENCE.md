@@ -344,6 +344,13 @@ so you can track and budget spend without a separate accounting layer:
 - `estimated_cost_usd` is **best-effort** — present only for models in the
   built-in price table (`oas_cli/usage.py`), and omitted otherwise rather than
   guessed. List prices drift, so treat it as indicative, not billing.
+- **It is a pay-as-you-go API list-price estimate** (`tokens × public $/token`).
+  It does **not** reflect a subscription/seat plan (ChatGPT, Claude Max, etc.),
+  committed-use or enterprise-negotiated rates, Bedrock/Vertex pricing, or a
+  local model (zero marginal cost). Under those arrangements the dollar figure
+  is not your real spend — but the **token counts** are always accurate, and are
+  the right number to track usage/quota against any plan. (Subscription-routed
+  paths like the Codex CLI report no tokens at all, so `usage` is `null` there.)
 - `usage` is `null` only when the engine does not report counts (e.g. some local
   servers, the Codex CLI, custom routers). Multi-turn tool-calling is covered:
   usage is **summed across every turn** of the loop (each turn re-sends the
