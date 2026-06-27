@@ -7,7 +7,12 @@ from .base import (
     ProviderError,
 )
 from .custom import CustomProvider
-from .registry import get_provider, invoke_intelligence, pop_last_usage
+from .registry import (
+    get_provider,
+    invoke_intelligence,
+    pop_last_usage,
+    record_usage,
+)
 
 __all__ = [
     "IntelligenceProvider",
@@ -18,4 +23,5 @@ __all__ = [
     "get_provider",
     "invoke_intelligence",
     "pop_last_usage",
+    "record_usage",
 ]

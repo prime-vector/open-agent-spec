@@ -19,7 +19,12 @@ from urllib.parse import urlparse as _urlparse
 
 import yaml
 
-from .providers import ProviderError, invoke_intelligence, pop_last_usage
+from .providers import (
+    ProviderError,
+    invoke_intelligence,
+    pop_last_usage,
+    record_usage,
+)
 from .providers.registry import get_provider
 from .tool_providers import (
     ToolError,
@@ -577,6 +582,17 @@ def _invoke_with_tools(
         messages.extend(history)
     messages.append({"role": "user", "content": user})
 
+    # Accumulate token usage across every turn of the loop. Each turn re-sends the
+    # growing message history, so summing prompt+completion across turns reflects
+    # what is actually billed for the whole tool-calling task.
+    totals = {"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0}
+    saw_usage = False
+
+    def _record() -> None:
+        record_usage(
+            dict(totals) if saw_usage else None, intelligence_config.get("model")
+        )
+
     for iteration in range(_MAX_TOOL_ITERATIONS):
         result: InvokeResult = provider.invoke_with_tools(
             system=system,
@@ -585,7 +601,13 @@ def _invoke_with_tools(
             config=intelligence_config,
         )
 
+        if result.usage:
+            saw_usage = True
+            for key in totals:
+                totals[key] += int(result.usage.get(key, 0))
+
         if result.is_final:
+            _record()
             return result.text
 
         if not result.tool_calls:
@@ -595,6 +617,7 @@ def _invoke_with_tools(
                 task_name,
                 iteration,
             )
+            _record()
             return ""
 
         # Append the assistant's tool-call request to the history.

@@ -222,6 +222,7 @@ class AnthropicProvider(IntelligenceProvider):
         except Exception as exc:
             raise ProviderError(f"Anthropic request failed: {exc}") from exc
 
+        usage = from_anthropic(data.get("usage"))
         stop_reason = data.get("stop_reason")
         if stop_reason == "tool_use":
             tool_calls = [
@@ -233,10 +234,10 @@ class AnthropicProvider(IntelligenceProvider):
                 for block in data.get("content", [])
                 if block.get("type") == "tool_use"
             ]
-            return InvokeResult(is_final=False, tool_calls=tool_calls)
+            return InvokeResult(is_final=False, tool_calls=tool_calls, usage=usage)
 
         # Extract text from the final response.
         text_blocks = [
             b["text"] for b in data.get("content", []) if b.get("type") == "text"
         ]
-        return InvokeResult(is_final=True, text="\n".join(text_blocks))
+        return InvokeResult(is_final=True, text="\n".join(text_blocks), usage=usage)

@@ -145,6 +145,7 @@ class OpenAIProvider(IntelligenceProvider):
 
         data = _http_post_raw(endpoint, payload, headers=extra_headers, timeout=timeout)
 
+        usage = from_openai(data.get("usage"))
         message = data.get("choices", [{}])[0].get("message", {})
         finish_reason = data.get("choices", [{}])[0].get("finish_reason", "stop")
 
@@ -158,10 +159,10 @@ class OpenAIProvider(IntelligenceProvider):
                 )
                 for tc in raw_calls
             ]
-            return InvokeResult(is_final=False, tool_calls=tool_calls)
+            return InvokeResult(is_final=False, tool_calls=tool_calls, usage=usage)
 
         text = message.get("content") or ""
-        return InvokeResult(is_final=True, text=text)
+        return InvokeResult(is_final=True, text=text, usage=usage)
 
 
 def _build_chat_completions_payload(

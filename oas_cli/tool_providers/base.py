@@ -68,11 +68,16 @@ class InvokeResult:
 
     Either ``is_final`` is True and ``text`` carries the answer, or
     ``tool_calls`` is non-empty and the caller should execute them and continue.
+
+    ``usage`` is the canonical token-count dict for *this turn's* API call
+    (``{"prompt_tokens", "completion_tokens", "total_tokens"}``) when the
+    provider reports it, else None. The tool loop sums it across turns.
     """
 
     is_final: bool
     text: str = ""
     tool_calls: list[ToolCall] = field(default_factory=list)
+    usage: dict[str, int] | None = None
 
 
 class ToolProvider(ABC):

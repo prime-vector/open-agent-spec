@@ -4,7 +4,8 @@ from __future__ import annotations
 
 from oas_cli.providers import InvokeOutcome
 from oas_cli.providers.registry import invoke_intelligence, pop_last_usage
-from oas_cli.runner import run_task_from_spec
+from oas_cli.runner import _invoke_with_tools, run_task_from_spec
+from oas_cli.tool_providers.base import InvokeResult, ToolCall, ToolDefinition
 from oas_cli.usage import estimate_cost_usd, from_anthropic, from_openai
 
 # ---------------------------------------------------------------------------
@@ -186,3 +187,75 @@ class TestEnvelopeUsage:
             "completion_tokens": 3,
             "total_tokens": 10,
         }
+
+
+class TestToolLoopUsage:
+    def test_native_loop_sums_usage_across_turns(self, monkeypatch):
+        pop_last_usage()  # clear residue
+
+        class FakeToolProvider:
+            def __init__(self):
+                self.calls = 0
+
+            def supports_tools(self):
+                return True
+
+            def invoke_with_tools(self, *, system, messages, tools, config):
+                self.calls += 1
+                if self.calls == 1:
+                    return InvokeResult(
+                        is_final=False,
+                        tool_calls=[ToolCall(id="1", name="t", arguments={})],
+                        usage={
+                            "prompt_tokens": 10,
+                            "completion_tokens": 5,
+                            "total_tokens": 15,
+                        },
+                    )
+                return InvokeResult(
+                    is_final=True,
+                    text='{"ok": true}',
+                    usage={
+                        "prompt_tokens": 20,
+                        "completion_tokens": 4,
+                        "total_tokens": 24,
+                    },
+                )
+
+        monkeypatch.setattr(
+            "oas_cli.runner.get_provider", lambda _c: FakeToolProvider()
+        )
+        monkeypatch.setattr(
+            "oas_cli.runner.dispatch_tool_call", lambda name, args, tools: "tool out"
+        )
+
+        tools = [("t", ToolDefinition(name="t", description="d"))]
+        text = _invoke_with_tools(
+            "sys", "usr", tools, {"model": "gpt-4o"}, "task", None, sandbox=None
+        )
+        assert text == '{"ok": true}'
+
+        usage = pop_last_usage()
+        # Summed across both turns: prompt 10+20, completion 5+4, total 15+24.
+        assert usage["prompt_tokens"] == 30
+        assert usage["completion_tokens"] == 9
+        assert usage["total_tokens"] == 39
+        # Cost enrichment applied for a known model.
+        assert usage["estimated_cost_usd"] is not None
+
+    def test_native_loop_usage_none_when_provider_omits_it(self, monkeypatch):
+        pop_last_usage()  # clear residue
+
+        class NoUsageProvider:
+            def supports_tools(self):
+                return True
+
+            def invoke_with_tools(self, *, system, messages, tools, config):
+                return InvokeResult(is_final=True, text='{"ok": true}')
+
+        monkeypatch.setattr("oas_cli.runner.get_provider", lambda _c: NoUsageProvider())
+        tools = [("t", ToolDefinition(name="t", description="d"))]
+        _invoke_with_tools(
+            "sys", "usr", tools, {"model": "gpt-4o"}, "task", None, sandbox=None
+        )
+        assert pop_last_usage() is None

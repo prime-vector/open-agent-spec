@@ -145,7 +145,7 @@ def invoke_intelligence(
         )
         usage = None
 
-    _LAST_USAGE.set(_with_cost(usage, resolved.get("model")))
+    record_usage(usage, resolved.get("model"))
     return text
 
 
@@ -158,6 +158,16 @@ def _with_cost(usage: dict | None, model: str | None) -> dict | None:
     if cost is not None:
         enriched["estimated_cost_usd"] = cost
     return enriched
+
+
+def record_usage(usage: dict | None, model: str | None) -> None:
+    """Record token usage (enriched with cost) for the current execution context.
+
+    The runner reads it via :func:`pop_last_usage` immediately after the call.
+    Used by both the single-call path and the multi-turn tool loop (which passes
+    usage summed across turns).
+    """
+    _LAST_USAGE.set(_with_cost(usage, model))
 
 
 def pop_last_usage() -> dict | None:
