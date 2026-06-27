@@ -62,11 +62,16 @@ _load_dotenv(os.path.join(_ROOT, ".env"))
 
 from oas_cli.runner import OARunError, run_task_from_spec  # noqa: E402
 
-# A prompt with enough structure that effort should visibly change token spend.
+# A multi-constraint puzzle — enough reasoning that effort should change spend.
+# (Single easy questions are too noisy: thinking varies run to run, so use
+# --repeat to average if the per-call deltas look like noise.)
 QUESTION = (
-    "A farmer has 17 sheep. All but 9 run away, then half of the remaining "
-    "sheep are sold, and the farmer buys 4 more. Walk through it step by step, "
-    "then state the final count on the last line."
+    "Five houses in a row, numbered 1-5, each a different colour "
+    "(red, green, blue, yellow, white). Clues: the red house is somewhere left "
+    "of the blue house; the green house is immediately right of the white house; "
+    "the yellow house is at one of the two ends; the blue house is not house 5; "
+    "house 3 is white. Work through it step by step, then give the colour order "
+    "as the final line."
 )
 
 ENGINES = [
@@ -80,9 +85,8 @@ ENGINES = [
         "engine": "anthropic",
         "model": os.getenv("OA_ANTHROPIC_MODEL", "claude-opus-4-8"),
         "key": "ANTHROPIC_API_KEY",
-        # Set explicitly: a no-endpoint spec otherwise resolves to the OpenAI
-        # base URL (a separate OA bug) and Anthropic calls 404.
-        "endpoint": os.getenv("OA_ANTHROPIC_ENDPOINT", "https://api.anthropic.com/v1"),
+        # No endpoint — exercises the per-engine default (override via env if needed).
+        "endpoint": os.getenv("OA_ANTHROPIC_ENDPOINT"),
     },
 ]
 
@@ -152,9 +156,16 @@ def main() -> int:
         action="append",
         help="effort tier(s) to fire; repeatable (default: low, high)",
     )
+    parser.add_argument(
+        "--repeat",
+        type=int,
+        default=1,
+        help="samples per tier; >1 averages out adaptive-thinking noise",
+    )
     args = parser.parse_args()
 
     efforts = args.effort or ["low", "high"]
+    repeat = max(1, args.repeat)
     engines = ENGINES
     if args.engine:
         wanted = {e.lower() for e in args.engine}
@@ -172,14 +183,25 @@ def main() -> int:
 
         ran_any = True
         print(f"\n{engine} ({model}):")
-        usages = {eff: _run_one(engine, model, eff, endpoint) for eff in efforts}
+        means: dict[str, float] = {}
+        for eff in efforts:
+            samples = [
+                u
+                for _ in range(repeat)
+                if (u := _run_one(engine, model, eff, endpoint)) is not None
+            ]
+            if samples:
+                tot = [s["total_tokens"] for s in samples]
+                means[eff] = sum(tot) / len(tot)
+                if repeat > 1:
+                    print(f"  {eff:>6} → mean {means[eff]:.0f} tok over {len(tot)}")
 
-        # Headline: did higher effort actually cost more tokens?
-        if "low" in usages and "high" in usages and usages["low"] and usages["high"]:
-            lo = usages["low"]["total_tokens"]
-            hi = usages["high"]["total_tokens"]
-            verdict = "✓ effort moves tokens" if hi > lo else "⚠ no increase"
-            print(f"  delta: high - low = {hi - lo:+d} tok  [{verdict}]")
+        # Headline: did higher effort actually cost more tokens (on the mean)?
+        if "low" in means and "high" in means:
+            delta = means["high"] - means["low"]
+            verdict = "✓ effort moves tokens" if delta > 0 else "⚠ no increase"
+            suffix = "" if repeat > 1 else " (n=1 — noisy; use --repeat)"
+            print(f"  delta: high - low = {delta:+.0f} tok  [{verdict}]{suffix}")
 
     if not ran_any:
         print(
