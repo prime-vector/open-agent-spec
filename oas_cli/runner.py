@@ -785,8 +785,6 @@ def _run_single_task(
     sandbox = _resolve_sandbox(spec_data, task_name)
 
     # Token usage for this task's model call, attached to the envelope below.
-    # Captured only for the single-call path; the multi-turn tool loop spans
-    # several calls and is left as a follow-up (usage stays None there).
     usage: dict[str, Any] | None = None
     try:
         tools = resolve_task_tools(spec_data, task_name)
@@ -802,7 +800,11 @@ def _run_single_task(
             )
         else:
             raw_output = invoke_intelligence(system, user, intelligence_config, history)
-            usage = pop_last_usage()
+        # Capture usage recorded by the call above. Covers the no-tools path and
+        # the text-only-provider tool fallback (which routes through
+        # invoke_intelligence). The native multi-turn tool loop does not record
+        # per-call usage yet, so this stays None there (a known follow-up).
+        usage = pop_last_usage()
     except OARunError:
         # Structured errors (e.g. SANDBOX_* violations) pass through unchanged.
         raise
