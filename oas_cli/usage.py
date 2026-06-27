@@ -59,7 +59,18 @@ def _canonical(
 # guessed). Entries are deliberately specific: older Opus (4.0/4.1) was priced
 # differently, so a broad "claude-opus-4" prefix would misprice them.
 _PRICE_PER_M: dict[str, tuple[float, float]] = {
-    # OpenAI
+    # OpenAI — GPT-5.x (current generation as of 2026-06)
+    "gpt-5.5-pro": (30.00, 180.00),
+    "gpt-5.5": (5.00, 30.00),
+    "gpt-5.4-pro": (30.00, 180.00),
+    "gpt-5.4-mini": (0.75, 4.50),
+    "gpt-5.4-nano": (0.20, 1.25),
+    "gpt-5.4": (2.50, 15.00),
+    "gpt-5.3-codex": (1.75, 14.00),
+    # OpenAI — o-series reasoning (legacy; superseded by GPT-5.x)
+    "o4-mini": (1.10, 4.40),
+    "o3": (2.00, 8.00),
+    # OpenAI — GPT-4 family (legacy)
     "gpt-4o-mini": (0.15, 0.60),
     "gpt-4o": (2.50, 10.00),
     "gpt-4.1-mini": (0.40, 1.60),
