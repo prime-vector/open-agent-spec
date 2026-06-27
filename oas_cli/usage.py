@@ -22,6 +22,12 @@ Rates resolve in layers (first match wins):
 
 Token *counts* are always reported regardless — they are the figure to track
 against any plan.
+
+A pricing override that is **present but invalid** (a negative rate, a malformed
+``OA_PRICING`` value, an unrecognised ``pricing`` value) raises
+``InvalidPricingError`` rather than silently falling back to the built-in table.
+Cost must fail closed, not quietly misstate money. Absent overrides — and models
+simply not listed in ``OA_PRICING`` — fall through normally.
 """
 
 from __future__ import annotations
@@ -30,6 +36,11 @@ import json
 import os
 
 CanonicalUsage = dict[str, int]
+
+
+class InvalidPricingError(ValueError):
+    """Raised when a pricing override is present but malformed or out of range."""
+
 
 # Sentinels for layered rate resolution.
 _DISABLED = object()  # cost estimation explicitly turned off at this layer
@@ -134,18 +145,31 @@ def estimate_cost_usd(
     return round(cost, 6)
 
 
-def _extract_rate(obj: object) -> tuple[float, float] | None:
-    """Pull (input, output) rates from a dict, accepting either key style."""
+def _rate_from_dict(obj: object, source: str) -> tuple[float, float]:
+    """Parse a rate dict into (input, output), raising on anything invalid.
+
+    Accepts either key style (``input``/``output`` or ``input_per_1m``/
+    ``output_per_1m``). Both keys are required and both rates must be
+    non-negative numbers — *source* names the layer for the error message.
+    """
     if not isinstance(obj, dict):
-        return None
+        raise InvalidPricingError(
+            f"{source} must be an object with input/output rates, got "
+            f"{type(obj).__name__}"
+        )
     inp = obj.get("input_per_1m", obj.get("input"))
     out = obj.get("output_per_1m", obj.get("output"))
     if inp is None or out is None:
-        return None
+        raise InvalidPricingError(
+            f"{source} must set both input (input_per_1m) and output (output_per_1m)"
+        )
     try:
-        return (float(inp), float(out))
+        rate = (float(inp), float(out))
     except (TypeError, ValueError):
-        return None
+        raise InvalidPricingError(f"{source} rates must be numbers") from None
+    if rate[0] < 0 or rate[1] < 0:
+        raise InvalidPricingError(f"{source} rates must be non-negative")
+    return rate
 
 
 def _table_rate(
@@ -160,17 +184,30 @@ def _table_rate(
 
 
 def _spec_rate(pricing: object) -> object:
-    """Per-spec layer → (in, out) rate, _DISABLED, or _NOT_SET."""
+    """Per-spec layer → (in, out) rate, _DISABLED, or _NOT_SET.
+
+    Raises InvalidPricingError when ``pricing`` is present but invalid, so a typo
+    can't silently fall back to the built-in list price.
+    """
     if pricing is None:
         return _NOT_SET
     if isinstance(pricing, str):
-        return _DISABLED if pricing.strip().lower() == "none" else _NOT_SET
-    rate = _extract_rate(pricing)
-    return rate if rate is not None else _NOT_SET
+        if pricing.strip().lower() == "none":
+            return _DISABLED
+        raise InvalidPricingError(
+            "intelligence.config.pricing string must be 'none' (to disable cost) "
+            f"or an object with rates, got {pricing!r}"
+        )
+    return _rate_from_dict(pricing, "intelligence.config.pricing")
 
 
 def _env_rate(model: str) -> object:
-    """OA_PRICING env layer → (in, out) rate, _DISABLED, or _NOT_SET."""
+    """OA_PRICING env layer → (in, out) rate, _DISABLED, or _NOT_SET.
+
+    A model simply absent from a valid OA_PRICING map falls through (the env map
+    extends the built-in table). But a *malformed* OA_PRICING value raises rather
+    than silently reverting to list prices.
+    """
     raw = os.environ.get("OA_PRICING")
     if not raw or not raw.strip():
         return _NOT_SET
@@ -179,10 +216,15 @@ def _env_rate(model: str) -> object:
     try:
         data = json.loads(raw)
     except (ValueError, TypeError):
-        return _NOT_SET
+        raise InvalidPricingError(
+            "OA_PRICING must be valid JSON ({model: {input, output}}) or 'none'"
+        ) from None
     if not isinstance(data, dict):
-        return _NOT_SET
-    table = {k: rate for k, v in data.items() if (rate := _extract_rate(v)) is not None}
+        raise InvalidPricingError(
+            "OA_PRICING must be a JSON object {model: {input, output}} or 'none'"
+        )
+    # Validate every entry — a bad entry anywhere is operator error, fail closed.
+    table = {k: _rate_from_dict(v, f"OA_PRICING[{k!r}]") for k, v in data.items()}
     found = _table_rate(model, table) if table else None
     return found if found is not None else _NOT_SET
 

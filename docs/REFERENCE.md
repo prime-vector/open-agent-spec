@@ -396,6 +396,14 @@ A per-spec value overrides `OA_PRICING`, which overrides the built-in table; a
 `none` at any layer disables cost from that layer down (a more specific layer can
 still re-enable it with explicit rates).
 
+**Invalid overrides fail closed.** A pricing override that is *present but
+malformed* — a negative rate, a `pricing` string other than `none`, or an
+`OA_PRICING` value that isn't valid JSON / `none` — raises rather than silently
+reverting to the built-in list price. (`oa validate` also rejects a bad per-spec
+`pricing` up front; the runtime check additionally guards the Python API and
+`OA_PRICING`.) A model simply *not listed* in a valid `OA_PRICING` map is not an
+error — it falls through to the built-in table as intended.
+
 ### Reasoning effort (cost tiering) — experimental
 
 Frontier models increasingly expose a reasoning-effort control: spend more
