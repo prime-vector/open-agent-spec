@@ -646,9 +646,22 @@ class TestIntelligenceConfigBuilding:
     def test_defaults_when_not_specified(self):
         spec = _spec({"t": _task()})
         cfg = _build_intelligence_config(spec)
-        assert cfg["endpoint"] == "https://api.openai.com/v1"
+        # endpoint is left unset so the provider applies its own default —
+        # forcing a URL here would clobber non-OpenAI engine defaults.
+        assert "endpoint" not in cfg
         assert cfg["temperature"] == 0.7
         assert cfg["max_tokens"] == 1000
+
+    def test_endpoint_not_forced_for_non_openai_engine(self):
+        # Regression: a no-endpoint anthropic/grok spec must NOT inherit the
+        # OpenAI URL (which previously made every non-OpenAI engine 404 / mis-route).
+        for engine in ("anthropic", "grok", "local"):
+            spec = _spec(
+                {"t": _task()},
+                intelligence={"type": "llm", "engine": engine, "model": "m"},
+            )
+            cfg = _build_intelligence_config(spec)
+            assert "endpoint" not in cfg, engine
 
     def test_custom_endpoint(self):
         spec = _spec(

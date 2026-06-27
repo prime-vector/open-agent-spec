@@ -303,7 +303,6 @@ def _build_intelligence_config(spec_data: dict[str, Any]) -> dict[str, Any]:
     if not isinstance(intelligence, dict):
         raise ValueError("intelligence section must be an object")
 
-    endpoint = intelligence.get("endpoint", "https://api.openai.com/v1")
     model = intelligence.get("model")
     if not isinstance(model, str) or not model:
         raise ValueError("intelligence.model must be a non-empty string")
@@ -317,10 +316,17 @@ def _build_intelligence_config(spec_data: dict[str, Any]) -> dict[str, Any]:
     out: dict[str, Any] = {
         "engine": intelligence.get("engine", "openai"),
         "model": model,
-        "endpoint": endpoint,
         "temperature": cfg.get("temperature", 0.7),
         "max_tokens": cfg.get("max_tokens", 1000),
     }
+    # Only carry an explicit endpoint. Do NOT default to the OpenAI URL here:
+    # this dict is merged over the per-engine defaults in the provider registry
+    # (``{**defaults, **config}``, config wins), so a hardcoded default would
+    # clobber the correct endpoint for anthropic / grok / local / cortex. When
+    # absent, each provider applies its own default endpoint.
+    endpoint = intelligence.get("endpoint")
+    if endpoint:
+        out["endpoint"] = endpoint
     for k, v in cfg.items():
         if k not in out:
             out[k] = v

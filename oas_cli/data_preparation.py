@@ -324,7 +324,7 @@ def load_custom_llm_router(endpoint, model, config):
         if engine != "custom" or not custom_module:
             return ""
 
-        return f'self.router = load_custom_llm_router("{config["endpoint"]}", "{config["model"]}", {{}})  # {custom_module}'
+        return f'self.router = load_custom_llm_router("{config.get("endpoint", "")}", "{config["model"]}", {{}})  # {custom_module}'
 
     def _prepare_example_task_code(self, spec_data: dict[str, Any]) -> str:
         """Prepare example task execution code."""
