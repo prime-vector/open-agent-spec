@@ -5,6 +5,15 @@ All notable changes to **open-agent-spec** (Open Agent CLI) will be documented i
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+- **Token usage & best-effort cost in the result envelope** — providers now capture the API `usage` object they previously discarded. Every single-call result envelope includes a `usage` block (`prompt_tokens`/`completion_tokens`/`total_tokens`, normalised across the OpenAI and Anthropic shapes) plus a best-effort `estimated_cost_usd` for models in a built-in price table (`null` for unknown models — never guessed). `oa run` shows a compact `<total> tok · ~$<cost>` summary. `usage` is `null` when the engine omits counts (some local servers, the Codex CLI, custom routers) and on the multi-turn tool-call path (a planned follow-up). See [`docs/REFERENCE.md`](docs/REFERENCE.md).
+- **Reasoning-effort tiers (experimental)** — declare `intelligence.config.reasoning_effort: low|medium|high` and OA maps it to each engine's native control: OpenAI `reasoning_effort` (Chat Completions) / `reasoning.effort` (Responses API), Codex `-c model_reasoning_effort=<tier>`, and Anthropic `output_config.effort` paired with adaptive thinking. Opt-in and model-specific (a reasoning-capable model is required); `oa validate` enforces the `low|medium|high` enum. Validated against the live Opus 4.8 API via [`scripts/verify_reasoning.py`](scripts/verify_reasoning.py).
+
+### Fixed
+- **Non-OpenAI engine endpoints** — specs without an explicit `intelligence.endpoint` no longer inherit the OpenAI base URL. The hardcoded default was merged over the per-engine defaults in the provider registry (config wins), clobbering the correct endpoint for `anthropic`, `grok`, `local`, and `cortex` — e.g. a no-endpoint `engine: anthropic` spec (the README's own example) routed to `api.openai.com` and returned 404. Each provider now applies its own default endpoint when none is set.
+
 ## [1.5.2] - 2026-05-11
 
 ### Added
