@@ -5,13 +5,12 @@ from __future__ import annotations
 import pytest
 
 from oas_cli.adapters.codex_adapter import _build_codex_command
-from oas_cli.providers.anthropic_http import _apply_thinking, _extract_text_blocks
+from oas_cli.providers.anthropic_http import _apply_reasoning, _extract_text_blocks
 from oas_cli.providers.openai_http import (
     _build_chat_completions_payload,
     _build_responses_payload,
 )
 from oas_cli.reasoning import (
-    anthropic_thinking_budget,
     codex_reasoning_flags,
     normalise_effort,
     openai_reasoning_params,
@@ -77,27 +76,23 @@ class TestOpenAIReasoning:
 
 
 class TestAnthropicReasoning:
-    def test_budget_increases_with_tier(self):
-        low = anthropic_thinking_budget("low")
-        med = anthropic_thinking_budget("medium")
-        high = anthropic_thinking_budget("high")
-        assert low < med < high
+    def test_apply_reasoning_sets_effort_and_adaptive_thinking(self):
+        payload = {"model": "claude-opus-4-8", "max_tokens": 1000, "temperature": 0.7}
+        _apply_reasoning(payload, "high")
+        assert payload["output_config"] == {"effort": "high"}
+        assert payload["thinking"] == {"type": "adaptive"}
+        # temperature is rejected alongside adaptive thinking on current models.
+        assert "temperature" not in payload
 
-    def test_budget_none_when_unset(self):
-        assert anthropic_thinking_budget(None) is None
+    def test_apply_reasoning_preserves_existing_output_config(self):
+        payload = {"model": "claude-opus-4-8", "output_config": {"format": "x"}}
+        _apply_reasoning(payload, "low")
+        assert payload["output_config"] == {"format": "x", "effort": "low"}
 
-    def test_apply_thinking_sets_block_and_constraints(self):
-        payload = {"model": "claude-opus-4", "max_tokens": 1000, "temperature": 0.7}
-        _apply_thinking(payload, "high")
-        budget = anthropic_thinking_budget("high")
-        assert payload["thinking"] == {"type": "enabled", "budget_tokens": budget}
-        # Extended thinking requires temperature 1 and max_tokens above the budget.
-        assert payload["temperature"] == 1.0
-        assert payload["max_tokens"] > budget
-
-    def test_apply_thinking_noop_when_unset(self):
-        payload = {"model": "claude-opus-4", "max_tokens": 1000, "temperature": 0.7}
-        _apply_thinking(payload, None)
+    def test_apply_reasoning_noop_when_unset(self):
+        payload = {"model": "claude-opus-4-8", "max_tokens": 1000, "temperature": 0.7}
+        _apply_reasoning(payload, None)
+        assert "output_config" not in payload
         assert "thinking" not in payload
         assert payload["temperature"] == 0.7
 
