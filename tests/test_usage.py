@@ -8,7 +8,7 @@ import pytest
 
 from oas_cli.providers import InvokeOutcome
 from oas_cli.providers.registry import invoke_intelligence, pop_last_usage
-from oas_cli.runner import _invoke_with_tools, run_task_from_spec
+from oas_cli.runner import OARunError, _invoke_with_tools, run_task_from_spec
 from oas_cli.tool_providers.base import InvokeResult, ToolCall, ToolDefinition
 from oas_cli.usage import (
     InvalidPricingError,
@@ -153,6 +153,34 @@ class TestCostOverrideFailsClosed:
         monkeypatch.setenv("OA_PRICING", "[1, 2, 3]")
         with pytest.raises(InvalidPricingError):
             estimate_cost_usd("gpt-4o", self.USAGE)
+
+    def test_run_surfaces_dedicated_error_code(self, monkeypatch):
+        # End to end: a bad pricing override must surface as PRICING_CONFIG_ERROR,
+        # not be collapsed into a generic RUN_ERROR.
+        pop_last_usage()
+
+        class VerboseProvider:
+            def invoke_verbose(self, *, system, user, config, history=None):
+                return InvokeOutcome(
+                    text='{"ok": true}',
+                    usage={
+                        "prompt_tokens": 1,
+                        "completion_tokens": 1,
+                        "total_tokens": 2,
+                    },
+                )
+
+        monkeypatch.setattr(
+            "oas_cli.providers.registry.get_provider", lambda _c: VerboseProvider()
+        )
+        spec = _spec()
+        spec["intelligence"]["config"] = {
+            "pricing": {"input_per_1m": -1, "output_per_1m": 1}
+        }
+        with pytest.raises(OARunError) as excinfo:
+            run_task_from_spec(spec, task_name="t", input_data={"q": "hi"})
+        assert excinfo.value.code == "PRICING_CONFIG_ERROR"
+        assert excinfo.value.stage == "cost"
 
 
 # ---------------------------------------------------------------------------
