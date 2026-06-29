@@ -17,6 +17,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Formal spec & canonical schema updated** — `spec/open-agent-spec-1.5.md` and `spec/schema/oas-schema-1.5.json` now normatively define the `usage` result-envelope block (§8.3, incl. multi-call summation and the best-effort `estimated_cost_usd` rules), `config.reasoning_effort` (§5.5), the `config.pricing` cost override and its fail-closed semantics (§8.3), and the `PRICING_CONFIG_ERROR` error code (§11.2). Additive and backward-compatible — these formalise the features above in the 1.5 draft.
 
 ### Fixed
+- **Anthropic `temperature` rejected by Opus 4.7/4.8 & Fable 5** — these models reject sampling params, but the Anthropic provider always sent `temperature` (it was only dropped on the reasoning path), so a plain `engine: anthropic, model: claude-opus-4-8` call returned HTTP 400. The provider now omits `temperature` for models that reject it; other models are unchanged.
 - **Non-OpenAI engine endpoints** — specs without an explicit `intelligence.endpoint` no longer inherit the OpenAI base URL. The hardcoded default was merged over the per-engine defaults in the provider registry (config wins), clobbering the correct endpoint for `anthropic`, `grok`, `local`, and `cortex` — e.g. a no-endpoint `engine: anthropic` spec (the README's own example) routed to `api.openai.com` and returned 404. Each provider now applies its own default endpoint when none is set.
 
 ## [1.5.2] - 2026-05-11

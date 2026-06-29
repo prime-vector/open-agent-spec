@@ -22,6 +22,20 @@ _DEFAULT_TIMEOUT = 60
 _ANTHROPIC_VERSION = "2023-06-01"
 
 
+# Anthropic models that reject sampling params (temperature / top_p / top_k);
+# sending `temperature` to these returns HTTP 400. Matched by model-id prefix.
+_NO_SAMPLING_PARAM_MODELS = (
+    "claude-opus-4-7",
+    "claude-opus-4-8",
+    "claude-fable-5",
+)
+
+
+def _supports_temperature(model: str) -> bool:
+    """False for models that reject `temperature` (Opus 4.7/4.8, Fable 5)."""
+    return not any(model.startswith(prefix) for prefix in _NO_SAMPLING_PARAM_MODELS)
+
+
 def _apply_reasoning(payload: dict[str, Any], reasoning_effort: object) -> None:
     """Apply a reasoning-effort tier to an Anthropic request, in place.
 
@@ -119,8 +133,9 @@ class AnthropicProvider(IntelligenceProvider):
             "model": model,
             "messages": messages,
             "max_tokens": max_tokens,
-            "temperature": temperature,
         }
+        if _supports_temperature(model):
+            payload["temperature"] = temperature
         if system:
             payload["system"] = system
         _apply_reasoning(payload, config.get("reasoning_effort"))
@@ -195,8 +210,9 @@ class AnthropicProvider(IntelligenceProvider):
             "model": model,
             "messages": messages,
             "max_tokens": max_tokens,
-            "temperature": temperature,
         }
+        if _supports_temperature(model):
+            payload["temperature"] = temperature
         if system:
             payload["system"] = system
         if anthropic_tools:

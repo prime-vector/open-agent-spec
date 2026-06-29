@@ -5,7 +5,11 @@ from __future__ import annotations
 import pytest
 
 from oas_cli.adapters.codex_adapter import _build_codex_command
-from oas_cli.providers.anthropic_http import _apply_reasoning, _extract_text_blocks
+from oas_cli.providers.anthropic_http import (
+    _apply_reasoning,
+    _extract_text_blocks,
+    _supports_temperature,
+)
 from oas_cli.providers.openai_http import (
     _build_chat_completions_payload,
     _build_responses_payload,
@@ -119,6 +123,62 @@ class TestAnthropicReasoning:
         # Test doubles / older payloads may omit the type field.
         data = {"content": [{"text": "hello"}]}
         assert _extract_text_blocks(data) == "hello"
+
+
+# ---------------------------------------------------------------------------
+# Anthropic temperature gating (Opus 4.7/4.8 + Fable 5 reject `temperature`)
+# ---------------------------------------------------------------------------
+
+
+class TestAnthropicTemperatureGate:
+    def test_supports_temperature_by_model(self):
+        assert _supports_temperature("claude-sonnet-4-5-20250929") is True
+        assert _supports_temperature("claude-haiku-4-5-20251001") is True
+        assert _supports_temperature("claude-opus-4-6") is True
+        assert _supports_temperature("claude-opus-4-7") is False
+        assert _supports_temperature("claude-opus-4-8") is False
+        assert _supports_temperature("claude-fable-5") is False
+
+    def _capture_payload(self, monkeypatch, model: str) -> dict:
+        import json
+
+        import oas_cli.providers.anthropic_http as m
+
+        captured: dict = {}
+
+        class _Resp:
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *a):
+                return False
+
+            def read(self):
+                return json.dumps(
+                    {
+                        "content": [{"type": "text", "text": "{}"}],
+                        "usage": {"input_tokens": 1, "output_tokens": 1},
+                    }
+                ).encode()
+
+        def fake_urlopen(req, timeout=None):
+            captured["body"] = json.loads(req.data.decode())
+            return _Resp()
+
+        monkeypatch.setenv("ANTHROPIC_API_KEY", "k")
+        monkeypatch.setattr(m.urllib.request, "urlopen", fake_urlopen)
+        m.AnthropicProvider().invoke_verbose(
+            system="s", user="u", config={"model": model}
+        )
+        return captured["body"]
+
+    def test_temperature_omitted_for_opus_4_8(self, monkeypatch):
+        body = self._capture_payload(monkeypatch, "claude-opus-4-8")
+        assert "temperature" not in body
+
+    def test_temperature_sent_for_sonnet(self, monkeypatch):
+        body = self._capture_payload(monkeypatch, "claude-sonnet-4-5-20250929")
+        assert body["temperature"] == 0.7
 
 
 # ---------------------------------------------------------------------------
