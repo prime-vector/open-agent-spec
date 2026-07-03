@@ -463,6 +463,34 @@ Supports OpenAI and Anthropic, `depends_on` chains, and history threading.
 
 ---
 
+## How OA Relates to AGENTS.md and Skills
+
+AGENTS.md tells your copilot how to behave. **Open Agent Spec defines what
+your agents actually do** — typed, sandboxed, conformance-tested.
+
+The markdown agent patterns (AGENTS.md, SKILL.md) are prose guidance
+interpreted by a model at runtime: quick to write, but unvalidated,
+unenforceable, and untestable. OA operates one layer below them as the
+execution contract — input/output schemas, pinned models, runner-enforced
+sandboxing, and structured errors, certified identical across runtimes by a
+[conformance suite](spec/conformance/README.md).
+
+The two layers compose cleanly, following one rule:
+
+> **Markdown patterns may point at OA specs. OA specs never point at
+> markdown patterns.**
+
+- A **SKILL.md can wrap an OA spec** — the skill provides discovery, the spec
+  provides the guaranteed behaviour. See
+  [examples/skill-wrapper/](examples/skill-wrapper/).
+- An **AGENTS.md can direct coding agents to your specs** instead of letting
+  them improvise agent logic. This repo's own [AGENTS.md](AGENTS.md)
+  demonstrates the pattern.
+
+Full rationale: [docs/proposals/markdown-interop.md](docs/proposals/markdown-interop.md).
+
+---
+
 ## Generate a Python Scaffold
 
 If you want editable generated code instead of running the YAML directly:
