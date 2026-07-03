@@ -472,7 +472,7 @@ The markdown agent patterns (AGENTS.md, SKILL.md) are prose guidance
 interpreted by a model at runtime: quick to write, but unvalidated,
 unenforceable, and untestable. OA operates one layer below them as the
 execution contract — input/output schemas, pinned models, runner-enforced
-sandboxing, and structured errors, certified identical across runtimes by a
+sandboxing, and structured errors, pinned to a shared, runtime-agnostic
 [conformance suite](spec/conformance/README.md).
 
 The two layers compose cleanly, following one rule:

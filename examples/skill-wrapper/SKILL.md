@@ -16,7 +16,9 @@ execute the spec so the output shape is guaranteed.
 ## Prerequisites
 
 The `oa` CLI must be available (`pipx install open-agent-spec` or
-`npm i -g @prime-vector/open-agent-spec`) with an `OPENAI_API_KEY` set.
+`npm i -g @prime-vector/open-agent-spec`) with an API key set for the spec's
+engine — `OPENAI_API_KEY` as shipped, or `ANTHROPIC_API_KEY` if the spec is
+switched to the Anthropic engine.
 
 ## How to use
 

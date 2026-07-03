@@ -12,6 +12,12 @@ intelligence:
   type: llm
   engine: openai
   model: gpt-4o-mini
+  # Portability is the point: the contract below is engine-agnostic. Swap the
+  # two lines above for Anthropic (set ANTHROPIC_API_KEY instead of
+  # OPENAI_API_KEY) and everything else — schemas, prompts, output shape —
+  # stays identical:
+  #   engine: anthropic
+  #   model: claude-haiku-4-5-20251001
 
 tasks:
   summarise:

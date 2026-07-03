@@ -32,6 +32,10 @@ oa run --spec examples/skill-wrapper/spec.yaml --task summarise \
   --input '{"text": "OA is a declarative standard for defining AI agents as portable YAML contracts. It supports tools, sandboxing, spec composition and a public registry."}'
 ```
 
+To run it on Anthropic instead, switch `engine`/`model` in `spec.yaml` (see the
+comment there) and export `ANTHROPIC_API_KEY` — the command and output shape are
+unchanged. That engine-swap is the portability the spec buys you.
+
 ## Try it as a skill
 
 Copy this directory into your agent's skills location (e.g.

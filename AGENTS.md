@@ -46,8 +46,9 @@ mypy oas_cli tests
 # npm runtime: build and typecheck
 cd npm && npm ci && npm run build
 
-# Conformance suite (certifies both runtimes against the standard)
-python -m spec.conformance.harness.harness --adapter python --adapter node
+# Conformance suite (runtime-agnostic cases; executes them against the Python runtime)
+python -m spec.conformance.runner.conformance_runner
+python -m spec.conformance.runner.conformance_runner --list   # list all cases
 ```
 
 ## Conventions
