@@ -350,20 +350,24 @@ def _resolve_chain(
     if not deps:
         return dict(base_input), {}
 
-    # Cycle detection: walk the full dependency graph breadth-first.
-    seen: set[str] = {task_name}
+    # Cycle detection: DFS with a recursion stack (added on descent, removed on
+    # backtrack). A cycle exists only when a task reappears on the *current
+    # path* — a globally-visited set would falsely reject diamond DAGs where
+    # two branches share a dependency (D → [B, C], B → A, C → A).
+    stack: set[str] = {task_name}
 
     def _check_cycles(name: str) -> None:
         for dep in (tasks.get(name) or {}).get("depends_on") or []:
-            if dep in seen:
+            if dep in stack:
                 raise OARunError(
                     f"Circular dependency detected: '{dep}' is already in the chain",
                     code="CHAIN_CYCLE_ERROR",
                     stage="routing",
                     task=name,
                 )
-            seen.add(dep)
+            stack.add(dep)
             _check_cycles(dep)
+            stack.discard(dep)
 
     _check_cycles(task_name)
 

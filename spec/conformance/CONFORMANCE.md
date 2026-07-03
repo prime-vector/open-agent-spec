@@ -14,13 +14,16 @@
 | prompt-resolution/legacy-task-map | ✅ PASS | ✅ PASS |
 | prompt-resolution/per-task-inline | ✅ PASS | ✅ PASS |
 | depends-on/cycle-detection | ✅ PASS | ✅ PASS |
+| depends-on/diamond-graph | ✅ PASS | ✅ PASS |
 | depends-on/linear-chain | ✅ PASS | ✅ PASS |
 | depends-on/merge-order | ✅ PASS | ✅ PASS |
 | depends-on/no-chain-key-without-deps | ✅ PASS | ✅ PASS |
 | depends-on/unknown-dependency | ✅ PASS | ✅ PASS |
 | response-format/fence-stripping-no-lang | ✅ PASS | ✅ PASS |
 | response-format/fence-stripping | ✅ PASS | ✅ PASS |
+| response-format/json-array | ✅ PASS | ✅ PASS |
 | response-format/json-default | ✅ PASS | ✅ PASS |
+| response-format/json-scalar | ✅ PASS | ✅ PASS |
 | response-format/output-schema-validation | ✅ PASS | ⬜ UNSUPPORTED |
 | response-format/text-mode | ✅ PASS | ✅ PASS |
 | delegation/default-task-name | ✅ PASS | ✅ PASS |
@@ -36,7 +39,7 @@
 
 | Runtime | Pass | Fail | Unsupported | Adapter errors |
 |---|---|---|---|---|
-| python-reference 1.5.0 | 29 | 0 | 0 | 0 |
-| npm 1.5.2 | 27 | 0 | 2 | 0 |
+| python-reference 1.5.0 | 32 | 0 | 0 | 0 |
+| npm 1.5.2 | 30 | 0 | 2 | 0 |
 
 Legend: ✅ PASS · ❌ FAIL · ⬜ UNSUPPORTED (capability not declared) · 💥 adapter error

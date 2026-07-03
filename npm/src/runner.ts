@@ -15,48 +15,25 @@ import type {
 
 // ── JSON extraction ────────────────────────────────────────────────────────
 
+/**
+ * Parse a model response as JSON, mirroring the reference runtime exactly:
+ * strip a leading markdown fence if present, then JSON-parse the whole text.
+ * Whatever JSON.parse yields is the output — objects, arrays, and scalars
+ * alike. Unparseable output is returned as the raw string.
+ */
 function extractJson(raw: string): unknown {
-  const trimmed = raw.trim();
+  let text = raw.trim();
 
-  // Try direct parse first.
+  // Models often wrap JSON in ```json ... ``` — strip fences before parsing.
+  if (text.startsWith("```")) {
+    text = text.replace(/^```(?:json)?\s*/i, "").replace(/\s*```\s*$/, "").trim();
+  }
+
   try {
-    const parsed = JSON.parse(trimmed);
-    if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
-      return parsed;
-    }
+    return JSON.parse(text);
   } catch {
-    /* fall through */
+    return raw;
   }
-
-  // Strip markdown code fences: ```json ... ``` or ``` ... ```
-  const fenced = trimmed.match(/```(?:json)?\s*([\s\S]+?)```/i);
-  if (fenced?.[1]) {
-    try {
-      const parsed = JSON.parse(fenced[1].trim());
-      if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
-        return parsed;
-      }
-    } catch {
-      /* fall through */
-    }
-  }
-
-  // Last resort: find the first {...} block.
-  const braceStart = trimmed.indexOf("{");
-  const braceEnd = trimmed.lastIndexOf("}");
-  if (braceStart !== -1 && braceEnd > braceStart) {
-    try {
-      const parsed = JSON.parse(trimmed.slice(braceStart, braceEnd + 1));
-      if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
-        return parsed;
-      }
-    } catch {
-      /* fall through */
-    }
-  }
-
-  // Mirror the reference runtime: unparseable output is returned raw.
-  return raw;
 }
 
 // ── Execution context ──────────────────────────────────────────────────────
@@ -214,16 +191,20 @@ async function runSingleTask(
 
 /**
  * Transitive cycle check over the depends_on graph (spec §7.2).
- * Mirrors the reference runtime: detection is transitive even though
- * execution only runs *direct* dependencies.
+ *
+ * DFS with a recursion stack (added on descent, removed on backtrack). A cycle
+ * exists only when a task reappears on the *current path* — a globally-visited
+ * set would falsely reject diamond DAGs where two branches share a dependency
+ * (D → [B, C], B → A, C → A). Detection is transitive even though execution
+ * only runs *direct* dependencies.
  */
 function checkChainCycles(spec: OASpec, taskName: string): void {
-  const seen = new Set<string>([taskName]);
+  const stack = new Set<string>([taskName]);
 
   const walk = (name: string): void => {
     const deps = (spec.tasks[name] as { depends_on?: string[] })?.depends_on ?? [];
     for (const dep of deps) {
-      if (seen.has(dep)) {
+      if (stack.has(dep)) {
         throw new OAError(
           `Circular dependency detected: '${dep}' is already in the chain`,
           "CHAIN_CYCLE_ERROR",
@@ -231,8 +212,9 @@ function checkChainCycles(spec: OASpec, taskName: string): void {
           name,
         );
       }
-      seen.add(dep);
+      stack.add(dep);
       walk(dep);
+      stack.delete(dep);
     }
   };
 
@@ -251,6 +233,7 @@ async function resolveChain(
   taskName: string,
   baseInput: RunInput,
   specPath: string | null,
+  visitedSpecs: ReadonlySet<string>,
   ctx: ExecContext,
 ): Promise<{ merged: RunInput; chain: Record<string, TaskResult> }> {
   const taskDef = spec.tasks[taskName];
@@ -280,7 +263,10 @@ async function resolveChain(
       dep,
       structuredClone(merged),
       specPath,
-      new Set(),
+      // Thread the delegation visited-set so a dependency that delegates back
+      // to the calling spec is caught at the same point as in the reference
+      // runtime.
+      visitedSpecs,
       // Dependencies never receive caller prompt overrides.
       { invoke: ctx.invoke },
     );
@@ -352,16 +338,19 @@ export async function runTaskFromSpec(
   // Deep copy at the public entry point so the caller's object is never mutated.
   const baseInput = structuredClone(input);
 
+  // Seed the visited set with the calling spec so direct self-delegation is
+  // caught, for the main task and its dependencies alike.
+  const visited = new Set<string>();
+  if (specPath) visited.add(resolve(specPath));
+
   const { merged, chain } = await resolveChain(
     spec,
     resolvedTaskName,
     baseInput,
     specPath,
+    visited,
     ctx,
   );
-
-  const visited = new Set<string>();
-  if (specPath) visited.add(resolve(specPath));
 
   const result = await runSingleTask(
     spec,

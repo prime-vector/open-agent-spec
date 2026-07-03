@@ -523,6 +523,65 @@ class TestDependsOn:
             run_task_from_spec(spec, task_name="summarize", input_data={})
         assert exc_info.value.code == "CHAIN_CYCLE_ERROR"
 
+    def test_diamond_graph_is_not_a_cycle(self, monkeypatch):
+        """A diamond DAG (two branches sharing a transitive dep) is legal.
+
+        Regression test: a globally-visited set falsely flagged the shared
+        dependency as a cycle when the second branch reached it. Cycle
+        detection must use a recursion stack (current path only).
+        """
+        spec = {
+            "open_agent_spec": "1.5.0",
+            "agent": {"name": "t", "description": "t", "role": "t"},
+            "intelligence": {"type": "llm", "engine": "openai", "model": "gpt-4o"},
+            "tasks": {
+                "fetch_base": {
+                    "description": "shared transitive dep",
+                    "prompts": {"system": "", "user": "fetch_base"},
+                },
+                "left_branch": {
+                    "description": "branch 1",
+                    "depends_on": ["fetch_base"],
+                    "prompts": {"system": "", "user": "left_branch"},
+                },
+                "right_branch": {
+                    "description": "branch 2",
+                    "depends_on": ["fetch_base"],
+                    "prompts": {"system": "", "user": "right_branch"},
+                },
+                "combine": {
+                    "description": "diamond apex",
+                    "depends_on": ["left_branch", "right_branch"],
+                    "prompts": {"system": "", "user": "combine"},
+                },
+            },
+        }
+
+        def fake_invoke(system: str, user: str, config: dict, history=None) -> str:
+            if "left_branch" in user:
+                return '{"from_left": "L"}'
+            if "right_branch" in user:
+                return '{"from_right": "R"}'
+            return '{"result": "ok"}'
+
+        monkeypatch.setattr("oas_cli.runner.invoke_intelligence", fake_invoke)
+        result = run_task_from_spec(spec, task_name="combine", input_data={})
+        assert result["output"]["result"] == "ok"
+        assert result["input"]["from_left"] == "L"
+        assert result["input"]["from_right"] == "R"
+
+    def test_true_cycle_still_detected_after_diamond_fix(self, monkeypatch):
+        """Recursion-stack detection must still catch a real transitive cycle."""
+        spec = _chain_spec()
+        spec["tasks"]["extract"]["depends_on"] = ["summarize"]
+        monkeypatch.setattr(
+            "oas_cli.runner.invoke_intelligence",
+            lambda s, u, c, h=None: "{}",
+        )
+        with pytest.raises(OARunError) as exc_info:
+            run_task_from_spec(spec, task_name="summarize", input_data={})
+        assert exc_info.value.code == "CHAIN_CYCLE_ERROR"
+
     def test_missing_required_input_after_merge_raises(self, monkeypatch):
         """If required fields are still missing after merge, fail fast."""
         monkeypatch.setattr(
