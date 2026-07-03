@@ -1,0 +1,58 @@
+# Spec §7.2 — Cycle detection MUST NOT reject valid diamond-shaped DAGs.
+# Two branches sharing a common dependency is legal: a cycle exists only when
+# a task reappears on the current dependency path, not merely when it is
+# reachable via more than one branch.
+description: "Diamond dependency graph (shared transitive dep) is not a cycle"
+spec_section: "7.2"
+requires: depends-on
+
+spec: |
+  open_agent_spec: "1.5.0"
+  agent:
+    name: test
+    description: test
+  intelligence:
+    type: llm
+    engine: openai
+    model: gpt-4o
+  tasks:
+    fetch_base:
+      description: shared transitive dependency (declared, not executed)
+      prompts:
+        system: ""
+        user: "fetch_base"
+    left_branch:
+      description: first branch
+      depends_on: [fetch_base]
+      prompts:
+        system: ""
+        user: "left_branch"
+    right_branch:
+      description: second branch
+      depends_on: [fetch_base]
+      prompts:
+        system: ""
+        user: "right_branch"
+    combine:
+      description: depends on both branches -> diamond via fetch_base
+      depends_on: [left_branch, right_branch]
+      prompts:
+        system: ""
+        user: "combine {{ from_left }} {{ from_right }}"
+
+mock_responses:
+  left_branch: '{"from_left": "L"}'
+  right_branch: '{"from_right": "R"}'
+  combine: '{"result": "ok"}'
+
+invoke:
+  task: combine
+  input: {}
+
+expect:
+  result.task: combine
+  result.output.result: "ok"
+  result.input.from_left: "L"
+  result.input.from_right: "R"
+  result.chain.left_branch.output.from_left: "L"
+  result.chain.right_branch.output.from_right: "R"

@@ -1,6 +1,7 @@
 # Spec §7.3 — Missing delegated task MUST raise TASK_NOT_FOUND.
 description: "Delegation to non-existent task in target spec raises TASK_NOT_FOUND"
 spec_section: "7.3"
+requires: delegation
 
 uses_files:
   - delegated-spec.yaml

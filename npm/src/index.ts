@@ -1,5 +1,6 @@
 // Public API — import these when using open-agent-spec as a library.
 export { runTask, runTaskFromSpec } from "./runner.js";
+export type { RunOptions, RunFromSpecOptions } from "./runner.js";
 export { loadSpecFromFile, parseSpec, chooseTask, OAError } from "./loader.js";
 export { resolveSpecUrl, isRemoteRef, fetchRemoteSpec } from "./registry.js";
 export type {
@@ -10,4 +11,6 @@ export type {
   TaskResult,
   RunInput,
   ProviderConfig,
+  InvokeFn,
+  ChatMessage,
 } from "./types.js";

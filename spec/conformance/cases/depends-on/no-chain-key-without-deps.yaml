@@ -1,6 +1,7 @@
 # Spec §8.2 — Tasks without depends_on MUST NOT include a chain key.
 description: "Result envelope has no 'chain' key when task has no depends_on"
 spec_section: "8.2"
+requires: depends-on
 
 spec: |
   open_agent_spec: "1.5.0"

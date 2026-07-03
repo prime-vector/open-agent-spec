@@ -1,6 +1,7 @@
 # Spec §7.2 — Dependency output is merged into calling task input.
 description: "Dependency output is merged into calling task input"
 spec_section: "7.2"
+requires: depends-on
 
 spec: |
   open_agent_spec: "1.5.0"

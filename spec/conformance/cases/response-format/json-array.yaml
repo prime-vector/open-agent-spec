@@ -1,0 +1,33 @@
+# Spec §7.1 — JSON output parsing MUST return whatever the JSON parser yields,
+# including top-level arrays (not just objects).
+description: "JSON array responses are returned as arrays, not coerced or unwrapped"
+spec_section: "7.1"
+
+spec: |
+  open_agent_spec: "1.5.0"
+  agent:
+    name: test
+    description: test
+  intelligence:
+    type: llm
+    engine: openai
+    model: gpt-4o
+  tasks:
+    list_items:
+      description: return a list
+      prompts:
+        system: ""
+        user: "list_items"
+
+mock_responses:
+  list_items: '[{"item": "alpha"}, {"item": "beta"}]'
+
+invoke:
+  task: list_items
+  input: {}
+
+expect:
+  result.task: list_items
+  result.output:
+    - item: alpha
+    - item: beta

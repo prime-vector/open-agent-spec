@@ -2,6 +2,8 @@
 
 This directory contains the conformance test suite for Open Agent Spec 1.5.0. Conformance tests validate **runtime behaviour**, not LLM output.
 
+The suite is **runtime-agnostic**: a single harness drives the YAML cases against any OA runtime through a thin subprocess adapter (JSON over stdin/stdout). The protocol is defined in [PROTOCOL.md](PROTOCOL.md). Reference adapters for the Python and npm runtimes live in `adapters/`.
+
 ## Purpose
 
 The spec at `../open-agent-spec-1.4.md` defines what a conforming runtime MUST do. These tests operationalise that definition — any runtime that passes the full suite can claim OA 1.5.0 conformance.
@@ -83,6 +85,12 @@ The conformance suite covers the normative MUST requirements from the spec:
 ```
 spec/conformance/
 ├── README.md                     # this file
+├── PROTOCOL.md                   # adapter protocol (how runtimes plug in)
+├── harness/
+│   └── harness.py                # runtime-agnostic driver: discovery, assertions, matrix
+├── adapters/
+│   ├── python/adapter.py         # wraps the reference Python runtime (oas_cli)
+│   └── node/adapter.mjs          # wraps the npm runtime (requires npm build)
 ├── cases/
 │   ├── schema/
 │   │   ├── valid-minimal.yaml    # minimal valid spec → accepted
@@ -121,22 +129,46 @@ spec/conformance/
 │       ├── contract-violation.yaml   # contract field check
 │       └── error-structure.yaml      # error object has required fields
 └── runner/
-    └── conformance_runner.py     # harness that executes cases against any runtime
+    └── conformance_runner.py     # DEPRECATED shim → forwards to the harness
 ```
 
 ## Running the Suite
 
 ```bash
-# Run all conformance tests
-python -m spec.conformance.runner.conformance_runner
+# Certify the Python reference runtime
+python -m spec.conformance.harness.harness --adapter python
 
-# Run a single category
-python -m spec.conformance.runner.conformance_runner schema
-python -m spec.conformance.runner.conformance_runner depends-on
+# Certify the npm runtime (build it first: cd npm && npm ci && npm run build)
+python -m spec.conformance.harness.harness --adapter node
 
-# List all discovered cases
-python -m spec.conformance.runner.conformance_runner --list
+# Both at once, with a conformance matrix
+python -m spec.conformance.harness.harness --adapter python --adapter node --matrix
+
+# Write reports to files
+python -m spec.conformance.harness.harness --adapter python --adapter node \
+  --matrix-out CONFORMANCE.md --json-out conformance.json
+
+# Run a single category / list cases
+python -m spec.conformance.harness.harness --adapter python --category schema
+python -m spec.conformance.harness.harness --list
+
+# Certify your own runtime — any executable that speaks PROTOCOL.md
+python -m spec.conformance.harness.harness --adapter "./my-runtime-adapter"
 ```
+
+## Capability Tags
+
+Not every runtime implements every optional feature. Cases may declare a
+`requires:` tag (e.g. `requires: contracts`); the harness skips cases whose
+capability the adapter does not declare and reports them **UNSUPPORTED** —
+distinct from PASS and FAIL. Untagged cases are implicitly `core` and every
+runtime must pass them. The capability registry is defined in
+[PROTOCOL.md](PROTOCOL.md).
+
+**Honesty rule:** a runtime must not declare a capability it does not enforce,
+and must refuse to run specs that use features it cannot honour (e.g. the npm
+runtime rejects specs declaring `sandbox:` with `UNSUPPORTED_FEATURE` rather
+than silently ignoring a security boundary).
 
 ## Test Case Format
 
@@ -197,9 +229,9 @@ expect:
 To add a conformance test:
 
 1. Identify the normative requirement (section + MUST/MUST NOT keyword).
-2. Create a case file under `spec/conformance/cases/<category>/`.
+2. Create a case file under `spec/conformance/cases/<category>/` — discovery is automatic.
 3. The spec embedded in the case file MUST be self-contained and minimal.
 4. Mock responses MUST be provided — conformance tests MUST NOT make real API calls.
-5. Add the case path to the runner's manifest.
+5. If the case exercises an optional capability, add a `requires:` tag.
 
 Conformance tests assert on observable runtime behaviour. They MUST NOT assert on LLM output content.

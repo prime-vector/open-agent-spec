@@ -1,6 +1,7 @@
 # Spec §6.3 — Output MUST be validated against the output schema for JSON format.
 description: "Output missing required schema fields raises an error"
 spec_section: "6.3"
+requires: output-schema-validation
 
 spec: |
   open_agent_spec: "1.5.0"

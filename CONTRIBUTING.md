@@ -137,7 +137,7 @@ To add a conformance test:
 2. Create a YAML case file under `spec/conformance/cases/<category>/`.
 3. The embedded spec MUST be self-contained and minimal — include only what the test needs.
 4. Mock responses MUST be provided — conformance tests MUST NOT make real API calls.
-5. Run the suite: `python -m spec.conformance.runner.conformance_runner`
+5. Run the suite: `python -m spec.conformance.harness.harness --adapter python --adapter node`
 
 See `spec/conformance/README.md` for the full test case format and category structure.
 
@@ -195,7 +195,7 @@ pip install -e ".[dev]"
 ### Testing
 
 - Run all tests: `pytest tests/`
-- Run conformance suite: `python -m spec.conformance.runner.conformance_runner`
+- Run conformance suite: `python -m spec.conformance.harness.harness --adapter python`
 - Write tests for new features; ensure all tests pass; maintain or improve test coverage.
 - **Pytest marks:** If you add a new test category, register the mark in `pytest.ini` (and optionally in `pyproject.toml` under `[tool.pytest.ini_options]` markers) so `pytest -m <mark>` works without "Unknown pytest.mark" warnings. Existing marks: `contract`, `cortex`, `multi_engine`, `generator`, `integration`, `slow`.
 - **Spec version field:** Use `open_agent_spec` (not `spec_version`) in YAML specs; this is the canonical field name used by the schema and code.
