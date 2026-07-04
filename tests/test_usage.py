@@ -444,9 +444,7 @@ class TestErrorPanelUsage:
         return console.file.getvalue()
 
     def test_panel_shows_tokens_and_cost_when_present(self):
-        out = self._render(
-            {"total_tokens": 150, "estimated_cost_usd": 0.001234}
-        )
+        out = self._render({"total_tokens": 150, "estimated_cost_usd": 0.001234})
         assert "150 tok" in out
         assert "$0.001234" in out
 
