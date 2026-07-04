@@ -177,14 +177,6 @@ A runtime MUST support at minimum `openai` and `anthropic`. Other engines are RE
 
 A runtime MUST pass `temperature` and `max_tokens` to the LLM API when provided. Unknown `config` keys MAY be forwarded to the underlying engine or ignored.
 
-### 5.5 Reasoning Effort
-
-`config.reasoning_effort` declares a portable reasoning-depth tier independent of any single engine. Its value MUST be one of `low`, `medium`, or `high`. A runtime MUST reject any other value.
-
-When `reasoning_effort` is set, a runtime SHOULD map it to the selected engine's native reasoning control (for example, an effort/verbosity parameter, an extended-thinking setting, or a CLI flag). A runtime MAY treat it as a no-op for engines and models that expose no reasoning control. Because reasoning-capable models often reject incompatible request fields, a runtime MAY adjust other request parameters as required by the engine when `reasoning_effort` is set (for example, substituting a token-limit field or omitting sampling parameters).
-
-`reasoning_effort` is only meaningful for reasoning-capable models. It is the spec author's responsibility to pair it with a suitable engine and model.
-
 ### 5.4 Custom Engine
 
 When `engine` is `custom`, the spec MAY additionally specify:
@@ -205,6 +197,14 @@ class MyRouter:
     def __init__(self, endpoint: str, model: str, config: dict): ...
     def run(self, prompt: str, **kwargs) -> str: ...  # returns JSON string
 ```
+
+### 5.5 Reasoning Effort
+
+`config.reasoning_effort` declares a portable reasoning-depth tier independent of any single engine. Its value MUST be one of `low`, `medium`, or `high`. A runtime MUST reject any other value.
+
+When `reasoning_effort` is set, a runtime SHOULD map it to the selected engine's native reasoning control (for example, an effort/verbosity parameter, an extended-thinking setting, or a CLI flag). A runtime MAY treat it as a no-op for engines and models that expose no reasoning control. Because reasoning-capable models often reject incompatible request fields, a runtime MAY adjust other request parameters as required by the engine when `reasoning_effort` is set (for example, substituting a token-limit field or omitting sampling parameters).
+
+`reasoning_effort` is only meaningful for reasoning-capable models. It is the spec author's responsibility to pair it with a suitable engine and model.
 
 ---
 

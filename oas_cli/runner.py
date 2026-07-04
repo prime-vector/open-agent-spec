@@ -660,6 +660,9 @@ def _invoke_with_tools(
                 }
             )
 
+    # Flush accumulated usage before bailing out so spend telemetry from the
+    # earlier turns survives even when the loop exhausts its iteration budget.
+    _record()
     raise OARunError(
         f"Tool-call loop for task '{task_name}' exceeded {_MAX_TOOL_ITERATIONS} iterations.",
         code="RUN_ERROR",
@@ -826,10 +829,10 @@ def _run_single_task(
             )
         else:
             raw_output = invoke_intelligence(system, user, intelligence_config, history)
-        # Capture usage recorded by the call above. Covers the no-tools path and
-        # the text-only-provider tool fallback (which routes through
-        # invoke_intelligence). The native multi-turn tool loop does not record
-        # per-call usage yet, so this stays None there (a known follow-up).
+        # Capture usage recorded by the call above. Covers all three paths: the
+        # no-tools path, the text-only-provider tool fallback (both routing
+        # through invoke_intelligence), and the native multi-turn tool loop
+        # (which records usage summed across every turn via _record()).
         usage = pop_last_usage()
     except OARunError:
         # Structured errors (e.g. SANDBOX_* violations) pass through unchanged.

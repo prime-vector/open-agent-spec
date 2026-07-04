@@ -98,7 +98,7 @@
                 "medium",
                 "high"
               ],
-              "description": "Reasoning-effort tier mapped to each engine's native control (OpenAI/Codex effort, Anthropic extended-thinking budget). Only meaningful for reasoning-capable models."
+              "description": "Portable reasoning-effort tier mapped to each engine's native reasoning control. Only meaningful for reasoning-capable models."
             },
             "pricing": {
               "description": "Override cost estimation for this spec. Either the string \"none\" to disable cost (e.g. on a subscription or local model), or explicit USD rates per 1M tokens.",

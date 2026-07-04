@@ -204,7 +204,7 @@ def _format_usage(usage: Any) -> str:
     """Render a compact token / cost suffix for the result panel subtitle.
 
     Returns an empty string when no usage was reported (local servers, the Codex
-    CLI, custom routers, or the multi-turn tool path).
+    CLI, or custom routers).
     """
     if not isinstance(usage, dict) or not usage.get("total_tokens"):
         return ""

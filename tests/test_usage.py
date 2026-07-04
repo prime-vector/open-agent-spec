@@ -8,7 +8,12 @@ import pytest
 
 from oas_cli.providers import InvokeOutcome
 from oas_cli.providers.registry import invoke_intelligence, pop_last_usage
-from oas_cli.runner import OARunError, _invoke_with_tools, run_task_from_spec
+from oas_cli.runner import (
+    _MAX_TOOL_ITERATIONS,
+    OARunError,
+    _invoke_with_tools,
+    run_task_from_spec,
+)
 from oas_cli.tool_providers.base import InvokeResult, ToolCall, ToolDefinition
 from oas_cli.usage import (
     InvalidPricingError,
@@ -376,3 +381,42 @@ class TestToolLoopUsage:
             "sys", "usr", tools, {"model": "gpt-4o"}, "task", None, sandbox=None
         )
         assert pop_last_usage() is None
+
+    def test_native_loop_flushes_usage_on_max_iterations(self, monkeypatch):
+        pop_last_usage()  # clear residue
+
+        class NeverFinalProvider:
+            """Always asks for another tool call, so the loop hits its ceiling."""
+
+            def supports_tools(self):
+                return True
+
+            def invoke_with_tools(self, *, system, messages, tools, config):
+                return InvokeResult(
+                    is_final=False,
+                    tool_calls=[ToolCall(id="1", name="t", arguments={})],
+                    usage={
+                        "prompt_tokens": 10,
+                        "completion_tokens": 5,
+                        "total_tokens": 15,
+                    },
+                )
+
+        monkeypatch.setattr(
+            "oas_cli.runner.get_provider", lambda _c: NeverFinalProvider()
+        )
+        monkeypatch.setattr(
+            "oas_cli.runner.dispatch_tool_call", lambda name, args, tools: "tool out"
+        )
+
+        tools = [("t", ToolDefinition(name="t", description="d"))]
+        with pytest.raises(OARunError) as excinfo:
+            _invoke_with_tools(
+                "sys", "usr", tools, {"model": "gpt-4o"}, "task", None, sandbox=None
+            )
+        assert "exceeded" in str(excinfo.value)
+
+        # Spend telemetry from every turn must survive the failure, not be dropped.
+        usage = pop_last_usage()
+        assert usage is not None
+        assert usage["total_tokens"] == 15 * _MAX_TOOL_ITERATIONS
