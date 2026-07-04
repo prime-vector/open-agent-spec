@@ -414,9 +414,42 @@ class TestToolLoopUsage:
             _invoke_with_tools(
                 "sys", "usr", tools, {"model": "gpt-4o"}, "task", None, sandbox=None
             )
-        assert "exceeded" in str(excinfo.value)
+        err = excinfo.value
+        assert "exceeded" in str(err)
 
-        # Spend telemetry from every turn must survive the failure, not be dropped.
-        usage = pop_last_usage()
-        assert usage is not None
-        assert usage["total_tokens"] == 15 * _MAX_TOOL_ITERATIONS
+        # Spend telemetry from every turn must ride out on the error envelope,
+        # not be dropped — and it must surface in the machine-readable dict.
+        assert err.usage is not None
+        assert err.usage["total_tokens"] == 15 * _MAX_TOOL_ITERATIONS
+        assert err.to_dict()["usage"]["total_tokens"] == 15 * _MAX_TOOL_ITERATIONS
+
+        # The context var was consumed at the raise site — no residue leaks into
+        # the next task on this context.
+        assert pop_last_usage() is None
+
+
+class TestErrorPanelUsage:
+    """The failure panel surfaces spend telemetry when the error carries it."""
+
+    @staticmethod
+    def _render(usage):
+        import io
+
+        from rich.console import Console
+
+        from oas_cli.ui import print_error_panel
+
+        console = Console(file=io.StringIO(), width=80, no_color=True)
+        print_error_panel(console, "Run error", "loop exceeded", usage=usage)
+        return console.file.getvalue()
+
+    def test_panel_shows_tokens_and_cost_when_present(self):
+        out = self._render(
+            {"total_tokens": 150, "estimated_cost_usd": 0.001234}
+        )
+        assert "150 tok" in out
+        assert "$0.001234" in out
+
+    def test_panel_omits_usage_when_absent(self):
+        out = self._render(None)
+        assert "tok" not in out

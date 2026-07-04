@@ -725,7 +725,7 @@ def run(
             # Machine-readable structured error on stderr — stdout stays clean.
             typer.echo(json.dumps(err.to_dict(), indent=2), err=True)
         else:
-            print_error_panel(console, "Run error", str(err))
+            print_error_panel(console, "Run error", str(err), usage=err.usage)
         raise typer.Exit(1)
     except Exception as err:
         if quiet:

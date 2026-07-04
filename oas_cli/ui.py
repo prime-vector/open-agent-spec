@@ -274,11 +274,21 @@ def print_result_panel(
 # ── Error panel ──────────────────────────────────────────────────────────────
 
 
-def print_error_panel(console: Console, title: str, message: str) -> None:
-    """Print a styled error panel."""
+def print_error_panel(
+    console: Console, title: str, message: str, usage: Any = None
+) -> None:
+    """Print a styled error panel, with a token/cost suffix when usage is known.
+
+    A failing task may still have billed for the turns it completed (e.g. a tool
+    loop that exhausted its iteration budget); *usage* surfaces that spend.
+    """
+    body = f"[{_C_ERR}]{message}[/]"
+    usage_str = _format_usage(usage)
+    if usage_str:
+        body += f"\n{usage_str}"
     console.print(
         Panel(
-            f"[{_C_ERR}]{message}[/]",
+            body,
             title=f"[{_C_ERR}]✗ {title}[/]",
             title_align="left",
             border_style="red",

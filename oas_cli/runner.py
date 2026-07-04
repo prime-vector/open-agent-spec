@@ -57,6 +57,7 @@ class OARunError(Exception):
         code:    Machine-readable error code (e.g. TASK_NOT_FOUND).
         stage:   Pipeline stage where the error occurred.
         task:    Task name involved, if known.
+        usage:   Token/cost telemetry accumulated before the failure, if any.
     """
 
     def __init__(
@@ -65,11 +66,13 @@ class OARunError(Exception):
         code: str,
         stage: str,
         task: str | None = None,
+        usage: dict[str, Any] | None = None,
     ) -> None:
         super().__init__(message)
         self.code = code
         self.stage = stage
         self.task = task
+        self.usage = usage
 
     def to_dict(self) -> dict[str, Any]:
         d: dict[str, Any] = {
@@ -79,6 +82,8 @@ class OARunError(Exception):
         }
         if self.task is not None:
             d["task"] = self.task
+        if self.usage is not None:
+            d["usage"] = self.usage
         return d
 
 
@@ -662,12 +667,16 @@ def _invoke_with_tools(
 
     # Flush accumulated usage before bailing out so spend telemetry from the
     # earlier turns survives even when the loop exhausts its iteration budget.
+    # We pop it back off the context var and attach it to the error envelope so
+    # the failure still reports what was billed — and so the value never leaks
+    # into a later task (the caller only pops usage on the success path).
     _record()
     raise OARunError(
         f"Tool-call loop for task '{task_name}' exceeded {_MAX_TOOL_ITERATIONS} iterations.",
         code="RUN_ERROR",
         stage="run",
         task=task_name,
+        usage=pop_last_usage(),
     )
 
 
