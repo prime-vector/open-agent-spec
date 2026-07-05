@@ -4,12 +4,30 @@ from __future__ import annotations
 
 import time
 from collections.abc import Callable
+from contextvars import ContextVar
+from typing import TypeVar
+
+from oas_cli.usage import estimate_cost_usd
 
 from .anthropic_http import AnthropicProvider
-from .base import EngineNotSupportedError, IntelligenceProvider, ProviderError
+from .base import (
+    EngineNotSupportedError,
+    IntelligenceProvider,
+    InvokeOutcome,
+    ProviderError,
+)
 from .codex import CodexProvider
 from .custom import CustomProvider
 from .openai_http import OpenAIProvider
+
+# Token usage from the most recent invoke_intelligence call on this execution
+# context. The runner reads it immediately after each call to attach usage to
+# the result envelope. A ContextVar (not a global) keeps it isolated per
+# async/thread context; tasks run sequentially per the spec, so each task reads
+# its own usage before the next call overwrites it.
+_LAST_USAGE: ContextVar[dict | None] = ContextVar("_oa_last_usage", default=None)
+
+_T = TypeVar("_T")
 
 # Per-engine defaults applied before the spec config (spec values always win).
 # All engines in this table are routed to OpenAIProvider (OpenAI-compatible HTTP).
@@ -109,14 +127,64 @@ def invoke_intelligence(
     # Spec values always win: defaults fill gaps, never override explicit config.
     resolved = {**defaults, **config}
     provider = get_provider(resolved)
-    return _with_retry(
-        lambda: provider.invoke(
-            system=system, user=user, config=resolved, history=history
+
+    # Prefer invoke_verbose (text + token usage) when the provider offers it;
+    # fall back to invoke for duck-typed or minimal providers. getattr keeps
+    # backward compatibility with providers that only implement invoke.
+    verbose = getattr(provider, "invoke_verbose", None)
+    if callable(verbose):
+        outcome: InvokeOutcome = _with_retry(
+            lambda: verbose(system=system, user=user, config=resolved, history=history)
         )
-    )
+        text, usage = outcome.text, outcome.usage
+    else:
+        text = _with_retry(
+            lambda: provider.invoke(
+                system=system, user=user, config=resolved, history=history
+            )
+        )
+        usage = None
+
+    record_usage(usage, resolved.get("model"), resolved.get("pricing"))
+    return text
 
 
-def _with_retry(fn: Callable[[], str], retries: int = 2, delay: float = 1.0) -> str:
+def _with_cost(
+    usage: dict | None, model: str | None, pricing: object = None
+) -> dict | None:
+    """Attach a best-effort ``estimated_cost_usd`` to *usage* when a rate resolves."""
+    if not usage:
+        return None
+    enriched = dict(usage)
+    cost = estimate_cost_usd(model, usage, pricing=pricing)
+    if cost is not None:
+        enriched["estimated_cost_usd"] = cost
+    return enriched
+
+
+def record_usage(usage: dict | None, model: str | None, pricing: object = None) -> None:
+    """Record token usage (enriched with cost) for the current execution context.
+
+    The runner reads it via :func:`pop_last_usage` immediately after the call.
+    Used by both the single-call path and the multi-turn tool loop (which passes
+    usage summed across turns). *pricing* is the per-spec cost override.
+    """
+    _LAST_USAGE.set(_with_cost(usage, model, pricing))
+
+
+def pop_last_usage() -> dict | None:
+    """Return (and clear) the token usage from the most recent invoke_intelligence call.
+
+    Returns ``None`` when the last call reported no usage — e.g. a local server
+    that omits it, the Codex CLI, a custom router, or a test double that patches
+    ``invoke_intelligence`` directly (bypassing the provider entirely).
+    """
+    value = _LAST_USAGE.get()
+    _LAST_USAGE.set(None)
+    return value
+
+
+def _with_retry(fn: Callable[[], _T], retries: int = 2, delay: float = 1.0) -> _T:
     """Call *fn* up to ``retries + 1`` times, sleeping *delay* s between attempts.
 
     Only retries on ``ProviderError`` (transient HTTP failures).

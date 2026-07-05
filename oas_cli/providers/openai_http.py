@@ -8,9 +8,11 @@ import urllib.error
 import urllib.request
 from typing import Any
 
+from oas_cli.reasoning import normalise_effort, openai_reasoning_params
 from oas_cli.tool_providers.base import InvokeResult, ToolCall
+from oas_cli.usage import from_openai
 
-from .base import IntelligenceProvider, ProviderError
+from .base import IntelligenceProvider, InvokeOutcome, ProviderError
 
 # Default to the Chat Completions API; set intelligence.endpoint in your spec
 # to switch to the Responses API (https://api.openai.com/v1/responses) or a
@@ -36,6 +38,18 @@ class OpenAIProvider(IntelligenceProvider):
         config: dict,
         history: list[dict[str, Any]] | None = None,
     ) -> str:
+        return self.invoke_verbose(
+            system=system, user=user, config=config, history=history
+        ).text
+
+    def invoke_verbose(
+        self,
+        *,
+        system: str,
+        user: str,
+        config: dict,
+        history: list[dict[str, Any]] | None = None,
+    ) -> InvokeOutcome:
         api_key_env: str | None = config.get("api_key_env", "OPENAI_API_KEY")
         api_key: str | None = os.environ.get(api_key_env) if api_key_env else None
 
@@ -60,20 +74,25 @@ class OpenAIProvider(IntelligenceProvider):
         max_tokens = int(config.get("max_tokens", 1000))
         timeout = int(config.get("timeout", _DEFAULT_TIMEOUT))
 
+        reasoning_effort = config.get("reasoning_effort")
         if endpoint.endswith("/responses"):
             payload = _build_responses_payload(
-                system, user, model, temperature, history
+                system, user, model, temperature, history, reasoning_effort
             )
         else:
             payload = _build_chat_completions_payload(
-                system, user, model, temperature, max_tokens, history
+                system, user, model, temperature, max_tokens, history, reasoning_effort
             )
 
         extra_headers: dict[str, str] = {}
         if api_key:
             extra_headers["Authorization"] = f"Bearer {api_key}"
 
-        return _http_post(endpoint, payload, headers=extra_headers, timeout=timeout)
+        data = _http_post_raw(endpoint, payload, headers=extra_headers, timeout=timeout)
+        return InvokeOutcome(
+            text=_extract_text(data, endpoint),
+            usage=from_openai(data.get("usage")),
+        )
 
     def supports_tools(self) -> bool:
         return True
@@ -107,12 +126,14 @@ class OpenAIProvider(IntelligenceProvider):
         timeout = int(config.get("timeout", _DEFAULT_TIMEOUT))
 
         all_messages = [{"role": "system", "content": system}, *messages]
-        payload: dict[str, Any] = {
-            "model": model,
-            "messages": all_messages,
-            "temperature": temperature,
-            "max_tokens": max_tokens,
-        }
+        payload: dict[str, Any] = {"model": model, "messages": all_messages}
+        _apply_sampling_and_reasoning(
+            payload,
+            max_tokens=max_tokens,
+            temperature=temperature,
+            reasoning_effort=config.get("reasoning_effort"),
+            responses_api=False,
+        )
         if tools:
             payload["tools"] = tools
             payload["tool_choice"] = "auto"
@@ -123,6 +144,7 @@ class OpenAIProvider(IntelligenceProvider):
 
         data = _http_post_raw(endpoint, payload, headers=extra_headers, timeout=timeout)
 
+        usage = from_openai(data.get("usage"))
         message = data.get("choices", [{}])[0].get("message", {})
         finish_reason = data.get("choices", [{}])[0].get("finish_reason", "stop")
 
@@ -136,10 +158,39 @@ class OpenAIProvider(IntelligenceProvider):
                 )
                 for tc in raw_calls
             ]
-            return InvokeResult(is_final=False, tool_calls=tool_calls)
+            return InvokeResult(is_final=False, tool_calls=tool_calls, usage=usage)
 
         text = message.get("content") or ""
-        return InvokeResult(is_final=True, text=text)
+        return InvokeResult(is_final=True, text=text, usage=usage)
+
+
+def _apply_sampling_and_reasoning(
+    payload: dict[str, Any],
+    *,
+    max_tokens: int | None,
+    temperature: float,
+    reasoning_effort: object,
+    responses_api: bool,
+) -> None:
+    """Set token-limit, temperature and reasoning params on *payload*, in place.
+
+    Reasoning models (those given a ``reasoning_effort``) diverge from standard
+    chat models on the OpenAI API: Chat Completions requires
+    ``max_completion_tokens`` (``max_tokens`` is rejected), and a non-default
+    ``temperature`` is rejected — so it is omitted. Standard models and
+    OpenAI-compatible servers (grok / local / cortex) keep ``max_tokens`` +
+    ``temperature`` for maximum compatibility.
+    """
+    effort = normalise_effort(reasoning_effort)
+    if effort is None:
+        if not responses_api and max_tokens is not None:
+            payload["max_tokens"] = max_tokens
+        payload["temperature"] = temperature
+    elif not responses_api and max_tokens is not None:
+        payload["max_completion_tokens"] = max_tokens
+    payload.update(
+        openai_reasoning_params(reasoning_effort, responses_api=responses_api)
+    )
 
 
 def _build_chat_completions_payload(
@@ -149,17 +200,21 @@ def _build_chat_completions_payload(
     temperature: float,
     max_tokens: int,
     history: list[dict[str, Any]] | None = None,
+    reasoning_effort: object = None,
 ) -> dict[str, Any]:
     messages: list[dict[str, Any]] = [{"role": "system", "content": system}]
     if history:
         messages.extend(history)
     messages.append({"role": "user", "content": user})
-    return {
-        "model": model,
-        "messages": messages,
-        "temperature": temperature,
-        "max_tokens": max_tokens,
-    }
+    payload: dict[str, Any] = {"model": model, "messages": messages}
+    _apply_sampling_and_reasoning(
+        payload,
+        max_tokens=max_tokens,
+        temperature=temperature,
+        reasoning_effort=reasoning_effort,
+        responses_api=False,
+    )
+    return payload
 
 
 def _build_responses_payload(
@@ -168,16 +223,21 @@ def _build_responses_payload(
     model: str,
     temperature: float,
     history: list[dict[str, Any]] | None = None,
+    reasoning_effort: object = None,
 ) -> dict[str, Any]:
     turns: list[dict[str, Any]] = [{"role": "system", "content": system}]
     if history:
         turns.extend(history)
     turns.append({"role": "user", "content": user})
-    return {
-        "model": model,
-        "input": turns,
-        "temperature": temperature,
-    }
+    payload: dict[str, Any] = {"model": model, "input": turns}
+    _apply_sampling_and_reasoning(
+        payload,
+        max_tokens=None,
+        temperature=temperature,
+        reasoning_effort=reasoning_effort,
+        responses_api=True,
+    )
+    return payload
 
 
 def _http_post_raw(
@@ -198,13 +258,6 @@ def _http_post_raw(
         raise ProviderError(f"OpenAI HTTP {exc.code}: {detail}") from exc
     except Exception as exc:
         raise ProviderError(f"OpenAI request failed: {exc}") from exc
-
-
-def _http_post(
-    url: str, payload: dict, headers: dict, timeout: int = _DEFAULT_TIMEOUT
-) -> str:
-    data = _http_post_raw(url, payload, headers=headers, timeout=timeout)
-    return _extract_text(data, url)
 
 
 def _extract_text(data: dict, url: str) -> str:

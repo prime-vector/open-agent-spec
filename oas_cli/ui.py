@@ -200,6 +200,21 @@ class _VStack:
         yield from self._items
 
 
+def _format_usage(usage: Any) -> str:
+    """Render a compact token / cost suffix for the result panel subtitle.
+
+    Returns an empty string when no usage was reported (local servers, the Codex
+    CLI, or custom routers).
+    """
+    if not isinstance(usage, dict) or not usage.get("total_tokens"):
+        return ""
+    parts = [f"{usage['total_tokens']} tok"]
+    cost = usage.get("estimated_cost_usd")
+    if cost is not None:
+        parts.append(f"~${cost:.6f}")
+    return f"  [{_C_SUBTLE}]{' · '.join(parts)}[/]"
+
+
 def print_result_panel(
     console: Console,
     result: dict[str, Any],
@@ -222,13 +237,14 @@ def print_result_panel(
 
     elapsed_str = f"  [dim]{elapsed_s:.1f}s[/]" if elapsed_s is not None else ""
     model_str = f"  [{_C_SUBTLE}]{model}[/]" if model else ""
+    usage_str = _format_usage(result.get("usage"))
 
     console.print(
         Panel(
             content,
             title=f"[{_C_OK}]✓[/] [{_C_KEY}]{task_name}[/]",
             title_align="left",
-            subtitle=f"{elapsed_str}{model_str}",
+            subtitle=f"{elapsed_str}{model_str}{usage_str}",
             subtitle_align="right",
             border_style="green",
             padding=(1, 2),
@@ -258,11 +274,21 @@ def print_result_panel(
 # ── Error panel ──────────────────────────────────────────────────────────────
 
 
-def print_error_panel(console: Console, title: str, message: str) -> None:
-    """Print a styled error panel."""
+def print_error_panel(
+    console: Console, title: str, message: str, usage: Any = None
+) -> None:
+    """Print a styled error panel, with a token/cost suffix when usage is known.
+
+    A failing task may still have billed for the turns it completed (e.g. a tool
+    loop that exhausted its iteration budget); *usage* surfaces that spend.
+    """
+    body = f"[{_C_ERR}]{message}[/]"
+    usage_str = _format_usage(usage)
+    if usage_str:
+        body += f"\n{usage_str}"
     console.print(
         Panel(
-            f"[{_C_ERR}]{message}[/]",
+            body,
             title=f"[{_C_ERR}]✗ {title}[/]",
             title_align="left",
             border_style="red",

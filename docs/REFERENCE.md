@@ -190,6 +190,7 @@ When `oa run --quiet` encounters a failure it emits a machine-readable JSON obje
 | `CHAIN_CYCLE_ERROR` | `routing` | Circular `depends_on` chain detected |
 | `CHAIN_INPUT_MISSING` | `input_validation` | Required input field missing after dependency merge |
 | `CONTRACT_VIOLATION` | `contract` | Task output failed behavioural contract validation |
+| `PRICING_CONFIG_ERROR` | `cost` | A cost-rate override (`config.pricing` / `OA_PRICING`) is present but invalid |
 
 Verbose mode (`oa run` without `--quiet`) prints the error to the terminal as plain text, unchanged from prior behaviour.
 
@@ -319,6 +320,134 @@ The final result includes all intermediate results in a `chain` key:
 ```
 
 Tasks with no `depends_on` do not include a `chain` key.
+
+### Token usage and cost
+
+When the engine reports token counts, the result envelope includes a `usage` key
+so you can track and budget spend without a separate accounting layer:
+
+```json
+{
+  "task": "summarize",
+  "output": {"summary": "..."},
+  "usage": {
+    "prompt_tokens": 1200,
+    "completion_tokens": 350,
+    "total_tokens": 1550,
+    "estimated_cost_usd": 0.0065
+  }
+}
+```
+
+- `prompt_tokens` / `completion_tokens` / `total_tokens` are normalised across
+  engines (OpenAI's `prompt`/`completion` and Anthropic's `input`/`output`
+  shapes both map to these keys).
+- `estimated_cost_usd` is **best-effort** — present only for models in the
+  built-in price table (`oas_cli/usage.py`), and omitted otherwise rather than
+  guessed. List prices drift, so treat it as indicative, not billing.
+- **It is a pay-as-you-go API list-price estimate** (`tokens × public $/token`).
+  It does **not** reflect a subscription/seat plan (ChatGPT, Claude Max, etc.),
+  committed-use or enterprise-negotiated rates, Bedrock/Vertex pricing, or a
+  local model (zero marginal cost). Under those arrangements the dollar figure
+  is not your real spend — but the **token counts** are always accurate, and are
+  the right number to track usage/quota against any plan. (Subscription-routed
+  paths like the Codex CLI report no tokens at all, so `usage` is `null` there.)
+- `usage` is `null` only when the engine does not report counts (e.g. some local
+  servers, the Codex CLI, custom routers). Multi-turn tool-calling is covered:
+  usage is **summed across every turn** of the loop (each turn re-sends the
+  growing history, so the sum reflects what is actually billed).
+
+`oa run` (without `--quiet`) shows a compact `<total> tok · ~$<cost>` summary in
+the result panel; `--quiet` emits only the task output, so read `usage` from the
+full envelope returned by the Python API when scripting.
+
+#### Overriding the cost rate
+
+Because the default is a list price, you can substitute your own rate — or turn
+the dollar figure off where it isn't meaningful (subscription, local model).
+Rates resolve in layers, **first match wins**:
+
+1. **Per-spec** — `intelligence.config.pricing`:
+
+   ```yaml
+   intelligence:
+     engine: anthropic
+     model: claude-opus-4-8
+     config:
+       pricing:
+         input_per_1m: 4.20      # your negotiated rate, USD per 1M tokens
+         output_per_1m: 21.00
+       # or:  pricing: none      # tokens-only, no dollar estimate
+   ```
+
+2. **Global** — the `OA_PRICING` env var, applied to every spec (good for
+   org-wide negotiated rates). JSON mapping model-id → rates, or `none`:
+
+   ```bash
+   export OA_PRICING='{"claude-opus-4-8": {"input": 4.2, "output": 21}}'
+   export OA_PRICING=none        # disable cost everywhere
+   ```
+
+   Model ids match by longest prefix (so a dated suffix still resolves), and
+   `OA_PRICING` entries override the built-in table.
+
+3. **Built-in** — the hand-maintained table in `oas_cli/usage.py`.
+
+A per-spec value overrides `OA_PRICING`, which overrides the built-in table; a
+`none` at any layer disables cost from that layer down (a more specific layer can
+still re-enable it with explicit rates).
+
+**Invalid overrides fail closed.** A pricing override that is *present but
+malformed* — a negative rate, a `pricing` string other than `none`, or an
+`OA_PRICING` value that isn't valid JSON / `none` — raises rather than silently
+reverting to the built-in list price. Through the runner it surfaces as the
+dedicated structured error `PRICING_CONFIG_ERROR` (stage `cost`), distinct from a
+model/run failure, so operator misconfiguration is actionable. (`oa validate`
+also rejects a bad per-spec `pricing` up front; the runtime check additionally
+guards the Python API and `OA_PRICING`.) A model simply *not listed* in a valid
+`OA_PRICING` map is not an error — it falls through to the built-in table.
+
+### Reasoning effort (cost tiering) — experimental
+
+Frontier models increasingly expose a reasoning-effort control: spend more
+compute on hard tasks, less on easy ones. Declare one portable tier in the spec
+and OA maps it to each engine's native knob:
+
+```yaml
+intelligence:
+  type: "llm"
+  engine: "anthropic"
+  model: "claude-opus-4-8"
+  config:
+    reasoning_effort: "low"   # low | medium | high
+```
+
+| Engine | Mapped to |
+|--------|-----------|
+| `openai` (Chat Completions) | `reasoning_effort` request field |
+| `openai` (Responses API) | `reasoning.effort` |
+| `codex` | `-c model_reasoning_effort=<tier>` CLI override |
+| `anthropic` | `output_config.effort` (a near 1:1 tier mapping), paired with adaptive thinking. OA also drops `temperature`, which current Claude models reject alongside adaptive thinking. |
+
+Notes:
+
+- **Opt-in and model-specific.** `reasoning_effort` is only meaningful for
+  reasoning-capable models — the author pairs it with a suitable model/engine.
+  Non-reasoning OpenAI models (e.g. `gpt-4o`) reject the parameter; Anthropic's
+  `effort` requires a capable model (Opus 4.5+, Sonnet 4.6, Fable 5 — it errors
+  on Sonnet 4.5 / Haiku 4.5).
+- **Provider-specific request shaping.** When `reasoning_effort` is set, OpenAI
+  reasoning models need `max_completion_tokens` (not `max_tokens`) and reject a
+  non-default `temperature`, so OA switches the token field and omits
+  `temperature`; Anthropic likewise drops `temperature` alongside adaptive
+  thinking. Standard models and OpenAI-compatible servers are unaffected.
+- **Status: experimental spike.** Validated live against Opus 4.8 and OpenAI
+  `o4-mini` with `python scripts/verify_reasoning.py` (needs API keys) — it fires
+  `low` vs `high` per engine and prints the token deltas (`--repeat N` to average,
+  `--sleep N` to space out low-rate-limit accounts). Mappings live in
+  `oas_cli/reasoning.py`, `openai_http._apply_sampling_and_reasoning`, and
+  `anthropic_http._apply_reasoning`.
+- `oa validate` checks the value against the `low|medium|high` enum.
 
 ---
 

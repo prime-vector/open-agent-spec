@@ -2,7 +2,7 @@
 
 **Version:** 1.5.0  
 **Status:** Draft  
-**Date:** 2026-04-12
+**Date:** 2026-06-27
 
 ---
 
@@ -172,6 +172,8 @@ A runtime MUST support at minimum `openai` and `anthropic`. Other engines are RE
 | `config.top_p` | number [0, 1] | Nucleus sampling parameter |
 | `config.frequency_penalty` | number [-2, 2] | Frequency penalty |
 | `config.presence_penalty` | number [-2, 2] | Presence penalty |
+| `config.reasoning_effort` | string `low` \| `medium` \| `high` | Portable reasoning-effort tier (see 5.5) |
+| `config.pricing` | `"none"` \| object | Per-spec cost-estimation override (see 8.3) |
 
 A runtime MUST pass `temperature` and `max_tokens` to the LLM API when provided. Unknown `config` keys MAY be forwarded to the underlying engine or ignored.
 
@@ -195,6 +197,14 @@ class MyRouter:
     def __init__(self, endpoint: str, model: str, config: dict): ...
     def run(self, prompt: str, **kwargs) -> str: ...  # returns JSON string
 ```
+
+### 5.5 Reasoning Effort
+
+`config.reasoning_effort` declares a portable reasoning-depth tier independent of any single engine. Its value MUST be one of `low`, `medium`, or `high`. A runtime MUST reject any other value.
+
+When `reasoning_effort` is set, a runtime SHOULD map it to the selected engine's native reasoning control (for example, an effort/verbosity parameter, an extended-thinking setting, or a CLI flag). A runtime MAY treat it as a no-op for engines and models that expose no reasoning control. Because reasoning-capable models often reject incompatible request fields, a runtime MAY adjust other request parameters as required by the engine when `reasoning_effort` is set (for example, substituting a token-limit field or omitting sampling parameters).
+
+`reasoning_effort` is only meaningful for reasoning-capable models. It is the spec author's responsibility to pair it with a suitable engine and model.
 
 ---
 
@@ -382,6 +392,37 @@ When a task is delegated (has `spec:`), the envelope MUST additionally include:
 }
 ```
 
+### 8.3 Token Usage & Cost
+
+A runtime SHOULD include a `usage` key in the result envelope reporting the token consumption of the task's model call(s):
+
+```json
+{
+  "usage": {
+    "prompt_tokens": <integer>,
+    "completion_tokens": <integer>,
+    "total_tokens": <integer>,
+    "estimated_cost_usd": <number>
+  }
+}
+```
+
+Requirements:
+
+- `prompt_tokens`, `completion_tokens`, and `total_tokens` are normalised token counts. A runtime that reports `usage` MUST populate these from the engine's reported usage, mapping provider-specific shapes to these keys.
+- `usage` MUST be `null` (or omitted) when the engine does not report token counts.
+- When a task makes multiple model calls (for example, a multi-turn tool-calling loop), the reported counts MUST be the sum across those calls.
+- `estimated_cost_usd` is OPTIONAL and best-effort. When present it is a pay-as-you-go list-price estimate (`tokens × per-token rate`); it MUST be omitted when no rate is known for the model. A runtime MUST NOT guess a rate. It does not reflect subscription, committed-use, negotiated, or local-inference pricing — the token counts are the authoritative figure to meter against any plan.
+
+**Cost override (`config.pricing`).** A runtime that estimates cost SHOULD let the spec override the rate via `config.pricing`, whose value is either:
+
+- the string `"none"` — disable cost estimation for this spec (report tokens only), or
+- an object `{ "input_per_1m": <number ≥ 0>, "output_per_1m": <number ≥ 0> }` — explicit USD rates per 1,000,000 tokens.
+
+A runtime MAY additionally support an implementation-defined global rate override (the reference implementation uses an `OA_PRICING` environment variable). When both are present, the per-spec value takes precedence.
+
+A `config.pricing` value that is present but invalid (a negative rate, a missing rate field, or a string other than `"none"`) MUST fail closed: the runtime MUST raise `PRICING_CONFIG_ERROR` rather than silently falling back to a default rate. An absent `config.pricing`, or a model for which no rate is known, is not an error — the runtime simply omits `estimated_cost_usd`.
+
 ---
 
 ## 9. Prompt Resolution
@@ -565,6 +606,7 @@ A runtime MUST surface errors as structured objects with the following fields:
 | `CHAIN_INPUT_MISSING` | `input_validation` | Required input field missing after dependency merge |
 | `CONTRACT_VIOLATION` | `contract` | Task output failed behavioural contract validation |
 | `DELEGATION_CYCLE_ERROR` | `delegation` | Circular spec delegation detected (A→B→A) |
+| `PRICING_CONFIG_ERROR` | `cost` | A cost-rate override (`config.pricing` or an implementation-defined global override) is present but invalid |
 
 A runtime MUST detect and raise `CHAIN_CYCLE_ERROR` and `DELEGATION_CYCLE_ERROR` before any model call is made.
 

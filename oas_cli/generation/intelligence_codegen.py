@@ -76,7 +76,7 @@ def _build_single_step_llm_client_code(
     custom_module = spec_data.get("intelligence", {}).get("module", None)
     if engine == "custom" and custom_module:
         return f"""# Create and use custom LLM router
-    router = load_custom_llm_router("{config["endpoint"]}", "{config["model"]}", {{}})
+    router = load_custom_llm_router("{config.get("endpoint", "")}", "{config["model"]}", {{}})
     result = router.run(prompt, **input_dict)"""
     intelligence_config_str = _generate_intelligence_config(spec_data, config)
     return f"""# Configure intelligence for DACP

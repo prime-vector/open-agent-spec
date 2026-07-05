@@ -19,7 +19,12 @@ from urllib.parse import urlparse as _urlparse
 
 import yaml
 
-from .providers import ProviderError, invoke_intelligence
+from .providers import (
+    ProviderError,
+    invoke_intelligence,
+    pop_last_usage,
+    record_usage,
+)
 from .providers.registry import get_provider
 from .tool_providers import (
     ToolError,
@@ -27,6 +32,7 @@ from .tool_providers import (
     resolve_task_tools,
 )
 from .tool_providers.base import InvokeResult
+from .usage import InvalidPricingError
 
 # ── Registry constants ────────────────────────────────────────────────────────
 _REGISTRY_BASE = "https://openagentspec.dev/registry"
@@ -51,6 +57,7 @@ class OARunError(Exception):
         code:    Machine-readable error code (e.g. TASK_NOT_FOUND).
         stage:   Pipeline stage where the error occurred.
         task:    Task name involved, if known.
+        usage:   Token/cost telemetry accumulated before the failure, if any.
     """
 
     def __init__(
@@ -59,11 +66,13 @@ class OARunError(Exception):
         code: str,
         stage: str,
         task: str | None = None,
+        usage: dict[str, Any] | None = None,
     ) -> None:
         super().__init__(message)
         self.code = code
         self.stage = stage
         self.task = task
+        self.usage = usage
 
     def to_dict(self) -> dict[str, Any]:
         d: dict[str, Any] = {
@@ -73,6 +82,8 @@ class OARunError(Exception):
         }
         if self.task is not None:
             d["task"] = self.task
+        if self.usage is not None:
+            d["usage"] = self.usage
         return d
 
 
@@ -303,7 +314,6 @@ def _build_intelligence_config(spec_data: dict[str, Any]) -> dict[str, Any]:
     if not isinstance(intelligence, dict):
         raise ValueError("intelligence section must be an object")
 
-    endpoint = intelligence.get("endpoint", "https://api.openai.com/v1")
     model = intelligence.get("model")
     if not isinstance(model, str) or not model:
         raise ValueError("intelligence.model must be a non-empty string")
@@ -317,10 +327,17 @@ def _build_intelligence_config(spec_data: dict[str, Any]) -> dict[str, Any]:
     out: dict[str, Any] = {
         "engine": intelligence.get("engine", "openai"),
         "model": model,
-        "endpoint": endpoint,
         "temperature": cfg.get("temperature", 0.7),
         "max_tokens": cfg.get("max_tokens", 1000),
     }
+    # Only carry an explicit endpoint. Do NOT default to the OpenAI URL here:
+    # this dict is merged over the per-engine defaults in the provider registry
+    # (``{**defaults, **config}``, config wins), so a hardcoded default would
+    # clobber the correct endpoint for anthropic / grok / local / cortex. When
+    # absent, each provider applies its own default endpoint.
+    endpoint = intelligence.get("endpoint")
+    if endpoint:
+        out["endpoint"] = endpoint
     for k, v in cfg.items():
         if k not in out:
             out[k] = v
@@ -575,6 +592,19 @@ def _invoke_with_tools(
         messages.extend(history)
     messages.append({"role": "user", "content": user})
 
+    # Accumulate token usage across every turn of the loop. Each turn re-sends the
+    # growing message history, so summing prompt+completion across turns reflects
+    # what is actually billed for the whole tool-calling task.
+    totals = {"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0}
+    saw_usage = False
+
+    def _record() -> None:
+        record_usage(
+            dict(totals) if saw_usage else None,
+            intelligence_config.get("model"),
+            intelligence_config.get("pricing"),
+        )
+
     for iteration in range(_MAX_TOOL_ITERATIONS):
         result: InvokeResult = provider.invoke_with_tools(
             system=system,
@@ -583,7 +613,13 @@ def _invoke_with_tools(
             config=intelligence_config,
         )
 
+        if result.usage:
+            saw_usage = True
+            for key in totals:
+                totals[key] += int(result.usage.get(key, 0))
+
         if result.is_final:
+            _record()
             return result.text
 
         if not result.tool_calls:
@@ -593,6 +629,7 @@ def _invoke_with_tools(
                 task_name,
                 iteration,
             )
+            _record()
             return ""
 
         # Append the assistant's tool-call request to the history.
@@ -632,11 +669,18 @@ def _invoke_with_tools(
                 }
             )
 
+    # Flush accumulated usage before bailing out so spend telemetry from the
+    # earlier turns survives even when the loop exhausts its iteration budget.
+    # We pop it back off the context var and attach it to the error envelope so
+    # the failure still reports what was billed — and so the value never leaks
+    # into a later task (the caller only pops usage on the success path).
+    _record()
     raise OARunError(
         f"Tool-call loop for task '{task_name}' exceeded {_MAX_TOOL_ITERATIONS} iterations.",
         code="RUN_ERROR",
         stage="run",
         task=task_name,
+        usage=pop_last_usage(),
     )
 
 
@@ -782,6 +826,8 @@ def _run_single_task(
     history: list[dict] | None = input_data.get("history") or None
     sandbox = _resolve_sandbox(spec_data, task_name)
 
+    # Token usage for this task's model call, attached to the envelope below.
+    usage: dict[str, Any] | None = None
     try:
         tools = resolve_task_tools(spec_data, task_name)
         if tools:
@@ -796,9 +842,22 @@ def _run_single_task(
             )
         else:
             raw_output = invoke_intelligence(system, user, intelligence_config, history)
+        # Capture usage recorded by the call above. Covers all three paths: the
+        # no-tools path, the text-only-provider tool fallback (both routing
+        # through invoke_intelligence), and the native multi-turn tool loop
+        # (which records usage summed across every turn via _record()).
+        usage = pop_last_usage()
     except OARunError:
         # Structured errors (e.g. SANDBOX_* violations) pass through unchanged.
         raise
+    except InvalidPricingError as exc:
+        # Operator misconfiguration of cost rates — distinct from a model failure.
+        raise OARunError(
+            str(exc),
+            code="PRICING_CONFIG_ERROR",
+            stage="cost",
+            task=task_name,
+        ) from exc
     except (ProviderError, ToolError) as exc:
         raise OARunError(
             str(exc),
@@ -893,6 +952,7 @@ def _run_single_task(
         "model": intelligence_config.get("model"),
         "raw_output": raw_output,
         "output": parsed_output,
+        "usage": usage,
     }
 
 

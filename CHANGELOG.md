@@ -5,6 +5,21 @@ All notable changes to **open-agent-spec** (Open Agent CLI) will be documented i
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+- **Token usage & best-effort cost in the result envelope** — providers now capture the API `usage` object they previously discarded. Every single-call result envelope includes a `usage` block (`prompt_tokens`/`completion_tokens`/`total_tokens`, normalised across the OpenAI and Anthropic shapes) plus a best-effort `estimated_cost_usd` for models in a built-in price table (`null` for unknown models — never guessed). `oa run` shows a compact `<total> tok · ~$<cost>` summary. Multi-turn tool-calling is covered too — usage is summed across every turn of the loop. `usage` is `null` only when the engine omits counts (some local servers, the Codex CLI, custom routers). See [`docs/REFERENCE.md`](docs/REFERENCE.md).
+- **Reasoning-effort tiers (experimental)** — declare `intelligence.config.reasoning_effort: low|medium|high` and OA maps it to each engine's native control: OpenAI `reasoning_effort` (Chat Completions) / `reasoning.effort` (Responses API), Codex `-c model_reasoning_effort=<tier>`, and Anthropic `output_config.effort` paired with adaptive thinking. Opt-in and model-specific (a reasoning-capable model is required); `oa validate` enforces the `low|medium|high` enum. For OpenAI reasoning models OA sends `max_completion_tokens` (not `max_tokens`) and omits `temperature`, both of which those models reject. Validated live against Opus 4.8 and OpenAI `o4-mini` via [`scripts/verify_reasoning.py`](scripts/verify_reasoning.py).
+
+- **Custom cost rates / cost override** — `estimated_cost_usd` can now be overridden so it reflects real spend rather than list price. Rates resolve in layers (first match wins): per-spec `intelligence.config.pricing` (`{input_per_1m, output_per_1m}` or `"none"` to disable) → the `OA_PRICING` env var (JSON `{model: {input, output}}` org-wide, or `"none"`) → the built-in table. Use it for enterprise-negotiated rates, or to suppress the dollar figure on subscription/local models (token counts are always reported regardless). Built-in table refreshed with current OpenAI GPT-5.x and legacy o-series rates. Invalid overrides (negative rate, malformed `OA_PRICING`, unrecognised `pricing` value) **fail closed** rather than silently reverting to list prices, surfacing through the runner as a dedicated `PRICING_CONFIG_ERROR` (stage `cost`) distinct from a generic run failure.
+
+### Spec
+- **Formal spec & canonical schema updated** — `spec/open-agent-spec-1.5.md` and `spec/schema/oas-schema-1.5.json` now normatively define the `usage` result-envelope block (§8.3, incl. multi-call summation and the best-effort `estimated_cost_usd` rules), `config.reasoning_effort` (§5.5), the `config.pricing` cost override and its fail-closed semantics (§8.3), and the `PRICING_CONFIG_ERROR` error code (§11.2). Additive and backward-compatible — these formalise the features above in the 1.5 draft.
+
+### Fixed
+- **Anthropic `temperature` rejected by Opus 4.7/4.8 & Fable 5** — these models reject sampling params, but the Anthropic provider always sent `temperature` (it was only dropped on the reasoning path), so a plain `engine: anthropic, model: claude-opus-4-8` call returned HTTP 400. The provider now omits `temperature` for models that reject it; other models are unchanged.
+- **Non-OpenAI engine endpoints** — specs without an explicit `intelligence.endpoint` no longer inherit the OpenAI base URL. The hardcoded default was merged over the per-engine defaults in the provider registry (config wins), clobbering the correct endpoint for `anthropic`, `grok`, `local`, and `cortex` — e.g. a no-endpoint `engine: anthropic` spec (the README's own example) routed to `api.openai.com` and returned 404. Each provider now applies its own default endpoint when none is set.
+
 ## [1.5.2] - 2026-05-11
 
 ### Added
