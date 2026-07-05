@@ -192,14 +192,17 @@ async function runSingleTask(
 /**
  * Transitive cycle check over the depends_on graph (spec §7.2).
  *
- * DFS with a recursion stack (added on descent, removed on backtrack). A cycle
- * exists only when a task reappears on the *current path* — a globally-visited
- * set would falsely reject diamond DAGs where two branches share a dependency
- * (D → [B, C], B → A, C → A). Detection is transitive even though execution
- * only runs *direct* dependencies.
+ * Three-colour DFS. The recursion stack (added on descent, removed on
+ * backtrack) is what detects cycles — a cycle exists only when a task
+ * reappears on the *current path*, so diamond DAGs where two branches share a
+ * dependency (D → [B, C], B → A, C → A) stay legal. The done-set skips
+ * subgraphs already proven acyclic; without it a lattice of stacked diamonds
+ * is re-walked once per path, i.e. exponentially. Detection is transitive
+ * even though execution only runs *direct* dependencies.
  */
 function checkChainCycles(spec: OASpec, taskName: string): void {
   const stack = new Set<string>([taskName]);
+  const done = new Set<string>();
 
   const walk = (name: string): void => {
     const deps = (spec.tasks[name] as { depends_on?: string[] })?.depends_on ?? [];
@@ -212,9 +215,13 @@ function checkChainCycles(spec: OASpec, taskName: string): void {
           name,
         );
       }
+      if (done.has(dep)) {
+        continue;
+      }
       stack.add(dep);
       walk(dep);
       stack.delete(dep);
+      done.add(dep);
     }
   };
 

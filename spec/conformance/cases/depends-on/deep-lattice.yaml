@@ -1,0 +1,521 @@
+# Spec §7.2 — Cycle detection MUST scale to DAGs with shared subgraphs.
+# A 2-wide lattice of stacked diamonds has 2^N root-to-base paths. A
+# recursion-stack-only DFS walks every path (~10^12 at 40 levels — an
+# effective hang); tracking fully-explored nodes makes the check linear.
+# Only the apex's direct deps execute — transitive deps are declared, not
+# executed — so this case isolates the cycle-check itself.
+description: "Deep diamond lattice (2^40 paths) — cycle check must be linear, not per-path"
+spec_section: "7.2"
+requires: depends-on
+
+spec: |
+  open_agent_spec: "1.5.0"
+  agent:
+    name: test
+    description: test
+  intelligence:
+    type: llm
+    engine: openai
+    model: gpt-4o
+  tasks:
+    apex:
+      description: apex
+      depends_on: [a0, b0]
+      prompts:
+        system: ""
+        user: "apex"
+    a0:
+      description: a0
+      depends_on: [a1, b1]
+      prompts:
+        system: ""
+        user: "a0"
+    b0:
+      description: b0
+      depends_on: [a1, b1]
+      prompts:
+        system: ""
+        user: "b0"
+    a1:
+      description: a1
+      depends_on: [a2, b2]
+      prompts:
+        system: ""
+        user: "a1"
+    b1:
+      description: b1
+      depends_on: [a2, b2]
+      prompts:
+        system: ""
+        user: "b1"
+    a2:
+      description: a2
+      depends_on: [a3, b3]
+      prompts:
+        system: ""
+        user: "a2"
+    b2:
+      description: b2
+      depends_on: [a3, b3]
+      prompts:
+        system: ""
+        user: "b2"
+    a3:
+      description: a3
+      depends_on: [a4, b4]
+      prompts:
+        system: ""
+        user: "a3"
+    b3:
+      description: b3
+      depends_on: [a4, b4]
+      prompts:
+        system: ""
+        user: "b3"
+    a4:
+      description: a4
+      depends_on: [a5, b5]
+      prompts:
+        system: ""
+        user: "a4"
+    b4:
+      description: b4
+      depends_on: [a5, b5]
+      prompts:
+        system: ""
+        user: "b4"
+    a5:
+      description: a5
+      depends_on: [a6, b6]
+      prompts:
+        system: ""
+        user: "a5"
+    b5:
+      description: b5
+      depends_on: [a6, b6]
+      prompts:
+        system: ""
+        user: "b5"
+    a6:
+      description: a6
+      depends_on: [a7, b7]
+      prompts:
+        system: ""
+        user: "a6"
+    b6:
+      description: b6
+      depends_on: [a7, b7]
+      prompts:
+        system: ""
+        user: "b6"
+    a7:
+      description: a7
+      depends_on: [a8, b8]
+      prompts:
+        system: ""
+        user: "a7"
+    b7:
+      description: b7
+      depends_on: [a8, b8]
+      prompts:
+        system: ""
+        user: "b7"
+    a8:
+      description: a8
+      depends_on: [a9, b9]
+      prompts:
+        system: ""
+        user: "a8"
+    b8:
+      description: b8
+      depends_on: [a9, b9]
+      prompts:
+        system: ""
+        user: "b8"
+    a9:
+      description: a9
+      depends_on: [a10, b10]
+      prompts:
+        system: ""
+        user: "a9"
+    b9:
+      description: b9
+      depends_on: [a10, b10]
+      prompts:
+        system: ""
+        user: "b9"
+    a10:
+      description: a10
+      depends_on: [a11, b11]
+      prompts:
+        system: ""
+        user: "a10"
+    b10:
+      description: b10
+      depends_on: [a11, b11]
+      prompts:
+        system: ""
+        user: "b10"
+    a11:
+      description: a11
+      depends_on: [a12, b12]
+      prompts:
+        system: ""
+        user: "a11"
+    b11:
+      description: b11
+      depends_on: [a12, b12]
+      prompts:
+        system: ""
+        user: "b11"
+    a12:
+      description: a12
+      depends_on: [a13, b13]
+      prompts:
+        system: ""
+        user: "a12"
+    b12:
+      description: b12
+      depends_on: [a13, b13]
+      prompts:
+        system: ""
+        user: "b12"
+    a13:
+      description: a13
+      depends_on: [a14, b14]
+      prompts:
+        system: ""
+        user: "a13"
+    b13:
+      description: b13
+      depends_on: [a14, b14]
+      prompts:
+        system: ""
+        user: "b13"
+    a14:
+      description: a14
+      depends_on: [a15, b15]
+      prompts:
+        system: ""
+        user: "a14"
+    b14:
+      description: b14
+      depends_on: [a15, b15]
+      prompts:
+        system: ""
+        user: "b14"
+    a15:
+      description: a15
+      depends_on: [a16, b16]
+      prompts:
+        system: ""
+        user: "a15"
+    b15:
+      description: b15
+      depends_on: [a16, b16]
+      prompts:
+        system: ""
+        user: "b15"
+    a16:
+      description: a16
+      depends_on: [a17, b17]
+      prompts:
+        system: ""
+        user: "a16"
+    b16:
+      description: b16
+      depends_on: [a17, b17]
+      prompts:
+        system: ""
+        user: "b16"
+    a17:
+      description: a17
+      depends_on: [a18, b18]
+      prompts:
+        system: ""
+        user: "a17"
+    b17:
+      description: b17
+      depends_on: [a18, b18]
+      prompts:
+        system: ""
+        user: "b17"
+    a18:
+      description: a18
+      depends_on: [a19, b19]
+      prompts:
+        system: ""
+        user: "a18"
+    b18:
+      description: b18
+      depends_on: [a19, b19]
+      prompts:
+        system: ""
+        user: "b18"
+    a19:
+      description: a19
+      depends_on: [a20, b20]
+      prompts:
+        system: ""
+        user: "a19"
+    b19:
+      description: b19
+      depends_on: [a20, b20]
+      prompts:
+        system: ""
+        user: "b19"
+    a20:
+      description: a20
+      depends_on: [a21, b21]
+      prompts:
+        system: ""
+        user: "a20"
+    b20:
+      description: b20
+      depends_on: [a21, b21]
+      prompts:
+        system: ""
+        user: "b20"
+    a21:
+      description: a21
+      depends_on: [a22, b22]
+      prompts:
+        system: ""
+        user: "a21"
+    b21:
+      description: b21
+      depends_on: [a22, b22]
+      prompts:
+        system: ""
+        user: "b21"
+    a22:
+      description: a22
+      depends_on: [a23, b23]
+      prompts:
+        system: ""
+        user: "a22"
+    b22:
+      description: b22
+      depends_on: [a23, b23]
+      prompts:
+        system: ""
+        user: "b22"
+    a23:
+      description: a23
+      depends_on: [a24, b24]
+      prompts:
+        system: ""
+        user: "a23"
+    b23:
+      description: b23
+      depends_on: [a24, b24]
+      prompts:
+        system: ""
+        user: "b23"
+    a24:
+      description: a24
+      depends_on: [a25, b25]
+      prompts:
+        system: ""
+        user: "a24"
+    b24:
+      description: b24
+      depends_on: [a25, b25]
+      prompts:
+        system: ""
+        user: "b24"
+    a25:
+      description: a25
+      depends_on: [a26, b26]
+      prompts:
+        system: ""
+        user: "a25"
+    b25:
+      description: b25
+      depends_on: [a26, b26]
+      prompts:
+        system: ""
+        user: "b25"
+    a26:
+      description: a26
+      depends_on: [a27, b27]
+      prompts:
+        system: ""
+        user: "a26"
+    b26:
+      description: b26
+      depends_on: [a27, b27]
+      prompts:
+        system: ""
+        user: "b26"
+    a27:
+      description: a27
+      depends_on: [a28, b28]
+      prompts:
+        system: ""
+        user: "a27"
+    b27:
+      description: b27
+      depends_on: [a28, b28]
+      prompts:
+        system: ""
+        user: "b27"
+    a28:
+      description: a28
+      depends_on: [a29, b29]
+      prompts:
+        system: ""
+        user: "a28"
+    b28:
+      description: b28
+      depends_on: [a29, b29]
+      prompts:
+        system: ""
+        user: "b28"
+    a29:
+      description: a29
+      depends_on: [a30, b30]
+      prompts:
+        system: ""
+        user: "a29"
+    b29:
+      description: b29
+      depends_on: [a30, b30]
+      prompts:
+        system: ""
+        user: "b29"
+    a30:
+      description: a30
+      depends_on: [a31, b31]
+      prompts:
+        system: ""
+        user: "a30"
+    b30:
+      description: b30
+      depends_on: [a31, b31]
+      prompts:
+        system: ""
+        user: "b30"
+    a31:
+      description: a31
+      depends_on: [a32, b32]
+      prompts:
+        system: ""
+        user: "a31"
+    b31:
+      description: b31
+      depends_on: [a32, b32]
+      prompts:
+        system: ""
+        user: "b31"
+    a32:
+      description: a32
+      depends_on: [a33, b33]
+      prompts:
+        system: ""
+        user: "a32"
+    b32:
+      description: b32
+      depends_on: [a33, b33]
+      prompts:
+        system: ""
+        user: "b32"
+    a33:
+      description: a33
+      depends_on: [a34, b34]
+      prompts:
+        system: ""
+        user: "a33"
+    b33:
+      description: b33
+      depends_on: [a34, b34]
+      prompts:
+        system: ""
+        user: "b33"
+    a34:
+      description: a34
+      depends_on: [a35, b35]
+      prompts:
+        system: ""
+        user: "a34"
+    b34:
+      description: b34
+      depends_on: [a35, b35]
+      prompts:
+        system: ""
+        user: "b34"
+    a35:
+      description: a35
+      depends_on: [a36, b36]
+      prompts:
+        system: ""
+        user: "a35"
+    b35:
+      description: b35
+      depends_on: [a36, b36]
+      prompts:
+        system: ""
+        user: "b35"
+    a36:
+      description: a36
+      depends_on: [a37, b37]
+      prompts:
+        system: ""
+        user: "a36"
+    b36:
+      description: b36
+      depends_on: [a37, b37]
+      prompts:
+        system: ""
+        user: "b36"
+    a37:
+      description: a37
+      depends_on: [a38, b38]
+      prompts:
+        system: ""
+        user: "a37"
+    b37:
+      description: b37
+      depends_on: [a38, b38]
+      prompts:
+        system: ""
+        user: "b37"
+    a38:
+      description: a38
+      depends_on: [a39, b39]
+      prompts:
+        system: ""
+        user: "a38"
+    b38:
+      description: b38
+      depends_on: [a39, b39]
+      prompts:
+        system: ""
+        user: "b38"
+    a39:
+      description: a39
+      prompts:
+        system: ""
+        user: "a39"
+    b39:
+      description: b39
+      prompts:
+        system: ""
+        user: "b39"
+
+mock_responses:
+  a0: '{"from_a": "A"}'
+  b0: '{"from_b": "B"}'
+  apex: '{"result": "ok"}'
+
+invoke:
+  task: apex
+  input: {}
+
+expect:
+  result.task: apex
+  result.output.result: "ok"
+  result.input.from_a: "A"
+  result.input.from_b: "B"
+  result.chain.a0.output.from_a: "A"
+  result.chain.b0.output.from_b: "B"

@@ -367,11 +367,14 @@ def _resolve_chain(
     if not deps:
         return dict(base_input), {}
 
-    # Cycle detection: DFS with a recursion stack (added on descent, removed on
-    # backtrack). A cycle exists only when a task reappears on the *current
-    # path* — a globally-visited set would falsely reject diamond DAGs where
-    # two branches share a dependency (D → [B, C], B → A, C → A).
+    # Cycle detection: three-colour DFS. The recursion stack (added on descent,
+    # removed on backtrack) is what detects cycles — a cycle exists only when a
+    # task reappears on the *current path*, so diamond DAGs where two branches
+    # share a dependency (D → [B, C], B → A, C → A) stay legal. The done-set
+    # skips subgraphs already proven acyclic; without it a lattice of stacked
+    # diamonds is re-walked once per path, i.e. exponentially.
     stack: set[str] = {task_name}
+    done: set[str] = set()
 
     def _check_cycles(name: str) -> None:
         for dep in (tasks.get(name) or {}).get("depends_on") or []:
@@ -382,9 +385,12 @@ def _resolve_chain(
                     stage="routing",
                     task=name,
                 )
+            if dep in done:
+                continue
             stack.add(dep)
             _check_cycles(dep)
             stack.discard(dep)
+            done.add(dep)
 
     _check_cycles(task_name)
 

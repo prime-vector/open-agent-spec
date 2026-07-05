@@ -1,6 +1,6 @@
 # OA Conformance Matrix
 
-| Case | python-reference 1.5.0 | npm 1.5.2 |
+| Case | python-reference 1.5.2 | npm 1.5.2 |
 |---|---|---|
 | schema/invalid-engine | ✅ PASS | ✅ PASS |
 | schema/invalid-version | ✅ PASS | ✅ PASS |
@@ -14,6 +14,7 @@
 | prompt-resolution/legacy-task-map | ✅ PASS | ✅ PASS |
 | prompt-resolution/per-task-inline | ✅ PASS | ✅ PASS |
 | depends-on/cycle-detection | ✅ PASS | ✅ PASS |
+| depends-on/deep-lattice | ✅ PASS | ✅ PASS |
 | depends-on/diamond-graph | ✅ PASS | ✅ PASS |
 | depends-on/linear-chain | ✅ PASS | ✅ PASS |
 | depends-on/merge-order | ✅ PASS | ✅ PASS |
@@ -39,7 +40,7 @@
 
 | Runtime | Pass | Fail | Unsupported | Adapter errors |
 |---|---|---|---|---|
-| python-reference 1.5.0 | 32 | 0 | 0 | 0 |
-| npm 1.5.2 | 30 | 0 | 2 | 0 |
+| python-reference 1.5.2 | 33 | 0 | 0 | 0 |
+| npm 1.5.2 | 31 | 0 | 2 | 0 |
 
 Legend: ✅ PASS · ❌ FAIL · ⬜ UNSUPPORTED (capability not declared) · 💥 adapter error
