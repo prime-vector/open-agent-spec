@@ -617,8 +617,11 @@ class TestDependsOn:
     def test_cycle_through_lattice_still_detected(self, monkeypatch):
         """The done-set must not mask a real cycle threaded through a lattice."""
         spec = self._lattice_spec(depth=5)
-        # Base level loops back to the apex → every path is now cyclic.
-        spec["tasks"]["a4"]["depends_on"] = ["apex"]
+        # Loop only the b-side base back to the apex. The DFS walks the a-branch
+        # first and marks a4 done, so the cycle is found through b4 *after* a
+        # node has entered the done-set — exercising the property this test
+        # names (a real cycle must not be masked by the done-set).
+        spec["tasks"]["b4"]["depends_on"] = ["apex"]
         monkeypatch.setattr(
             "oas_cli.runner.invoke_intelligence",
             lambda s, u, c, h=None: "{}",
