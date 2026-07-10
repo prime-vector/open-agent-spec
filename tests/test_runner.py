@@ -570,6 +570,66 @@ class TestDependsOn:
         assert result["input"]["from_left"] == "L"
         assert result["input"]["from_right"] == "R"
 
+    @staticmethod
+    def _lattice_spec(depth: int) -> dict:
+        """A 2-wide lattice of stacked diamonds: apex → [a0, b0], and every
+        a<i>/b<i> depends on [a<i+1>, b<i+1>] down to the base level."""
+        tasks = {}
+        for level in range(depth):
+            for side in ("a", "b"):
+                name = f"{side}{level}"
+                tasks[name] = {
+                    "description": name,
+                    "prompts": {"system": "", "user": name},
+                }
+                if level < depth - 1:
+                    tasks[name]["depends_on"] = [f"a{level + 1}", f"b{level + 1}"]
+        tasks["apex"] = {
+            "description": "apex",
+            "depends_on": ["a0", "b0"],
+            "prompts": {"system": "", "user": "apex"},
+        }
+        return {
+            "open_agent_spec": "1.5.0",
+            "agent": {"name": "t", "description": "t", "role": "t"},
+            "intelligence": {"type": "llm", "engine": "openai", "model": "gpt-4o"},
+            "tasks": tasks,
+        }
+
+    def test_deep_lattice_cycle_check_is_linear(self, monkeypatch):
+        """Cycle detection must not re-walk shared subgraphs.
+
+        A lattice of stacked diamonds has 2^N root-to-base paths. Pure
+        recursion-stack DFS walks every path — at 40 levels that is ~10^12
+        walks, an effective hang. The done-set makes it linear. Execution is
+        unaffected either way: only the apex's *direct* deps run (transitive
+        deps are declared, not executed — spec §7.2).
+        """
+        spec = self._lattice_spec(depth=40)
+        monkeypatch.setattr(
+            "oas_cli.runner.invoke_intelligence",
+            lambda s, u, c, h=None: "{}",
+        )
+        result = run_task_from_spec(spec, task_name="apex", input_data={})
+        assert result["task"] == "apex"
+        assert set(result["chain"]) == {"a0", "b0"}
+
+    def test_cycle_through_lattice_still_detected(self, monkeypatch):
+        """The done-set must not mask a real cycle threaded through a lattice."""
+        spec = self._lattice_spec(depth=5)
+        # Loop only the b-side base back to the apex. The DFS walks the a-branch
+        # first and marks a4 done, so the cycle is found through b4 *after* a
+        # node has entered the done-set — exercising the property this test
+        # names (a real cycle must not be masked by the done-set).
+        spec["tasks"]["b4"]["depends_on"] = ["apex"]
+        monkeypatch.setattr(
+            "oas_cli.runner.invoke_intelligence",
+            lambda s, u, c, h=None: "{}",
+        )
+        with pytest.raises(OARunError) as exc_info:
+            run_task_from_spec(spec, task_name="apex", input_data={})
+        assert exc_info.value.code == "CHAIN_CYCLE_ERROR"
+
     def test_true_cycle_still_detected_after_diamond_fix(self, monkeypatch):
         """Recursion-stack detection must still catch a real transitive cycle."""
         spec = _chain_spec()
