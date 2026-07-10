@@ -5,9 +5,10 @@ All notable changes to **open-agent-spec** (Open Agent CLI) will be documented i
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [1.6.0] - 2026-07-05
 
 ### Added
+- **Runtime-agnostic conformance harness** — the conformance suite now drives any OA runtime through a thin adapter protocol instead of being wired to the Python reference implementation. Ships adapters for the Python CLI and the npm CLI, and CI runs the full matrix against both (`conformance (python + node)`). Regenerated conformance matrix included.
 - **Token usage & best-effort cost in the result envelope** — providers now capture the API `usage` object they previously discarded. Every single-call result envelope includes a `usage` block (`prompt_tokens`/`completion_tokens`/`total_tokens`, normalised across the OpenAI and Anthropic shapes) plus a best-effort `estimated_cost_usd` for models in a built-in price table (`null` for unknown models — never guessed). `oa run` shows a compact `<total> tok · ~$<cost>` summary. Multi-turn tool-calling is covered too — usage is summed across every turn of the loop. `usage` is `null` only when the engine omits counts (some local servers, the Codex CLI, custom routers). See [`docs/REFERENCE.md`](docs/REFERENCE.md).
 - **Reasoning-effort tiers (experimental)** — declare `intelligence.config.reasoning_effort: low|medium|high` and OA maps it to each engine's native control: OpenAI `reasoning_effort` (Chat Completions) / `reasoning.effort` (Responses API), Codex `-c model_reasoning_effort=<tier>`, and Anthropic `output_config.effort` paired with adaptive thinking. Opt-in and model-specific (a reasoning-capable model is required); `oa validate` enforces the `low|medium|high` enum. For OpenAI reasoning models OA sends `max_completion_tokens` (not `max_tokens`) and omits `temperature`, both of which those models reject. Validated live against Opus 4.8 and OpenAI `o4-mini` via [`scripts/verify_reasoning.py`](scripts/verify_reasoning.py).
 
