@@ -1,6 +1,6 @@
 # Proposal: Interop with AGENTS.md and Skills (Markdown Agent Patterns)
 
-**Status:** Proposed
+**Status:** Accepted
 **Scope:** Documentation and examples only — zero schema or runtime changes
 **Author:** Prime Vector / Open Agent Spec maintainers
 
