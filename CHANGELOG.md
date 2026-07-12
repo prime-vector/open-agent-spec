@@ -102,6 +102,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Spec
+- **OA 1.6.0 formal specification cut** — `spec/open-agent-spec-1.6.md` supersedes the 1.5 draft and redefines the runtime around four pillars: typed contracts, a deterministic execution pipeline (§7, with all statically detectable errors required before any tokens are spent), first-class usage/cost observability (§10, promoted from an envelope footnote to a runtime obligation with explicit design goals), and declarative sandboxing. Newly formalised, having previously been implemented but spec'd nowhere: `sandbox:`/IIS declaration, per-key override resolution and the three `SANDBOX_*` error codes (§11, §13.2), the reserved `history` input convention and its message-list injection semantics (§6.4, §8.3), chain-wide input immutability (§7.2), diamond-DAG legality plus the linear-time cycle-detection requirement (§7.3), per-engine default-endpoint isolation (§5.2), and certified conformance via the runtime-agnostic adapter protocol (§14.2).
+- **Canonical schema `spec/schema/oas-schema-1.6.json`** — 1.5 schema plus root-level and task-level `sandbox` definitions (`tools.allow/deny`, `http.allow_domains`, `file.allow_paths`). Additive: every valid 1.5.x document remains valid.
+- **README repositioned around cost efficiency & effectiveness** — usage/cost observability and reasoning-effort tiers now lead the feature list, "Why This Exists" calls out untracked token spend, and the specification table points at the 1.6 artifacts.
+
 ### Added
 - This changelog.
 - **Agents-as-code documentation** — new section in REFERENCE.md explaining the `.agents/` pattern, bundled examples table, and scaffold/run/generate workflows.

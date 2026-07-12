@@ -1,12 +1,12 @@
 # OA Conformance Tests
 
-This directory contains the conformance test suite for Open Agent Spec 1.5.0. Conformance tests validate **runtime behaviour**, not LLM output.
+This directory contains the conformance test suite for Open Agent Spec 1.6.0. Conformance tests validate **runtime behaviour**, not LLM output.
 
 The suite is **runtime-agnostic**: a single harness drives the YAML cases against any OA runtime through a thin subprocess adapter (JSON over stdin/stdout). The protocol is defined in [PROTOCOL.md](PROTOCOL.md). Reference adapters for the Python and npm runtimes live in `adapters/`.
 
 ## Purpose
 
-The spec at `../open-agent-spec-1.4.md` defines what a conforming runtime MUST do. These tests operationalise that definition — any runtime that passes the full suite can claim OA 1.5.0 conformance.
+The spec at `../open-agent-spec-1.6.md` defines what a conforming runtime MUST do. These tests operationalise that definition — any runtime that passes the full suite can claim OA 1.6.0 conformance.
 
 Conformance tests differ from unit/integration tests in this repo:
 

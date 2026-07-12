@@ -15,6 +15,9 @@ Most agent systems are hard to reason about:
 - behaviour is buried in prompts
 - logic is split across Python, Markdown, and framework abstractions
 - swapping models often breaks things in subtle ways
+- token spend is invisible until the provider bill arrives, and can't be attributed back to a task
+
+OA's answer is a contract that covers both sides of the trade: **effectiveness** (typed inputs and outputs, validated on every run) and **cost efficiency** (normalised token usage and a best-effort dollar figure on every result, with declarative controls to right-size reasoning depth and pricing per task).
 
 ## The Idea
 
@@ -135,7 +138,7 @@ oa run --spec .agents/review.yaml --task review --input change.diff --quiet
 Start from this shape:
 
 ```yaml
-open_agent_spec: "1.5.0"
+open_agent_spec: "1.6.0"
 
 agent:
   name: hello-world-agent
@@ -176,6 +179,48 @@ oa run --spec agent.yaml --task greet --input '{"name":"Alice"}' --quiet
 ```
 
 ## Features
+
+### Token usage & cost on every run
+
+Every result envelope reports what the run consumed — normalised across providers, summed across every turn of a tool-calling loop, and priced against a built-in rate table when the model is known.
+
+```json
+"usage": {
+  "prompt_tokens": 41,
+  "completion_tokens": 12,
+  "total_tokens": 53,
+  "estimated_cost_usd": 0.000223
+}
+```
+
+`oa run` prints a compact `<total> tok · ~$<cost>` summary. The dollar figure is best-effort and never guessed — unknown models report tokens only.
+
+Override the rates when list price isn't your price:
+
+```yaml
+intelligence:
+  config:
+    pricing:                  # per-spec: enterprise-negotiated rates
+      input_per_1m: 2.00
+      output_per_1m: 8.00
+    # pricing: "none"         # or suppress the $ figure (subscription/local models)
+```
+
+Org-wide, set `OA_PRICING='{"gpt-4o": {"input": 2.0, "output": 8.0}}'` (or `"none"`). Invalid overrides fail closed with `PRICING_CONFIG_ERROR` — a silently wrong dollar figure is worse than none.
+
+---
+
+### Reasoning effort — right-size the thinking
+
+Declare how much reasoning a task deserves and OA maps it to each engine's native control (OpenAI `reasoning_effort`, Anthropic adaptive thinking, Codex CLI flags). Reasoning tokens are billed output tokens — this is a cost dial as much as a quality dial, and the usage block makes the effect of each tier visible per run.
+
+```yaml
+intelligence:
+  config:
+    reasoning_effort: low     # low | medium | high — requires a reasoning-capable model
+```
+
+---
 
 ### Multi-task pipelines with `depends_on`
 
@@ -552,11 +597,12 @@ The formal specification defines what a conforming OA runtime must do, independe
 
 | Resource | Contents |
 |----------|----------|
-| [spec/open-agent-spec-1.5.md](spec/open-agent-spec-1.5.md) | Formal specification — normative MUST/SHOULD/MAY requirements for OA 1.5.0 |
-| [spec/schema/oas-schema-1.5.json](spec/schema/oas-schema-1.5.json) | Canonical JSON Schema for validating spec documents |
+| [spec/open-agent-spec-1.6.md](spec/open-agent-spec-1.6.md) | Formal specification — normative MUST/SHOULD/MAY requirements for OA 1.6.0 |
+| [spec/schema/oas-schema-1.6.json](spec/schema/oas-schema-1.6.json) | Canonical JSON Schema for validating spec documents |
 | [spec/conformance/README.md](spec/conformance/README.md) | Conformance test structure and contribution guide |
+| [spec/conformance/PROTOCOL.md](spec/conformance/PROTOCOL.md) | Runtime-agnostic adapter protocol — certify any runtime, in any language |
 
-An independent implementor can build a conforming runtime from `spec/open-agent-spec-1.5.md` alone.
+An independent implementor can build a conforming runtime from `spec/open-agent-spec-1.6.md` alone. The 1.6 spec defines the runtime around four pillars: typed contracts, a deterministic execution pipeline, first-class usage/cost observability, and declarative sandboxing.
 
 ## More Detail
 
