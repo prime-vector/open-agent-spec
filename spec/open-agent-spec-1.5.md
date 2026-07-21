@@ -1,7 +1,7 @@
 # Open Agent Spec — Formal Specification
 
 **Version:** 1.5.0  
-**Status:** Draft  
+**Status:** Superseded by [open-agent-spec-1.6.md](open-agent-spec-1.6.md)  
 **Date:** 2026-06-27
 
 ---

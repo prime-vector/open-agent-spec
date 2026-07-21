@@ -2,6 +2,7 @@ open_agent_spec: "1.3.0"
 
 agent:
   name: manager-agent
+  description: Planning agent that decomposes objectives into routed specialist tasks.
   role: planner
 
 intelligence:

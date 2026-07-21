@@ -5,6 +5,30 @@ All notable changes to **open-agent-spec** (Open Agent CLI) will be documented i
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Spec
+- **OA 1.6.0 formal specification cut** — `spec/open-agent-spec-1.6.md` supersedes the 1.5 draft and redefines the runtime around four pillars: typed contracts, a deterministic execution pipeline (§7, with all statically detectable errors required before any tokens are spent), first-class usage/cost observability (§10, promoted from an envelope footnote to a runtime obligation with explicit design goals), and declarative sandboxing. Newly formalised, having previously been implemented but spec'd nowhere: `sandbox:`/IIS declaration, per-key override resolution and the three `SANDBOX_*` error codes (§11, §13.2), the reserved `history` input convention and its message-list injection semantics (§6.4, §8.3), chain-wide input immutability (§7.2), direct-only dependency execution with transitive cycle detection, diamond-DAG legality, and the linear-time cycle-check requirement (§7.3), per-engine default-endpoint isolation (§5.2), and certified conformance via the runtime-agnostic adapter protocol (§14.2).
+- **Canonical schema `spec/schema/oas-schema-1.6.json`** — 1.5 schema plus root-level and task-level `sandbox` definitions (`tools.allow/deny`, `http.allow_domains`, `file.allow_paths`), and `agent.role` loosened from a closed enum to a free-form string (role is informational; well-known values are RECOMMENDED). Additive: every valid 1.5.x document remains valid. The bundled runtime schema (`oas_cli/schemas/oas-schema.json`) is synced to the canonical 1.6 schema so `oa validate` and the formal spec share one source of truth.
+- **README repositioned around cost efficiency & effectiveness** — usage/cost observability and reasoning-effort tiers now lead the feature list, "Why This Exists" calls out untracked token spend, and the specification table points at the 1.6 artifacts.
+- **Multi-agent persona examples** now carry the required `agent.description`, so every bundled example validates against the canonical schema.
+- Conformance README notes that cases pin the **minimum** `open_agent_spec` version they require, not the suite version.
+
+### Added (older, pre-1.4 notes)
+- This changelog.
+- **Agents-as-code documentation** — new section in REFERENCE.md explaining the `.agents/` pattern, bundled examples table, and scaffold/run/generate workflows.
+- Agents-as-code overview section in README.md with link to REFERENCE.md.
+- "Adding an agent-as-code example" guide in CONTRIBUTING.md.
+- Codex engine configuration reference (sandbox modes, cwd) in REFERENCE.md.
+
+### Changed (older, pre-1.4 notes)
+- Standardised spec version to `1.0.9` across all examples, templates, and docs (CONTRIBUTING.md, README.md, `.agents/`, Website content).
+- README quick-start YAML now includes the required `open_agent_spec` version field.
+- Added required `type: llm` field to all `intelligence` examples in README.md and REFERENCE.md (field is required by schema but was missing from docs).
+
+### Fixed (older, pre-1.4 notes)
+- Removed broken references to non-existent `security-threat-analyzer.yaml` template and `SECURITY_TEMPLATES.md` from REFERENCE.md.
+
 ## [1.6.0] - 2026-07-05
 
 ### Added
@@ -97,25 +121,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `output` removed from the task JSON schema `required` array; enforced by the Python validator for non-delegated, non-multi-step tasks (enables delegated tasks to omit inline schema).
 - `depends_on` description in schema and `REFERENCE.md` updated with the design principle and a hard-wall table of features OA intentionally does not support.
 - Spec version aligned to **1.4.0** across all examples, templates, `.agents/`, Website content, REFERENCE.md, CONTRIBUTING.md, and README.
-
----
-
-## [Unreleased]
-
-### Added
-- This changelog.
-- **Agents-as-code documentation** — new section in REFERENCE.md explaining the `.agents/` pattern, bundled examples table, and scaffold/run/generate workflows.
-- Agents-as-code overview section in README.md with link to REFERENCE.md.
-- "Adding an agent-as-code example" guide in CONTRIBUTING.md.
-- Codex engine configuration reference (sandbox modes, cwd) in REFERENCE.md.
-
-### Changed
-- Standardised spec version to `1.0.9` across all examples, templates, and docs (CONTRIBUTING.md, README.md, `.agents/`, Website content).
-- README quick-start YAML now includes the required `open_agent_spec` version field.
-- Added required `type: llm` field to all `intelligence` examples in README.md and REFERENCE.md (field is required by schema but was missing from docs).
-
-### Fixed
-- Removed broken references to non-existent `security-threat-analyzer.yaml` template and `SECURITY_TEMPLATES.md` from REFERENCE.md.
 
 ---
 
