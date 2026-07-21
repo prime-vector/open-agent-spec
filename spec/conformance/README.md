@@ -8,6 +8,8 @@ The suite is **runtime-agnostic**: a single harness drives the YAML cases agains
 
 The spec at `../open-agent-spec-1.6.md` defines what a conforming runtime MUST do. These tests operationalise that definition — any runtime that passes the full suite can claim OA 1.6.0 conformance.
 
+Note: individual cases embed the **minimum** `open_agent_spec` version their behaviour requires (many say `"1.5.0"` or lower), not the suite version. This is deliberate — the additive-compatibility guarantee means a 1.6-conforming runtime must accept those documents unchanged, and the pinned versions exercise exactly that.
+
 Conformance tests differ from unit/integration tests in this repo:
 
 | | Conformance tests (here) | Repo tests (`tests/`) |

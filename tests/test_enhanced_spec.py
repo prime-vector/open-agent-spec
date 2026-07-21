@@ -315,8 +315,19 @@ behavioural_contract:
 
 def test_agent_role_validation(enhanced_spec_yaml):
     """Test that agent role validation works correctly."""
-    # Test valid roles
-    valid_roles = ["analyst", "reviewer", "chat", "retriever", "planner", "executor"]
+    # Test valid roles. role is an open set as of the 1.6 schema: the well-known
+    # values are RECOMMENDED but any string is accepted.
+    valid_roles = [
+        "analyst",
+        "reviewer",
+        "chat",
+        "retriever",
+        "planner",
+        "executor",
+        "smart_analyst",
+        "friendly_agent",
+        "writer",
+    ]
 
     for role in valid_roles:
         yaml_content = f"""
@@ -380,8 +391,8 @@ behavioural_contract:
             f"Role {role} should be valid but failed: {result.output}"
         )
 
-    # Test invalid roles
-    invalid_roles = ["smart_analyst", "test_role", "friendly_agent", "invalid_role", ""]
+    # Non-string roles are still rejected (schema type: string).
+    invalid_roles = ["123", "[analyst]", "{nested: role}"]
 
     for role in invalid_roles:
         yaml_content = f"""
@@ -389,7 +400,7 @@ open_agent_spec: "1.0.4"
 agent:
   name: "test_agent"
   description: "A test agent for role validation"
-  role: "{role}"
+  role: {role}
 intelligence:
   type: "llm"
   engine: "openai"

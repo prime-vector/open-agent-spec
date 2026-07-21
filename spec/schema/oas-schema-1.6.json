@@ -28,15 +28,7 @@
         },
         "role": {
           "type": "string",
-          "enum": [
-            "analyst",
-            "reviewer",
-            "chat",
-            "retriever",
-            "planner",
-            "executor"
-          ],
-          "description": "Optional role type for the agent"
+          "description": "Optional informational role for the agent. Free-form string; well-known values: analyst, reviewer, chat, retriever, planner, executor."
         }
       },
       "required": [

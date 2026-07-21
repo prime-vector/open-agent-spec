@@ -2,7 +2,7 @@
   "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "https://openagents.org/schemas/oas-schema.json",
   "title": "Open Agent Spec",
-  "description": "Schema for Open Agent Spec YAML files",
+  "description": "Schema for Open Agent Spec YAML files (OA 1.6.0)",
   "type": "object",
   "required": [
     "open_agent_spec",
@@ -28,15 +28,7 @@
         },
         "role": {
           "type": "string",
-          "enum": [
-            "analyst",
-            "reviewer",
-            "chat",
-            "retriever",
-            "planner",
-            "executor"
-          ],
-          "description": "Optional role type for the agent"
+          "description": "Optional informational role for the agent. Free-form string; well-known values: analyst, reviewer, chat, retriever, planner, executor."
         }
       },
       "required": [
@@ -101,7 +93,7 @@
               "description": "Portable reasoning-effort tier mapped to each engine's native reasoning control. Only meaningful for reasoning-capable models."
             },
             "pricing": {
-              "description": "Override cost estimation for this spec. Either the string \"none\" to disable cost (e.g. on a subscription or local model), or explicit USD rates per 1M tokens.",
+              "description": "Override cost estimation for this spec. Either the string \"none\" to disable cost, or explicit USD rates per 1M tokens.",
               "oneOf": [
                 {
                   "type": "string",
@@ -393,7 +385,7 @@
               "items": {
                 "type": "string"
               },
-              "description": "Declares data dependencies: the named tasks must produce output before this task can run, and their outputs are merged into this task's input (later entries win on key collision). IMPORTANT \u2014 this is a data contract, not execution control. OAS intentionally prohibits: branching, conditionals, loops, retries, fallbacks, parallel execution, and dynamic task selection. If you need any of those, they belong outside OAS in the calling platform. Linear chains only."
+              "description": "Declares data dependencies: the named tasks must produce output before this task can run, and their outputs are merged into this task's input (later entries win on key collision). IMPORTANT — this is a data contract, not execution control. OAS intentionally prohibits: branching, conditionals, loops, retries, fallbacks, parallel execution, and dynamic task selection. If you need any of those, they belong outside OAS in the calling platform. Linear chains only."
             },
             "behavioural_contract": {
               "type": "object",
@@ -406,9 +398,13 @@
               },
               "description": "Names of tools from the top-level tools: block that this task is allowed to use."
             },
+            "sandbox": {
+              "$ref": "#/definitions/sandbox",
+              "description": "Per-task sandbox override. Each top-level constraint key (tools, http, file) completely replaces the root-level key of the same name."
+            },
             "spec": {
               "type": "string",
-              "description": "Path to another spec YAML file whose task implements this task. Relative paths are resolved from the directory of the calling spec. When present, this task is delegated \u2014 inline prompts and output schema are ignored in favour of the referenced spec's task definition."
+              "description": "Path to another spec YAML file whose task implements this task. Relative paths are resolved from the directory of the calling spec. When present, this task is delegated — inline prompts and output schema are ignored in favour of the referenced spec's task definition."
             },
             "task": {
               "type": "string",
@@ -554,6 +550,64 @@
         }
       },
       "description": "Tool declarations available to tasks. Tasks reference tools by name in their tools: list."
+    },
+    "sandbox": {
+      "$ref": "#/definitions/sandbox",
+      "description": "Root-level sandbox applying to every task. Per-task sandbox overrides per constraint key."
+    }
+  },
+  "definitions": {
+    "sandbox": {
+      "type": "object",
+      "properties": {
+        "tools": {
+          "type": "object",
+          "properties": {
+            "allow": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "description": "Tool allowlist. When present, any tool not in this list is refused with SANDBOX_TOOL_VIOLATION before dispatch. An empty list denies all tools."
+            },
+            "deny": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "description": "Tool denylist. Any tool in this list is refused with SANDBOX_TOOL_VIOLATION. Checked in addition to allow."
+            }
+          },
+          "description": "Tool name constraints, checked before every tool dispatch."
+        },
+        "http": {
+          "type": "object",
+          "properties": {
+            "allow_domains": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "description": "Hosts permitted for http.get/http.post. A request host must equal a listed domain or be a subdomain of one; otherwise SANDBOX_DOMAIN_VIOLATION."
+            }
+          },
+          "description": "HTTP constraints for the native http.get/http.post tools."
+        },
+        "file": {
+          "type": "object",
+          "properties": {
+            "allow_paths": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "description": "Path prefixes permitted for file.read/file.write. Paths are resolved (symlinks and '..' expanded) before checking; violations raise SANDBOX_PATH_VIOLATION."
+            }
+          },
+          "description": "Filesystem constraints for the native file.read/file.write tools."
+        }
+      },
+      "description": "Immutable Inference Sandboxing (IIS): hard execution constraints enforced by the runtime before any tool call reaches the I/O layer. Task-level sandbox keys completely replace the root-level key of the same name (override, not merge)."
     }
   }
 }

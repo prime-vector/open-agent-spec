@@ -134,9 +134,9 @@ agent:
 |-------|----------|------|-------------|
 | `name` | REQUIRED | string | Non-empty |
 | `description` | REQUIRED | string | Free text |
-| `role` | OPTIONAL | string | One of: `analyst`, `reviewer`, `chat`, `retriever`, `planner`, `executor` |
+| `role` | OPTIONAL | string | Free text. Well-known values: `analyst`, `reviewer`, `chat`, `retriever`, `planner`, `executor` |
 
-`role` is informational. A runtime MAY use it for routing or logging but MUST NOT alter task execution semantics based on it.
+`role` is informational. A runtime MAY use it for routing or logging but MUST NOT alter task execution semantics based on it. Because `role` carries no execution semantics, its value set is open — the well-known values above are RECOMMENDED for interoperability, but a runtime MUST accept any string (this loosens the closed enumeration in earlier schema versions).
 
 ---
 
@@ -337,17 +337,19 @@ This guarantee is what makes `depends_on` a pure data contract: the only way dat
 
 `depends_on` is a **data contract**, not an execution directive. When a task declares `depends_on: [dep1, dep2, ...]`:
 
-1. Cycle detection: if any dependency (transitively) references the calling task, raise `CHAIN_CYCLE_ERROR` before any LLM call.
-2. For each dependency in listed order:
-   a. Execute the dependency task recursively (applying the same semantics).
-   b. Merge its `output` into the running input map.
+1. Cycle detection: walk the dependency graph **transitively**; if any path returns to a task already on the current path, raise `CHAIN_CYCLE_ERROR` before any LLM call.
+2. For each **direct** dependency in listed order:
+   a. Execute that dependency as a single-task invocation (Section 7.1), passing it a deep copy of the running input map. The dependency's own `depends_on` declarations, if any, participate in cycle detection (step 1) but are **NOT** resolved or executed as part of this invocation.
+   b. Merge the dependency's `output` into the running input map, so later-listed dependencies observe the outputs of earlier ones.
 3. Merge rule: `merged = {**caller_input, **dep1_output, **dep2_output, ...}` — later entries win on key collision.
 4. Validate required input fields against the merged map. Raise `CHAIN_INPUT_MISSING` if any are missing.
 5. Execute the calling task with the merged input.
 
+Execution is **direct-only**; cycle detection is **transitive**. `depends_on` is not transitive execution — a spec author who wants a dependency's own dependencies to run must invoke a task that lists them directly.
+
 A runtime MUST NOT execute dependent tasks in parallel. A runtime MUST NOT execute a task until all its declared dependencies have produced output. A runtime MUST detect circular dependency chains and raise `CHAIN_CYCLE_ERROR` before invoking any model.
 
-**Shared dependencies (diamond graphs).** Two tasks MAY depend on the same upstream task. A diamond-shaped dependency graph is legal and MUST NOT be reported as a cycle. Only the direct dependencies of the invoked task are executed; `depends_on` is not transitive execution.
+**Shared dependencies (diamond graphs).** Two tasks MAY depend on the same upstream task. A diamond-shaped dependency graph is legal and MUST NOT be reported as a cycle.
 
 **Cycle-detection efficiency.** Cycle detection MUST scale linearly with the size of the dependency graph (nodes + edges). In particular, an implementation MUST NOT re-explore a shared subgraph once per path reaching it — on lattice-shaped graphs a path-enumerating check is exponential and turns a pre-flight validation into the dominant cost of the run. The conformance suite holds runtimes to this with a deep-lattice case (~2^40 distinct paths) that MUST complete promptly. This is a design-goal requirement (Section 1.1, goal 4): validation MUST stay cheap relative to inference.
 
@@ -455,7 +457,7 @@ A runtime that supports history threading MUST:
 
 For providers without a message-list API, a runtime SHOULD render history into the prompt text in a documented, deterministic way.
 
-History support is a declared conformance capability (`history`, Section 14.2). A runtime that does not support it MUST NOT silently drop a supplied `history` field on chat-style tasks; it SHOULD reject or warn.
+History support is a declared conformance capability (`history`, Section 14.2). Mirroring the sandbox honesty rule (Section 11.3): a runtime that does not claim the `history` capability MUST NOT silently drop a supplied `history` field — it MUST either refuse the invocation or surface a structured warning. Silently dropping history is how a conversation agent "forgets", and silent degradation of declared behaviour is a conformance violation.
 
 ---
 
@@ -491,7 +493,7 @@ A runtime MUST return the following envelope for every successfully executed tas
 }
 ```
 
-The `usage` block is defined in Section 10.
+All keys except `usage` are REQUIRED. `usage` is CONDITIONAL: it carries the token/cost block defined in Section 10 when the engine reports token counts, and MUST be `null` (or omitted) when it does not — a runtime that omits `usage` because the engine reports no counts remains conformant.
 
 When the task has `depends_on` dependencies, the envelope MUST additionally include:
 

@@ -2,6 +2,7 @@ open_agent_spec: "1.3.0"
 
 agent:
   name: concierge-agent
+  description: Front-desk agent that fields user requests and reports task-board status.
   role: chat
 
 intelligence:

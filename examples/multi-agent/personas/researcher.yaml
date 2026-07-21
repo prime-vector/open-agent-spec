@@ -2,6 +2,7 @@ open_agent_spec: "1.3.0"
 
 agent:
   name: researcher-agent
+  description: Research agent that gathers and condenses source material for a task.
   role: analyst
 
 intelligence:

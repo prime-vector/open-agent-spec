@@ -2,6 +2,7 @@ open_agent_spec: "1.3.0"
 
 agent:
   name: reviewer-agent
+  description: Review agent that critiques drafts and either approves or requests changes.
   role: reviewer
 
 intelligence:

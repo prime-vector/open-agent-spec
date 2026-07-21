@@ -2,6 +2,7 @@ open_agent_spec: "1.3.0"
 
 agent:
   name: writer-agent
+  description: Writing agent that drafts prose from research notes and task briefs.
   role: writer
 
 intelligence:
