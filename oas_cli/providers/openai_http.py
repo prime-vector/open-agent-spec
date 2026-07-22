@@ -12,7 +12,7 @@ from oas_cli.reasoning import normalise_effort, openai_reasoning_params
 from oas_cli.tool_providers.base import InvokeResult, ToolCall
 from oas_cli.usage import from_openai
 
-from .base import IntelligenceProvider, InvokeOutcome, ProviderError
+from .base import IntelligenceProvider, InvokeOutcome, ProviderError, scrub_secrets
 
 # Default to the Chat Completions API; set intelligence.endpoint in your spec
 # to switch to the Responses API (https://api.openai.com/v1/responses) or a
@@ -51,7 +51,8 @@ class OpenAIProvider(IntelligenceProvider):
         history: list[dict[str, Any]] | None = None,
     ) -> InvokeOutcome:
         api_key_env: str | None = config.get("api_key_env", "OPENAI_API_KEY")
-        api_key: str | None = os.environ.get(api_key_env) if api_key_env else None
+        raw = os.environ.get(api_key_env) if api_key_env else None
+        api_key: str | None = raw.strip() if raw else raw
 
         # Require a key only when the config explicitly names an env var and it's absent.
         # Local / anonymous endpoints (api_key_env=None or "") skip this check.
@@ -106,7 +107,8 @@ class OpenAIProvider(IntelligenceProvider):
         config: dict,
     ) -> InvokeResult:
         api_key_env: str | None = config.get("api_key_env", "OPENAI_API_KEY")
-        api_key: str | None = os.environ.get(api_key_env) if api_key_env else None
+        raw = os.environ.get(api_key_env) if api_key_env else None
+        api_key: str | None = raw.strip() if raw else raw
         if api_key_env and not api_key:
             raise ProviderError(
                 f"API key not set — export {api_key_env} or set "
@@ -257,7 +259,8 @@ def _http_post_raw(
         detail = exc.read().decode(errors="replace")
         raise ProviderError(f"OpenAI HTTP {exc.code}: {detail}") from exc
     except Exception as exc:
-        raise ProviderError(f"OpenAI request failed: {exc}") from exc
+        msg = scrub_secrets(str(exc), all_headers)
+        raise ProviderError(f"OpenAI request failed: {msg}") from exc
 
 
 def _extract_text(data: dict, url: str) -> str:

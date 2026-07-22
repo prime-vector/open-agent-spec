@@ -28,6 +28,36 @@ class ProviderError(RuntimeError):
     """Raised when a provider call fails (HTTP error, bad response shape, etc.)."""
 
 
+# Header names whose values are credentials and must never reach an error message.
+_SENSITIVE_HEADER_NAMES = frozenset({"authorization", "x-api-key", "api-key"})
+
+
+def scrub_secrets(text: str, headers: dict[str, str] | None = None) -> str:
+    """Redact credential header values from *text* before it is shown to a user.
+
+    Exceptions raised while building an HTTP request (e.g. an ``Authorization``
+    value with a stray CRLF from a Windows/WSL ``.env``) embed the raw header
+    value in their message. Interpolating that straight into a ``ProviderError``
+    leaks the API key to stdout, CI logs, and pasted bug reports. This scrubs any
+    credential header value — and its whitespace-stripped form, since the
+    exception ``repr`` escapes the trailing character — out of the message.
+    """
+    scrubbed = text
+    for name, value in (headers or {}).items():
+        if name.lower() not in _SENSITIVE_HEADER_NAMES or not value:
+            continue
+        # Redact the whole value and its trimmed form, plus each maximal run of
+        # non-whitespace characters. The last case matters because an exception
+        # embeds the header via repr(), which escapes control characters (a
+        # stray newline becomes a literal "\n"), so the raw value no longer
+        # matches — but its printable segments still appear verbatim.
+        variants = {value, value.strip(), *value.split()}
+        for variant in sorted(variants, key=len, reverse=True):
+            if len(variant) >= 4:
+                scrubbed = scrubbed.replace(variant, "***REDACTED***")
+    return scrubbed
+
+
 class EngineNotSupportedError(ProviderError):
     """Raised when no provider is registered for the requested engine."""
 
