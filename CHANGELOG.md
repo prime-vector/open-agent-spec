@@ -12,6 +12,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Canonical schema `spec/schema/oas-schema-1.6.json`** — 1.5 schema plus root-level and task-level `sandbox` definitions (`tools.allow/deny`, `http.allow_domains`, `file.allow_paths`), and `agent.role` loosened from a closed enum to a free-form string (role is informational; well-known values are RECOMMENDED). Additive: every valid 1.5.x document remains valid. The bundled runtime schema (`oas_cli/schemas/oas-schema.json`) is synced to the canonical 1.6 schema so `oa validate` and the formal spec share one source of truth.
 - **README repositioned around cost efficiency & effectiveness** — usage/cost observability and reasoning-effort tiers now lead the feature list, "Why This Exists" calls out untracked token spend, and the specification table points at the 1.6 artifacts.
 - **Multi-agent persona examples** now carry the required `agent.description`, so every bundled example validates against the canonical schema.
+
+### Security
+- **API key no longer leaked in provider error output** — when an API key carried an invalid header character (most commonly a trailing `\r` from a CRLF `.env` on Windows/WSL), the OpenAI and Anthropic providers interpolated the underlying exception — whose message embeds the raw `Authorization` / `x-api-key` value — straight into a user-facing `ProviderError`, printing the key in cleartext to the terminal and any CI logs. Keys are now stripped of surrounding whitespace on read (fixing the common CRLF trigger outright), and any credential header value is redacted from provider error messages as a defence-in-depth backstop for other malformed-key cases. The npm runtime was not affected by this path.
 - Conformance README notes that cases pin the **minimum** `open_agent_spec` version they require, not the suite version.
 
 ### Added (older, pre-1.4 notes)

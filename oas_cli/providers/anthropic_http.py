@@ -12,7 +12,7 @@ from oas_cli.reasoning import normalise_effort
 from oas_cli.tool_providers.base import InvokeResult, ToolCall
 from oas_cli.usage import from_anthropic
 
-from .base import IntelligenceProvider, InvokeOutcome, ProviderError
+from .base import IntelligenceProvider, InvokeOutcome, ProviderError, scrub_secrets
 
 _DEFAULT_ENDPOINT = "https://api.anthropic.com/v1/messages"
 # TODO: model names go stale — consider requiring specs to always declare
@@ -108,7 +108,8 @@ class AnthropicProvider(IntelligenceProvider):
         history: list[dict[str, Any]] | None = None,
     ) -> InvokeOutcome:
         api_key_env = config.get("api_key_env", "ANTHROPIC_API_KEY")
-        api_key = os.environ.get(api_key_env)
+        raw = os.environ.get(api_key_env)
+        api_key = raw.strip() if raw else raw
         if not api_key:
             raise ProviderError(
                 f"Anthropic API key not set — export {api_key_env} or set "
@@ -157,7 +158,8 @@ class AnthropicProvider(IntelligenceProvider):
             detail = exc.read().decode(errors="replace")
             raise ProviderError(f"Anthropic HTTP {exc.code}: {detail}") from exc
         except Exception as exc:
-            raise ProviderError(f"Anthropic request failed: {exc}") from exc
+            msg = scrub_secrets(str(exc), headers)
+            raise ProviderError(f"Anthropic request failed: {msg}") from exc
 
         try:
             text = _extract_text_blocks(data)
@@ -178,7 +180,8 @@ class AnthropicProvider(IntelligenceProvider):
         config: dict,
     ) -> InvokeResult:
         api_key_env = config.get("api_key_env", "ANTHROPIC_API_KEY")
-        api_key = os.environ.get(api_key_env)
+        raw = os.environ.get(api_key_env)
+        api_key = raw.strip() if raw else raw
         if not api_key:
             raise ProviderError(
                 f"Anthropic API key not set — export {api_key_env} or set "
@@ -236,7 +239,8 @@ class AnthropicProvider(IntelligenceProvider):
             detail = exc.read().decode(errors="replace")
             raise ProviderError(f"Anthropic HTTP {exc.code}: {detail}") from exc
         except Exception as exc:
-            raise ProviderError(f"Anthropic request failed: {exc}") from exc
+            msg = scrub_secrets(str(exc), headers)
+            raise ProviderError(f"Anthropic request failed: {msg}") from exc
 
         usage = from_anthropic(data.get("usage"))
         stop_reason = data.get("stop_reason")

@@ -210,6 +210,91 @@ class TestOpenAIProviderAuth:
                 config={"model": "gpt-4o", "api_key_env": "MISSING_KEY_ENV_XYZ"},
             )
 
+    def test_crlf_key_is_stripped_not_leaked(self):
+        """A CRLF-terminated key (Windows/WSL .env) must be trimmed, not sent raw.
+
+        Regression for the key-leak bug: the trailing ``\\r`` made an invalid
+        header, and the resulting error echoed the key in cleartext. The key is
+        now stripped on read, so the header is valid and the value carries no
+        stray whitespace.
+        """
+        headers = self._make_provider_call(
+            api_key_env="OPENAI_API_KEY",
+            env_vars={"OPENAI_API_KEY": "sk-test-crlf\r\n"},
+        )
+        assert headers["Authorization"] == "Bearer sk-test-crlf"
+
+
+# ---------------------------------------------------------------------------
+# Credential redaction in provider errors (issue #91)
+# ---------------------------------------------------------------------------
+
+
+class TestCredentialRedaction:
+    SECRET = "sk-proj-AbCdEf0123456789SecretKeyValue"
+
+    def test_scrub_secrets_redacts_bearer_header(self):
+        from oas_cli.providers.base import scrub_secrets
+
+        headers = {"Authorization": f"Bearer {self.SECRET}", "Content-Type": "x"}
+        # Message as an exception repr renders it — trailing char escaped.
+        msg = f"Invalid header value b'Bearer {self.SECRET}\\r'"
+        out = scrub_secrets(msg, headers)
+        assert self.SECRET not in out
+        assert "***REDACTED***" in out
+
+    def test_scrub_secrets_redacts_x_api_key_header(self):
+        from oas_cli.providers.base import scrub_secrets
+
+        headers = {"x-api-key": self.SECRET}
+        out = scrub_secrets(f"bad header b'{self.SECRET}'", headers)
+        assert self.SECRET not in out
+
+    def test_scrub_secrets_leaves_non_secret_headers_untouched(self):
+        from oas_cli.providers.base import scrub_secrets
+
+        headers = {"Content-Type": "application/json"}
+        msg = "some error mentioning application/json"
+        assert scrub_secrets(msg, headers) == msg
+
+    def test_openai_provider_error_does_not_leak_key(self):
+        """End-to-end: an un-strippable illegal char in the key must not leak.
+
+        An embedded newline survives ``.strip()``, so header construction still
+        fails — this exercises the ``except`` redaction path, offline (the error
+        is raised while building the request, before any socket I/O).
+        """
+
+        bad_key = "sk-proj-abc\ndef-embedded-newline"  # mid-string \n survives strip()
+        with patch.dict("os.environ", {"OPENAI_API_KEY": bad_key}, clear=False):
+            with pytest.raises(ProviderError) as exc_info:
+                OpenAIProvider().invoke(
+                    system="s",
+                    user="u",
+                    config={
+                        "model": "gpt-4o",
+                        "endpoint": "https://api.openai.com/v1/chat/completions",
+                    },
+                )
+        msg = str(exc_info.value)
+        assert bad_key not in msg
+        assert "abc" not in msg or "***REDACTED***" in msg
+
+    def test_anthropic_provider_error_does_not_leak_key(self):
+
+        bad_key = "sk-ant-abc\ndef-embedded-newline"
+        with patch.dict("os.environ", {"ANTHROPIC_API_KEY": bad_key}, clear=False):
+            with pytest.raises(ProviderError) as exc_info:
+                AnthropicProvider().invoke(
+                    system="s",
+                    user="u",
+                    config={
+                        "model": "claude-3-5-sonnet-20241022",
+                        "endpoint": "https://api.anthropic.com/v1/messages",
+                    },
+                )
+        assert bad_key not in str(exc_info.value)
+
 
 # ---------------------------------------------------------------------------
 # CustomProvider
