@@ -16,11 +16,12 @@ guises that the word *loop* papers over:
 - **Map over a collection** — run the same task once per item in a list and
   gather the results.
 
-The pressure is to "add loops to OA". But OA **already runs a loop**: the
-tool-calling loop in the reference runtime is bounded at
-`_MAX_TOOL_ITERATIONS` and raises a structured error when the budget is
-exhausted rather than spinning forever. So the question is not *whether* OA
-loops — it already does, in exactly one disciplined way. The question is which
+The pressure is to "add loops to OA". But OA **already specifies a loop**: the
+tool-call loop is normative (§12.3). A runtime MUST enforce a maximum
+iteration limit — the reference implementation uses 10 — and MUST raise
+`RUN_ERROR` when it is exceeded rather than spinning forever, carrying the
+usage accumulated so far. So the question is not *whether* OA loops — it
+already does, in exactly one disciplined and spec'd way. The question is which
 of the other shapes, if any, belong inside the spec.
 
 ## The question
@@ -43,7 +44,7 @@ those boundaries. Sorted by what OA can see *before* the first token:
 
 | Loop | What it is | Termination | Verdict |
 |---|---|---|---|
-| **A. Tool-calling loop** | Model calls tools until done | Bounded iteration cap, structured error | ✅ Already in — name it, don't reinvent it |
+| **A. Tool-calling loop** | Model calls tools until done | Bounded iteration cap, structured error (§12.3) | ✅ Already spec'd — name it, don't reinvent it |
 | **B. Bounded map / fan-out** | Run a task once per item in an input array | Fixed by the array length + a ceiling | 🟡 Compatible if bounded — worth a design |
 | **C. Conditional / until-good** | Loop until a runtime predicate says stop | Depends on a value only knowable at runtime | 🔴 Out — belongs above the spec |
 
@@ -67,12 +68,25 @@ boundary decision: no orchestration, no conditionals, no `skill:` task type.
 
 ## What this proposal recommends
 
-**A — Accept, and surface it (small, near-term).** Promote the hardcoded
-tool-iteration cap into a declared, schema-validated field (working name
-`intelligence.config.max_iterations`), defaulting to today's value. This adds
-no new behaviour — it names the loop OA already runs, gives users a validated
-knob, and lets the existing usage/cost accounting report against a declared
+**A — Accept, and surface it (small, near-term).** The §12.3 iteration limit is
+normative but not author-controllable; promote it into a declared,
+schema-validated field defaulting to today's value. This adds no new behaviour
+— it names the loop OA already specifies, gives authors a validated knob, and
+lets the existing usage/cost accounting (§10.2) report against a declared
 budget. Fully in-boundary: declarative, bounded, runner-enforced.
+
+Two decisions belong to the follow-up schema PR, not this proposal:
+
+- **Placement.** The tool-call loop is *per-task* — `tools:` is declared on
+  individual tasks — but `intelligence.config` is spec-global. The schema PR
+  should choose between a global default with a per-task override, a
+  task-scoped field (e.g. under `tools:`), or both. A per-task override is the
+  natural fit, since one task may fan through many tool turns while another
+  makes a single call.
+- **Naming.** Avoid the bare `max_iterations`: `examples/multi-agent/loop.py`
+  already uses `max_iterations` for its *orchestration* loop count — a
+  different concept (see pattern C). Prefer `max_tool_iterations` (or similar)
+  so the tool-loop cap is never confused with an orchestration bound.
 
 **B — Accept in principle, design deliberately (the real work).** A bounded
 map — run task `T` once per element of an input array, collect the outputs in
@@ -92,15 +106,34 @@ not, and this is where the design lives:
   usage/cost sums across elements (as it already does across tool turns);
   `depends_on` sees the mapped task as one node.
 
+**This is a new construct, not a loosening of `depends_on`.** §7.3 permanently
+excludes parallel fan-out (among other things) *for `depends_on`* — and that
+refusal stands. Bounded map does not touch it: a mapped task is a single node
+in the `depends_on` DAG whose *internal* execution repeats over an input array.
+`depends_on` remains strictly acyclic, direct-only, and sequential; the map
+lives one level down, inside a single task, over data — not as edges in the
+dependency graph. The §7.3 refusal is about control flow *between* tasks; B is
+data iteration *within* one.
+
+**Bounding count is not bounding cost.** The array length plus a ceiling bounds
+the *number* of iterations, but each element can still drive its own §12.3
+tool-call loop. So a bounded map caps fan-out; per-element cost stays governed
+by the existing tool-loop limit and by usage accounting (§10.2), which sums
+across every element. The ceiling makes the run *analysable*, not necessarily
+cheap — worth stating so nobody reads "bounded" as "small".
+
 Because B touches the schema, it ships as its own proposal + PR once this
 document sets the direction. It is called out here so the boundary is drawn
 around it deliberately, not by accident.
 
 **C — Refuse, and document the pattern instead.** Conditional, until-good, and
-feedback loops do not enter the schema. The moment a spec's control flow
-depends on a runtime predicate, OA loses static analysability, reproducibility,
-and its acyclic guarantee — every property that makes a spec a contract. The
-supported pattern is the same shape as markdown-interop:
+feedback loops do not enter the schema. This is not a new refusal: §7.3 already
+places *conditional execution (if/else)*, *loop control (while/for)*, and
+*retry semantics* permanently out of scope — C is those same items, named as a
+feature request rather than a `depends_on` sub-clause. The moment a spec's
+control flow depends on a runtime predicate, OA loses static analysability,
+reproducibility, and its acyclic guarantee — every property that makes a spec a
+contract. The supported pattern is the same shape as markdown-interop:
 
 > The orchestrator loops. Each turn it runs an OA spec. OA never owns the loop.
 
@@ -108,6 +141,14 @@ Behavioural Contracts (BCE) is the layer that owns this: an until-good refine
 loop is a BCE (or caller) concern that invokes a deterministic OA spec on each
 pass. Keeping OA as the deterministic unit is precisely what makes the loop
 above it safe to reason about.
+
+This pattern already exists in-repo. `examples/multi-agent/loop.py`
+(`OrchestrationLoop`) drives a multi-agent workflow from objective to
+completion — a `while not complete and iterations < max_iterations` loop that
+invokes OA specs each pass. The loop, the predicate, and the iteration bound
+live in the orchestrator; the specs it calls stay deterministic units. That is
+exactly the division C prescribes, and it is why C needs no schema surface: the
+place to write these loops already exists, one layer up.
 
 ## What we explicitly refuse
 
@@ -119,6 +160,10 @@ future proposal:
 - ❌ A task output feeding back as its own input (a cycle — barred by
   `depends_on` acyclicity and the cycle-detection guarantee)
 - ❌ Unbounded iteration of any kind, or a map without a validated ceiling
+- ❌ Retry-with-backoff on task failure (retry semantics are already out of
+  scope per §7.3; a caller that wants retries owns that loop)
+- ❌ "Run until confidence ≥ X" / judge-driven refinement — the archetypal
+  pattern C, and a Behavioural Contracts concern, not a spec construct
 
 The moment termination depends on a runtime judgement, OA inherits every
 problem it is currently immune to.
