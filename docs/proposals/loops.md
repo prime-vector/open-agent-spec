@@ -71,10 +71,10 @@ boundary decision: no orchestration, no conditionals, no `skill:` task type.
 **A — Accept, and surface it (small, near-term).** The §12.3 iteration limit is
 normative but not author-controllable; promote it into a declared,
 schema-validated field (working name `max_tool_iterations`) defaulting to
-today's value. This adds no new behaviour
-— it names the loop OA already specifies, gives authors a validated knob, and
-lets the existing usage/cost accounting (§10.2) report against a declared
-budget. Fully in-boundary: declarative, bounded, runner-enforced.
+today's value. This adds no new behaviour — it names the loop OA already
+specifies, gives authors a validated knob, and lets the existing usage/cost
+accounting (§10.2) report against a declared budget. Fully in-boundary:
+declarative, bounded, runner-enforced.
 
 Two decisions belong to the follow-up schema PR, not this proposal:
 
