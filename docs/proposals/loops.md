@@ -70,7 +70,8 @@ boundary decision: no orchestration, no conditionals, no `skill:` task type.
 
 **A — Accept, and surface it (small, near-term).** The §12.3 iteration limit is
 normative but not author-controllable; promote it into a declared,
-schema-validated field defaulting to today's value. This adds no new behaviour
+schema-validated field (working name `max_tool_iterations`) defaulting to
+today's value. This adds no new behaviour
 — it names the loop OA already specifies, gives authors a validated knob, and
 lets the existing usage/cost accounting (§10.2) report against a declared
 budget. Fully in-boundary: declarative, bounded, runner-enforced.
@@ -172,9 +173,12 @@ problem it is currently immune to.
 
 If bounded map (B) proves its worth, a natural follow-on is parallel fan-out
 of the mapped elements — a runtime optimisation *under* the same bounded,
-order-preserving contract, not a new spec surface. As with the `oa skill
-package` idea in the markdown-interop proposal, this is tooling on top of the
-boundary and should not be built until the demand is real.
+order-preserving contract, not a new spec surface. It would still be capped by
+the same fan-out ceiling and MUST collect results in input order: parallel
+means concurrent execution of a bounded, ordered map, never an unbounded or
+order-dependent one. As with the `oa skill package` idea in the
+markdown-interop proposal, this is tooling on top of the boundary and should
+not be built until the demand is real.
 
 ## How we manage it
 
@@ -184,6 +188,12 @@ boundary and should not be built until the demand is real.
   "bounded, ordered, fail-closed, ceilinged".
 - **C** joins "no orchestration" and "no skills task type" as a boundary
   cited in future feature discussions.
+- **On Proposed → Accepted**, mirror the markdown-interop treatment: a short
+  README blurb and an `AGENTS.md` pointer so the boundary is discoverable, not
+  buried in `docs/proposals/`. (A later PR, not this one.)
+- **The schema PR for A** must land npm-runtime parity and a conformance case
+  alongside the Python change, so `max_tool_iterations` is enforced identically
+  across runtimes rather than in the reference implementation alone.
 - If the industry's loop patterns standardise into something bounded and
   declarable, we reassess via a new proposal — from a position of a clear
   boundary rather than an ad-hoc addition.
