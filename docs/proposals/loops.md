@@ -100,9 +100,17 @@ not, and this is where the design lives:
 - **Failure semantics** — fail-closed by default (one element errors → the
   task errors, consistent with OA's fail-closed posture), with any
   collect-partial-results mode as an explicit opt-in, not the default.
-- **A fan-out ceiling** — a maximum element count, exceeding which is a
-  *statically detectable* error raised before execution (§7), so an unbounded
-  input can never silently become an unbounded run.
+- **A fan-out ceiling** — a maximum element count, exceeding which is an
+  error raised before any per-element invocation, so an unbounded input can
+  never silently become an unbounded run. When the input array is literal in
+  the spec, this is a §7 pre-execution static error like any other. When the
+  array arrives at runtime — e.g. via a `depends_on` merge from an upstream
+  LLM task — its length is not knowable at chain entry, so the ceiling is
+  instead validated against the *resolved* input at the start of the mapped
+  task, after the merge but before the first element runs. Either way, no
+  element spends a token past the ceiling; "statically detectable" here means
+  the ceiling itself is declared and validated in the schema, not that every
+  input's length is knowable from the YAML alone.
 - **Interaction with existing features** — sandbox applies per element;
   usage/cost sums across elements (as it already does across tool turns);
   `depends_on` sees the mapped task as one node.
@@ -191,9 +199,14 @@ not be built until the demand is real.
 - **On Proposed → Accepted**, mirror the markdown-interop treatment: a short
   README blurb and an `AGENTS.md` pointer so the boundary is discoverable, not
   buried in `docs/proposals/`. (A later PR, not this one.)
-- **The schema PR for A** must land npm-runtime parity and a conformance case
-  alongside the Python change, so `max_tool_iterations` is enforced identically
-  across runtimes rather than in the reference implementation alone.
+- **The schema PR for A** is capability-scoped to `tools:`. The field lands in
+  the schema for every runtime, with a conformance case, and is enforced
+  wherever tool calling exists — today that is the Python runtime. The npm
+  runtime currently refuses `tools:` outright (`UNSUPPORTED_FEATURE`), and the
+  honesty rule already covers it: a runtime that refuses the capability refuses
+  the cap with it, rather than accepting a field it cannot honour. If tool
+  support lands on npm, `max_tool_iterations` enforcement lands with it, not
+  after it.
 - If the industry's loop patterns standardise into something bounded and
   declarable, we reassess via a new proposal — from a position of a clear
   boundary rather than an ad-hoc addition.
