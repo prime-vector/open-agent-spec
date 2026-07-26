@@ -536,6 +536,26 @@ Full rationale: [docs/proposals/markdown-interop.md](docs/proposals/markdown-int
 
 ---
 
+## Does OA Have Loops?
+
+Exactly one, and it is already normative: the tool-calling loop, bounded by a
+runner-enforced iteration cap with a structured error when it is exceeded.
+For every other loop shape the line is:
+
+> **OA iterates over data it can see before the first token. It never loops
+> on a condition it can only evaluate at runtime.**
+
+- A **bounded map** (run a task once per element of an input array) is
+  compatible and accepted in principle — to be designed as its own construct,
+  never a loosening of `depends_on`.
+- **Conditional / until-good loops** stay out of the spec. The supported
+  pattern: the orchestrator loops, each turn it runs an OA spec, and OA never
+  owns the loop — see [examples/multi-agent/](examples/multi-agent/).
+
+Full rationale: [docs/proposals/loops.md](docs/proposals/loops.md).
+
+---
+
 ## Generate a Python Scaffold
 
 If you want editable generated code instead of running the YAML directly:

@@ -13,6 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **README repositioned around cost efficiency & effectiveness** — usage/cost observability and reasoning-effort tiers now lead the feature list, "Why This Exists" calls out untracked token spend, and the specification table points at the 1.6 artifacts.
 - **Multi-agent persona examples** now carry the required `agent.description`, so every bundled example validates against the canonical schema.
 - Conformance README notes that cases pin the **minimum** `open_agent_spec` version they require, not the suite version.
+- **Loops proposal accepted** ([docs/proposals/loops.md](docs/proposals/loops.md)) — OA's one loop is the already-normative tool-call loop; a bounded map over input data is accepted in principle as a future construct; conditional/until-good iteration is permanently out of scope (the orchestrator above OA owns those loops). README section and AGENTS.md pointer added so the boundary is discoverable.
 
 ### Added (older, pre-1.4 notes)
 - This changelog.
