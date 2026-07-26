@@ -1,6 +1,6 @@
 # Proposal: Loops and Iteration in Open Agent Spec
 
-**Status:** Proposed
+**Status:** Accepted
 **Scope:** Design decision — determines what, if anything, enters the schema. This document is docs-only; any schema change is a separate follow-up PR.
 **Author:** Prime Vector / Open Agent Spec maintainers
 
