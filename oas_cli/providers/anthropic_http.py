@@ -159,7 +159,9 @@ class AnthropicProvider(IntelligenceProvider):
             raise ProviderError(f"Anthropic HTTP {exc.code}: {detail}") from exc
         except Exception as exc:
             msg = scrub_secrets(str(exc), headers)
-            raise ProviderError(f"Anthropic request failed: {msg}") from exc
+            # `from None`, not `from exc`: see the note in openai_http.py — a chained
+            # __cause__ leaks the raw credential header in full tracebacks.
+            raise ProviderError(f"Anthropic request failed: {msg}") from None
 
         try:
             text = _extract_text_blocks(data)
@@ -240,7 +242,9 @@ class AnthropicProvider(IntelligenceProvider):
             raise ProviderError(f"Anthropic HTTP {exc.code}: {detail}") from exc
         except Exception as exc:
             msg = scrub_secrets(str(exc), headers)
-            raise ProviderError(f"Anthropic request failed: {msg}") from exc
+            # `from None`, not `from exc`: see the note in openai_http.py — a chained
+            # __cause__ leaks the raw credential header in full tracebacks.
+            raise ProviderError(f"Anthropic request failed: {msg}") from None
 
         usage = from_anthropic(data.get("usage"))
         stop_reason = data.get("stop_reason")

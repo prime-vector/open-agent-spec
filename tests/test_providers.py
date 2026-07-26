@@ -277,8 +277,15 @@ class TestCredentialRedaction:
                     },
                 )
         msg = str(exc_info.value)
-        assert bad_key not in msg
-        assert "abc" not in msg or "***REDACTED***" in msg
+        # Assert on the printable segments, not on `bad_key` itself: the exception
+        # repr escapes the newline, so the raw string is never in `msg` regardless
+        # of whether scrubbing ran — that assertion alone would be vacuous.
+        assert "sk-proj-abc" not in msg
+        assert "def-embedded-newline" not in msg
+        assert "***REDACTED***" in msg
+        # Scrubbing the message is not enough: a chained __cause__ would re-expose
+        # the raw header in any full traceback.
+        assert exc_info.value.__cause__ is None
 
     def test_anthropic_provider_error_does_not_leak_key(self):
 
@@ -293,7 +300,12 @@ class TestCredentialRedaction:
                         "endpoint": "https://api.anthropic.com/v1/messages",
                     },
                 )
-        assert bad_key not in str(exc_info.value)
+        msg = str(exc_info.value)
+        # Printable segments, for the same reason as the OpenAI case above.
+        assert "sk-ant-abc" not in msg
+        assert "def-embedded-newline" not in msg
+        assert "***REDACTED***" in msg
+        assert exc_info.value.__cause__ is None
 
 
 # ---------------------------------------------------------------------------
