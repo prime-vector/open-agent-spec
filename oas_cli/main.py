@@ -14,6 +14,7 @@ import typer
 from rich.console import Console
 from rich.logging import RichHandler
 from rich.panel import Panel
+from typer.core import TyperGroup
 
 from .core import generate_files as core_generate_files
 from .core import validate_spec_file
@@ -368,9 +369,49 @@ def init_aac(
 
 app.add_typer(init_app, name="init")
 
-# Validate: single spec (oa validate --spec path) or all .agents/ (oa validate aac)
+
+# Validate: single spec (oa validate spec.yaml / --spec path) or all .agents/
+# (oa validate aac)
+class _ValidateGroup(TyperGroup):
+    """Accept a bare spec path: `oa validate spec.yaml`.
+
+    `validate` is a command group, so a leading positional token is resolved as
+    a subcommand name — a bare path would fail with "No such command
+    'spec.yaml'". A leading *.yaml/*.yml token that isn't a known subcommand is
+    rewritten to `--spec` before parsing; anything else keeps subcommand
+    resolution (so `oa validate aac` and typo errors are unaffected).
+    """
+
+    # Untyped on purpose: typer vendors its own click fork, so annotating with
+    # the public click types would not match the objects passed at runtime.
+    def parse_args(self, ctx, args):
+        if (
+            args
+            and not args[0].startswith("-")
+            and args[0] not in self.commands
+            and args[0].lower().endswith((".yaml", ".yml"))
+        ):
+            if any(a == "--spec" or a.startswith("--spec=") for a in args):
+                ctx.fail(
+                    "Pass the spec path either as a bare argument or with "
+                    "--spec, not both."
+                )
+            args = ["--spec", *args]
+        return super().parse_args(ctx, args)
+
+    def resolve_command(self, ctx, args):
+        if args and not args[0].startswith("-") and args[0] not in self.commands:
+            ctx.fail(
+                f"No such command '{args[0]}'. Valid forms: "
+                "'oa validate <spec.yaml>', 'oa validate --spec <path>', "
+                "or 'oa validate aac'."
+            )
+        return super().resolve_command(ctx, args)
+
+
 validate_app = typer.Typer(
     name="validate",
+    cls=_ValidateGroup,
     help="Validate spec file(s) against the Open Agent Spec schema (no model calls).",
 )
 
@@ -382,11 +423,14 @@ def validate_callback(
         None, "--spec", help="Path to a single Open Agent Spec YAML file"
     ),
 ):
-    """Validate one spec file. Use 'oa validate aac' to validate all specs in .agents/."""
+    """Validate one spec file (oa validate spec.yaml). Use 'oa validate aac' to validate all specs in .agents/."""
     if ctx.invoked_subcommand is not None:
         return
     if spec is None:
-        console.print("Specify [bold]--spec path[/] or use [bold]oa validate aac[/].")
+        console.print(
+            "Specify a spec path ([bold]oa validate spec.yaml[/] or "
+            "[bold]--spec path[/]) or use [bold]oa validate aac[/]."
+        )
         raise typer.Exit(1)
     log = setup_logging(verbose=False)
     try:

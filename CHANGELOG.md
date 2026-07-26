@@ -17,6 +17,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Security
 - **API key no longer leaked in provider error output** — when an API key carried an invalid header character (most commonly a trailing `\r` from a CRLF `.env` on Windows/WSL), the OpenAI and Anthropic providers interpolated the underlying exception — whose message embeds the raw `Authorization` / `x-api-key` value — straight into a user-facing `ProviderError`, printing the key in cleartext to the terminal and any CI logs. Keys are now stripped of surrounding whitespace on read (fixing the common CRLF trigger outright), and any credential header value is redacted from provider error messages as a defence-in-depth backstop for other malformed-key cases. The scrubbed `ProviderError` is also raised with `from None` rather than chaining the original exception, so the raw header cannot resurface via `__cause__` in a full traceback. The npm runtime was not affected by this path, but now trims its API keys on read for parity.
 
+### Fixed
+- **`oa validate <spec.yaml>` now works without `--spec`** — a bare spec path used to be resolved as a subcommand name and fail with an unhelpful `No such command '<path>'`. A leading `*.yaml`/`*.yml` argument is now treated as an implicit `--spec`; `oa validate aac` routing, `--spec`, and typo errors are unchanged, passing both a bare path and `--spec` is an explicit error, and the "no such command" message now names the valid invocation forms. (#94)
+
 ### Added (older, pre-1.4 notes)
 - This changelog.
 - **Agents-as-code documentation** — new section in REFERENCE.md explaining the `.agents/` pattern, bundled examples table, and scaffold/run/generate workflows.
