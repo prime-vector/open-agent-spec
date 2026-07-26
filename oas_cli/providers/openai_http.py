@@ -260,7 +260,10 @@ def _http_post_raw(
         raise ProviderError(f"OpenAI HTTP {exc.code}: {detail}") from exc
     except Exception as exc:
         msg = scrub_secrets(str(exc), all_headers)
-        raise ProviderError(f"OpenAI request failed: {msg}") from exc
+        # `from None`, not `from exc`: the original exception message can embed the
+        # raw credential header, and a chained __cause__ still surfaces it in any
+        # full traceback even though `msg` here is scrubbed.
+        raise ProviderError(f"OpenAI request failed: {msg}") from None
 
 
 def _extract_text(data: dict, url: str) -> str:
