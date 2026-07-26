@@ -13,6 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **README repositioned around cost efficiency & effectiveness** — usage/cost observability and reasoning-effort tiers now lead the feature list, "Why This Exists" calls out untracked token spend, and the specification table points at the 1.6 artifacts.
 - **Multi-agent persona examples** now carry the required `agent.description`, so every bundled example validates against the canonical schema.
 - Conformance README notes that cases pin the **minimum** `open_agent_spec` version they require, not the suite version.
+- **Hierarchy roles `commander` and `coordinator`** join the well-known `agent.role` values (schema descriptions, spec §4.1, docs) — informational like every role value; a runtime MUST NOT gate delegation or any other behaviour on `role`. The website playground validator, which still enforced the pre-1.6 closed role enum and rejected specs that `oa validate` accepts, now matches the canonical schema's free-form `role`. (#95)
 
 ### Added (older, pre-1.4 notes)
 - This changelog.
