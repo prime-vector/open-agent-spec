@@ -10,7 +10,8 @@ export async function invokeAnthropic(
   config: ProviderConfig,
   history?: ChatMessage[],
 ): Promise<string> {
-  const apiKey = process.env["ANTHROPIC_API_KEY"];
+  // Trimmed on read for parity with the Python runtime — see openai.ts.
+  const apiKey = process.env["ANTHROPIC_API_KEY"]?.trim();
   if (!apiKey) {
     throw new OAError(
       "Missing environment variable ANTHROPIC_API_KEY",
