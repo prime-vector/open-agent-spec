@@ -61,5 +61,10 @@ python -m spec.conformance.harness.harness --adapter python --adapter node
   branching in specs, no prose-as-contract. Read
   `docs/proposals/markdown-interop.md` before proposing integrations with
   markdown agent patterns (AGENTS.md / SKILL.md).
+- Loops follow the same discipline: the tool-call loop is already spec'd and
+  bounded; a bounded map over input data is the only candidate construct;
+  conditional / until-good iteration belongs to the orchestrator above OA,
+  never the spec. Read `docs/proposals/loops.md` before proposing loop or
+  iteration features.
 - Use `OA` (not `OAS`) in prose; technical identifiers like `oas_cli/` and
   `oas-schema-*.json` keep their existing names.

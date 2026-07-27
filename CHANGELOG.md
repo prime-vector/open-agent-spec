@@ -14,6 +14,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Multi-agent persona examples** now carry the required `agent.description`, so every bundled example validates against the canonical schema.
 - Conformance README notes that cases pin the **minimum** `open_agent_spec` version they require, not the suite version.
 - **Hierarchy roles `commander` and `coordinator`** join the well-known `agent.role` values (schema descriptions, spec §4.1, docs) — informational like every role value; a runtime MUST NOT gate delegation or any other behaviour on `role`. The website playground validator, which still enforced the pre-1.6 closed role enum and rejected specs that `oa validate` accepts, now matches the canonical schema's free-form `role`. (#95)
+- **Loops proposal accepted** ([docs/proposals/loops.md](docs/proposals/loops.md)) — OA's one loop is the already-normative tool-call loop; a bounded map over input data is accepted in principle as a future construct; conditional/until-good iteration is permanently out of scope (the orchestrator above OA owns those loops). README section and AGENTS.md pointer added so the boundary is discoverable.
+
+### Security
+- **API key no longer leaked in provider error output** — when an API key carried an invalid header character (most commonly a trailing `\r` from a CRLF `.env` on Windows/WSL), the OpenAI and Anthropic providers interpolated the underlying exception — whose message embeds the raw `Authorization` / `x-api-key` value — straight into a user-facing `ProviderError`, printing the key in cleartext to the terminal and any CI logs. Keys are now stripped of surrounding whitespace on read (fixing the common CRLF trigger outright), and any credential header value is redacted from provider error messages as a defence-in-depth backstop for other malformed-key cases. The scrubbed `ProviderError` is also raised with `from None` rather than chaining the original exception, so the raw header cannot resurface via `__cause__` in a full traceback. The npm runtime was not affected by this path, but now trims its API keys on read for parity.
+
+### Fixed
+- **`oa validate <spec.yaml>` now works without `--spec`** — a bare spec path used to be resolved as a subcommand name and fail with an unhelpful `No such command '<path>'`. A leading `*.yaml`/`*.yml` argument is now treated as an implicit `--spec`; `oa validate aac` routing, `--spec`, and typo errors are unchanged, passing both a bare path and `--spec` is an explicit error, and the "no such command" message now names the valid invocation forms. (#94)
 
 ### Added (older, pre-1.4 notes)
 - This changelog.

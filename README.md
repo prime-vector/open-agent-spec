@@ -174,7 +174,7 @@ prompts:
 Validate first, then run:
 
 ```bash
-oa validate --spec agent.yaml
+oa validate agent.yaml
 oa run --spec agent.yaml --task greet --input '{"name":"Alice"}' --quiet
 ```
 
@@ -238,7 +238,7 @@ tasks:
     # ... prompts
 ```
 
-`depends_on` is a **data contract**, not execution control. OA has no branching, loops, or conditionals by design. See [`examples/multi-task/`](examples/multi-task/).
+`depends_on` is a **data contract**, not execution control. The task graph has no branching, loops, or conditionals by design — the one loop OA owns is the bounded tool-call loop (see [Does OA Have Loops?](#does-oa-have-loops)). See [`examples/multi-task/`](examples/multi-task/).
 
 ---
 
@@ -536,6 +536,26 @@ Full rationale: [docs/proposals/markdown-interop.md](docs/proposals/markdown-int
 
 ---
 
+## Does OA Have Loops?
+
+Exactly one, and it is already normative: the tool-calling loop, bounded by a
+runner-enforced iteration cap with a structured error when it is exceeded.
+For every other loop shape the line is:
+
+> **OA iterates over data it can see before the first token. It never loops
+> on a condition it can only evaluate at runtime.**
+
+- A **bounded map** (run a task once per element of an input array) is
+  compatible and accepted in principle — to be designed as its own construct,
+  never a loosening of `depends_on`.
+- **Conditional / until-good loops** stay out of the spec. The supported
+  pattern: the orchestrator loops, each turn it runs an OA spec, and OA never
+  owns the loop — see [examples/multi-agent/](examples/multi-agent/).
+
+Full rationale: [docs/proposals/loops.md](docs/proposals/loops.md).
+
+---
+
 ## Generate a Python Scaffold
 
 If you want editable generated code instead of running the YAML directly:
@@ -585,7 +605,7 @@ OA deliberately does not prescribe:
 |--------|--------|
 | `oa init aac` | Create `.agents/` with starter specs |
 | `oa validate aac` | Validate all specs in `.agents/` |
-| `oa validate --spec agent.yaml` | Validate one spec |
+| `oa validate agent.yaml` | Validate one spec (`--spec agent.yaml` also works) |
 | `oa test agent.test.yaml` | Run YAML eval cases (model + assertions on task output); `--quiet` for CI JSON |
 | `oa run --spec agent.yaml --task greet --input '{"name":"Alice"}' --quiet` | Run one task directly from YAML |
 | `oa init --spec agent.yaml --output ./agent` | Generate a Python scaffold |

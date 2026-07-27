@@ -25,7 +25,10 @@ export async function invokeOpenAI(
   const engine = config.engine.toLowerCase();
   const base = ENGINE_BASES[engine] ?? DEFAULT_BASE;
   const envKey = ENGINE_ENV_KEYS[engine] ?? "OPENAI_API_KEY";
-  const apiKey = process.env[envKey];
+  // Trimmed on read for parity with the Python runtime: a CRLF `.env` leaves a
+  // trailing `\r` on the value. No leak to fix here (this runtime never
+  // interpolates the header into an error), just the same hygiene.
+  const apiKey = process.env[envKey]?.trim();
 
   if (!apiKey) {
     throw new OAError(
