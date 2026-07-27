@@ -1,0 +1,63 @@
+name: Publish to npm
+
+on:
+  workflow_dispatch:
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+
+    permissions:
+      id-token: write
+      contents: read
+
+    environment:
+      name: npm
+      url: https://www.npmjs.com/package/@prime-vector/open-agent-spec
+
+    defaults:
+      run:
+        working-directory: npm
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          registry-url: "https://registry.npmjs.org"
+
+      # Trusted publishing (OIDC) requires npm >= 11.5.1; the npm bundled
+      # with Node 20 is older.
+      - name: Update npm
+        run: npm install -g npm@latest
+
+      - name: Verify version matches tag (only if ref is a v* tag)
+        shell: bash
+        run: |
+          set -euo pipefail
+          REF="${GITHUB_REF}"
+
+          if [[ "$REF" == refs/tags/v* ]]; then
+            TAG_VERSION="${REF#refs/tags/v}"
+            PKG_VERSION="$(node -p "require('./package.json').version")"
+            if [[ "$TAG_VERSION" != "$PKG_VERSION" ]]; then
+              echo "Version in npm/package.json ($PKG_VERSION) does not match tag version ($TAG_VERSION)"
+              exit 1
+            fi
+          else
+            echo "Not running on a v* tag ($REF); skipping tag/version verification."
+          fi
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Test
+        run: npm test
+
+      # No token: with a trusted publisher configured on npmjs.com for this
+      # repo + workflow, npm publish authenticates via the job's OIDC identity
+      # and generates provenance automatically. prepublishOnly runs the build.
+      - name: Publish to npm (OIDC / Trusted Publishing)
+        run: npm publish
