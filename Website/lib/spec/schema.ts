@@ -17,10 +17,9 @@ export const oasSchema = {
       properties: {
         name: { type: "string" },
         description: { type: "string" },
-        role: {
-          type: "string",
-          enum: ["analyst", "reviewer", "chat", "retriever", "planner", "executor"],
-        },
+        // Free-form since 1.6 — role is informational; well-known values are
+        // RECOMMENDED, not enforced. Keep in sync with the canonical schema.
+        role: { type: "string" },
       },
       required: ["name", "description"],
     },

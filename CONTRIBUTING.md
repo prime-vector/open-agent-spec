@@ -38,7 +38,7 @@ intelligence:
 2. **`agent`** section:
    - `name`: A unique identifier for your agent (kebab-case; will be converted to snake_case for Python)
    - `description`: A clear description of what your agent does
-   - `role`: Optional; one of analyst, reviewer, chat, retriever, planner, executor
+   - `role`: Optional free-form string; well-known values: analyst, reviewer, chat, retriever, planner, executor, commander, coordinator
 
 3. **`intelligence`** section:
    - `engine`: LLM provider (e.g. openai, anthropic, grok, cortex, codex, local, custom)

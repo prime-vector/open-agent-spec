@@ -12,7 +12,7 @@ open_agent_spec: "1.5.0"
 agent:
   name: "hello-world-agent"
   description: "A simple agent"
-  role: "chat"   # optional: analyst, reviewer, chat, retriever, planner, executor
+  role: "chat"   # optional, free-form; well-known: analyst, reviewer, chat, retriever, planner, executor, commander, coordinator
 
 intelligence:
   type: "llm"
