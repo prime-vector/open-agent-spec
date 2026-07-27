@@ -238,7 +238,7 @@ tasks:
     # ... prompts
 ```
 
-`depends_on` is a **data contract**, not execution control. OA has no branching, loops, or conditionals by design. See [`examples/multi-task/`](examples/multi-task/).
+`depends_on` is a **data contract**, not execution control. The task graph has no branching, loops, or conditionals by design — the one loop OA owns is the bounded tool-call loop (see [Does OA Have Loops?](#does-oa-have-loops)). See [`examples/multi-task/`](examples/multi-task/).
 
 ---
 
