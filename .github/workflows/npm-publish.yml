@@ -33,21 +33,26 @@ jobs:
       - name: Update npm
         run: npm install -g npm@latest
 
-      - name: Verify version matches tag (only if ref is a v* tag)
+      # Publishing is allowed only from a release tag: a branch dispatch would
+      # let unreviewed code reach the registry, so it hard-fails here (and the
+      # npm environment's deployment policy enforces the same restriction).
+      - name: Verify ref is a v* tag and version matches
         shell: bash
         run: |
           set -euo pipefail
           REF="${GITHUB_REF}"
 
-          if [[ "$REF" == refs/tags/v* ]]; then
-            TAG_VERSION="${REF#refs/tags/v}"
-            PKG_VERSION="$(node -p "require('./package.json').version")"
-            if [[ "$TAG_VERSION" != "$PKG_VERSION" ]]; then
-              echo "Version in npm/package.json ($PKG_VERSION) does not match tag version ($TAG_VERSION)"
-              exit 1
-            fi
-          else
-            echo "Not running on a v* tag ($REF); skipping tag/version verification."
+          if [[ "$REF" != refs/tags/v* ]]; then
+            echo "This workflow publishes only from a v* tag (got $REF)."
+            echo "Dispatch it against the release tag, e.g. --ref v1.6.0."
+            exit 1
+          fi
+
+          TAG_VERSION="${REF#refs/tags/v}"
+          PKG_VERSION="$(node -p "require('./package.json').version")"
+          if [[ "$TAG_VERSION" != "$PKG_VERSION" ]]; then
+            echo "Version in npm/package.json ($PKG_VERSION) does not match tag version ($TAG_VERSION)"
+            exit 1
           fi
 
       - name: Install dependencies
