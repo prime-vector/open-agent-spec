@@ -136,9 +136,9 @@ agent:
 | `description` | REQUIRED | string | Free text |
 | `role` | OPTIONAL | string | Free text. Well-known values: `analyst`, `reviewer`, `chat`, `retriever`, `planner`, `executor`, `commander`, `coordinator` |
 
-`role` is informational. A runtime MAY use it for routing or logging but MUST NOT alter task execution semantics based on it. Because `role` carries no execution semantics, its value set is open — the well-known values above are RECOMMENDED for interoperability, but a runtime MUST accept any string (this loosens the closed enumeration in earlier schema versions).
+`role` is informational. A runtime MAY use it for routing or logging — metadata-level uses such as labelling, telemetry, or display — but MUST NOT alter task execution semantics based on it. Because `role` carries no execution semantics, its value set is open — the well-known values above are RECOMMENDED for interoperability, but a runtime MUST accept any string (this loosens the closed enumeration in earlier schema versions).
 
-Two of the well-known values describe agents that direct other agents: a `commander` owns an objective and delegates to and directs subordinate agents, while a `coordinator` routes and sequences work across peer agents without owning the objective. Like every other role value they are informational only — declaring `commander` grants no delegation capability, and a runtime MUST NOT gate delegation or any other behaviour on `role`.
+Two of the well-known values describe agents that direct other agents: a `commander` owns an objective and delegates to and directs subordinate agents, while a `coordinator` routes and sequences work across peer agents without owning the objective. Like every other role value they are informational only — declaring `commander` grants no delegation capability, and a runtime MUST NOT gate delegation or any other execution behaviour on `role`.
 
 ---
 
