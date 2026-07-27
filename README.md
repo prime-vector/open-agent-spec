@@ -238,7 +238,7 @@ tasks:
     # ... prompts
 ```
 
-`depends_on` is a **data contract**, not execution control. OA has no branching, loops, or conditionals by design. See [`examples/multi-task/`](examples/multi-task/).
+`depends_on` is a **data contract**, not execution control. The task graph has no branching, loops, or conditionals by design — the one loop OA owns is the bounded tool-call loop (see [Does OA Have Loops?](#does-oa-have-loops)). See [`examples/multi-task/`](examples/multi-task/).
 
 ---
 
@@ -533,6 +533,26 @@ The two layers compose cleanly, following one rule:
   demonstrates the pattern.
 
 Full rationale: [docs/proposals/markdown-interop.md](docs/proposals/markdown-interop.md).
+
+---
+
+## Does OA Have Loops?
+
+Exactly one, and it is already normative: the tool-calling loop, bounded by a
+runner-enforced iteration cap with a structured error when it is exceeded.
+For every other loop shape the line is:
+
+> **OA iterates over data it can see before the first token. It never loops
+> on a condition it can only evaluate at runtime.**
+
+- A **bounded map** (run a task once per element of an input array) is
+  compatible and accepted in principle — to be designed as its own construct,
+  never a loosening of `depends_on`.
+- **Conditional / until-good loops** stay out of the spec. The supported
+  pattern: the orchestrator loops, each turn it runs an OA spec, and OA never
+  owns the loop — see [examples/multi-agent/](examples/multi-agent/).
+
+Full rationale: [docs/proposals/loops.md](docs/proposals/loops.md).
 
 ---
 
