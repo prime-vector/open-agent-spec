@@ -174,7 +174,7 @@ prompts:
 Validate first, then run:
 
 ```bash
-oa validate --spec agent.yaml
+oa validate agent.yaml
 oa run --spec agent.yaml --task greet --input '{"name":"Alice"}' --quiet
 ```
 
@@ -585,7 +585,7 @@ OA deliberately does not prescribe:
 |--------|--------|
 | `oa init aac` | Create `.agents/` with starter specs |
 | `oa validate aac` | Validate all specs in `.agents/` |
-| `oa validate --spec agent.yaml` | Validate one spec |
+| `oa validate agent.yaml` | Validate one spec (`--spec agent.yaml` also works) |
 | `oa test agent.test.yaml` | Run YAML eval cases (model + assertions on task output); `--quiet` for CI JSON |
 | `oa run --spec agent.yaml --task greet --input '{"name":"Alice"}' --quiet` | Run one task directly from YAML |
 | `oa init --spec agent.yaml --output ./agent` | Generate a Python scaffold |
