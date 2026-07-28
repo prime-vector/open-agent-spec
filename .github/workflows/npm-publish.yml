@@ -22,14 +22,18 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # Trusted publishing (OIDC) requires Node >= 22.14 and npm >= 11.5.1;
+      # Node 24 matches the npm docs' current example. package-manager-cache
+      # is off so a release build never restores a stale dependency cache.
       - name: Set up Node
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
-          node-version: "20"
+          node-version: "24"
           registry-url: "https://registry.npmjs.org"
+          package-manager-cache: false
 
-      # Trusted publishing (OIDC) requires npm >= 11.5.1; the npm bundled
-      # with Node 20 is older.
+      # Belt-and-braces: guarantee the npm floor even if the runner image
+      # lags behind.
       - name: Update npm
         run: npm install -g npm@latest
 
