@@ -15,7 +15,7 @@
   "homepage": "https://openagentspec.dev",
   "repository": {
     "type": "git",
-    "url": "https://github.com/prime-vector/open-agent-spec"
+    "url": "git+https://github.com/prime-vector/open-agent-spec.git"
   },
   "license": "MIT",
   "publishConfig": {
@@ -31,7 +31,7 @@
     }
   },
   "bin": {
-    "oa": "./bin/oa.js"
+    "oa": "bin/oa.js"
   },
   "files": [
     "dist",
