@@ -1,0 +1,75 @@
+name: Publish to npm
+
+on:
+  workflow_dispatch:
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+
+    permissions:
+      id-token: write
+      contents: read
+
+    environment:
+      name: npm
+      url: https://www.npmjs.com/package/@prime-vector/open-agent-spec
+
+    defaults:
+      run:
+        working-directory: npm
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # Trusted publishing (OIDC) requires Node >= 22.14 and npm >= 11.5.1;
+      # Node 24 matches the npm docs' current example. package-manager-cache
+      # is off so a release build never restores a stale dependency cache.
+      - name: Set up Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: "24"
+          registry-url: "https://registry.npmjs.org"
+          package-manager-cache: false
+
+      # Belt-and-braces: guarantee the npm floor even if the runner image
+      # lags behind.
+      - name: Update npm
+        run: npm install -g npm@latest
+
+      # Publishing is allowed only from a release tag: a branch dispatch would
+      # let unreviewed code reach the registry, so it hard-fails here (and the
+      # npm environment's deployment policy enforces the same restriction).
+      - name: Verify ref is a v* tag and version matches
+        shell: bash
+        run: |
+          set -euo pipefail
+          REF="${GITHUB_REF}"
+
+          if [[ "$REF" != refs/tags/v* ]]; then
+            echo "This workflow publishes only from a v* tag (got $REF)."
+            echo "Dispatch it against the release tag, e.g. --ref v1.6.0."
+            exit 1
+          fi
+
+          TAG_VERSION="${REF#refs/tags/v}"
+          PKG_VERSION="$(node -p "require('./package.json').version")"
+          if [[ "$TAG_VERSION" != "$PKG_VERSION" ]]; then
+            echo "Version in npm/package.json ($PKG_VERSION) does not match tag version ($TAG_VERSION)"
+            exit 1
+          fi
+
+      - name: Install dependencies
+        run: npm ci
+
+      # No Jest test files exist under npm/ yet (the node runtime is covered by
+      # the conformance harness in ci.yml); `npm test` would fail with "No
+      # tests found". Typecheck instead; switch to `npm test` when tests land.
+      - name: Typecheck
+        run: npm run lint
+
+      # No token: with a trusted publisher configured on npmjs.com for this
+      # repo + workflow, npm publish authenticates via the job's OIDC identity
+      # and generates provenance automatically. prepublishOnly runs the build.
+      - name: Publish to npm (OIDC / Trusted Publishing)
+        run: npm publish

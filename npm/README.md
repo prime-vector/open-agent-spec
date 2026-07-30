@@ -10,6 +10,8 @@ Run agent specs from YAML, pull shared specialist specs from the registry, and c
 npm install -g @prime-vector/open-agent-spec
 ```
 
+> **Note:** this package and the Python CLI (`pipx install open-agent-spec`) both install a global `oa` command. If you have both, whichever is first on your `PATH` wins — use `npx @prime-vector/open-agent-spec …` or `which oa` to disambiguate.
+
 Or run without installing:
 
 ```bash

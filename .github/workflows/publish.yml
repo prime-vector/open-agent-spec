@@ -28,21 +28,26 @@ jobs:
           python -m pip install --upgrade pip
           pip install build tomli
 
-      - name: Verify version matches tag (only if ref is a v* tag)
+      # Publishing is allowed only from a release tag: a branch dispatch would
+      # let unreviewed code reach the registry, so it hard-fails here (and the
+      # pypi environment's deployment policy enforces the same restriction).
+      - name: Verify ref is a v* tag and version matches
         shell: bash
         run: |
           set -euo pipefail
           REF="${GITHUB_REF}"
 
-          if [[ "$REF" == refs/tags/v* ]]; then
-            TAG_VERSION="${REF#refs/tags/v}"
-            PYPROJECT_VERSION="$(python -c "import tomli; print(tomli.load(open('pyproject.toml', 'rb'))['project']['version'])")"
-            if [[ "$TAG_VERSION" != "$PYPROJECT_VERSION" ]]; then
-              echo "Version in pyproject.toml ($PYPROJECT_VERSION) does not match tag version ($TAG_VERSION)"
-              exit 1
-            fi
-          else
-            echo "Not running on a v* tag ($REF); skipping tag/version verification."
+          if [[ "$REF" != refs/tags/v* ]]; then
+            echo "This workflow publishes only from a v* tag (got $REF)."
+            echo "Dispatch it against the release tag, e.g. --ref v1.6.0."
+            exit 1
+          fi
+
+          TAG_VERSION="${REF#refs/tags/v}"
+          PYPROJECT_VERSION="$(python -c "import tomli; print(tomli.load(open('pyproject.toml', 'rb'))['project']['version'])")"
+          if [[ "$TAG_VERSION" != "$PYPROJECT_VERSION" ]]; then
+            echo "Version in pyproject.toml ($PYPROJECT_VERSION) does not match tag version ($TAG_VERSION)"
+            exit 1
           fi
 
       - name: Build package
