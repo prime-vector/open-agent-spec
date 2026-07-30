@@ -63,6 +63,42 @@ function parseInput(raw: string): RunInput {
   return { text: contents };
 }
 
+// Reconcile the bare positional spec path with --spec (#94/#100 parity with
+// the Python CLI): either form alone is fine, both is an explicit error, and a
+// bare argument must look like a YAML path so mistakes get a clear message
+// instead of a confusing load failure.
+export function reconcileSpecArgs(
+  cmd: string,
+  specArg: string | undefined,
+  specOpt: string | undefined,
+): { spec: string } | { error: string } {
+  const forms = `Valid forms: 'oa ${cmd} <spec.yaml>' or 'oa ${cmd} --spec <path>'.`;
+  if (specArg !== undefined && specOpt !== undefined) {
+    return { error: "Pass the spec path either as a bare argument or with --spec, not both." };
+  }
+  if (specArg !== undefined && !/\.ya?ml$/i.test(specArg)) {
+    return { error: `'${specArg}' does not look like a spec YAML path. ${forms}` };
+  }
+  const spec = specArg ?? specOpt;
+  if (spec === undefined) {
+    return { error: `Missing spec path. ${forms}` };
+  }
+  return { spec };
+}
+
+function resolveSpecOrExit(
+  cmd: string,
+  specArg: string | undefined,
+  specOpt: string | undefined,
+): string {
+  const result = reconcileSpecArgs(cmd, specArg, specOpt);
+  if ("error" in result) {
+    console.error(`Error: ${result.error}`);
+    process.exit(1);
+  }
+  return result.spec;
+}
+
 export function createCli(): Command {
   const program = new Command();
 
@@ -74,9 +110,10 @@ export function createCli(): Command {
   program
     .command("validate")
     .description("Validate a spec file against the Open Agent Spec schema (no model calls).")
-    .requiredOption("--spec <path>", "Path to the spec YAML file")
-    .action((opts: { spec: string }) => {
-      const specPath = resolve(opts.spec);
+    .argument("[spec]", "Path to the spec YAML file (shorthand for --spec)")
+    .option("--spec <path>", "Path to the spec YAML file")
+    .action((specArg: string | undefined, opts: { spec?: string }) => {
+      const specPath = resolve(resolveSpecOrExit("validate", specArg, opts.spec));
       try {
         loadSpecFromFile(specPath);
       } catch (err) {
@@ -93,21 +130,23 @@ export function createCli(): Command {
   program
     .command("run")
     .description("Run a task from an OA spec file.")
-    .requiredOption("--spec <path>", "Path to the spec YAML file")
+    .argument("[spec]", "Path to the spec YAML file (shorthand for --spec)")
+    .option("--spec <path>", "Path to the spec YAML file")
     .option("--task <name>", "Task name to run (defaults to the only task if there is one)")
     .option("--input <json-or-file>", "Input as a JSON string, a .json file path, or a plain text file path")
     .option("--quiet", "Output only JSON (no decorative logging)")
-    .action(async (opts: {
-      spec: string;
+    .action(async (specArg: string | undefined, opts: {
+      spec?: string;
       task?: string;
       input?: string;
       quiet?: boolean;
     }) => {
+      const specPath = resolve(resolveSpecOrExit("run", specArg, opts.spec));
       const input: RunInput = opts.input ? parseInput(opts.input) : {};
 
       try {
         const result = await runTask({
-          specPath: resolve(opts.spec),
+          specPath,
           taskName: opts.task,
           input,
         });

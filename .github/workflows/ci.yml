@@ -82,6 +82,10 @@ jobs:
           npm ci
           npm run build
 
+      - name: Test npm runtime
+        working-directory: npm
+        run: npm test
+
       - name: Run conformance suite (both runtimes)
         run: |
           python -m spec.conformance.harness.harness \

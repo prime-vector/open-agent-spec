@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- **npm CLI accepts a bare spec path** — `oa validate <spec.yaml>` and `oa run <spec.yaml>` now work without `--spec` in the npm runtime, matching the Python CLI (1.6.0). Same guardrails: `--spec` unchanged, bare path + `--spec` together is an explicit error, and a non-YAML bare argument gets a clear error naming the valid forms. First Jest tests land with this (`npm/tests/`), and both CI and the npm publish workflow now run them. (#100)
+
 ### Added (older, pre-1.4 notes)
 - This changelog.
 - **Agents-as-code documentation** — new section in REFERENCE.md explaining the `.agents/` pattern, bundled examples table, and scaffold/run/generate workflows.

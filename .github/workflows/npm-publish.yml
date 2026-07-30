@@ -62,11 +62,11 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      # No Jest test files exist under npm/ yet (the node runtime is covered by
-      # the conformance harness in ci.yml); `npm test` would fail with "No
-      # tests found". Typecheck instead; switch to `npm test` when tests land.
       - name: Typecheck
         run: npm run lint
+
+      - name: Test
+        run: npm test
 
       # No token: with a trusted publisher configured on npmjs.com for this
       # repo + workflow, npm publish authenticates via the job's OIDC identity
