@@ -15,7 +15,7 @@ npm install -g @prime-vector/open-agent-spec
 Or run without installing:
 
 ```bash
-npx @prime-vector/open-agent-spec run --spec agent.yaml --task summarise --input input.json
+npx @prime-vector/open-agent-spec run agent.yaml --task summarise --input input.json
 ```
 
 ## Quick start
@@ -48,7 +48,7 @@ tasks:
 ```bash
 export OPENAI_API_KEY=sk-...
 
-oa run --spec agent.yaml --task summarise --input '{"text": "Open Agent Spec is a YAML standard for declarative AI agents."}'
+oa run agent.yaml --task summarise --input '{"text": "Open Agent Spec is a YAML standard for declarative AI agents."}'
 ```
 
 **3. Output**
