@@ -17,6 +17,7 @@ import pytest
 
 from oas_cli.runner import (
     OARunError,
+    _check_mcp_endpoints,
     _check_sandbox,
     _resolve_sandbox,
     run_task_from_spec,
@@ -162,6 +163,32 @@ class TestCheckSandboxDomainViolation:
             )
         assert exc_info.value.code == "SANDBOX_DOMAIN_VIOLATION"
 
+    def test_bare_domain_allows_any_port_for_backwards_compatibility(self):
+        sandbox = {"http": {"allow_domains": ["localhost"]}}
+        _check_sandbox(
+            "http.get", {"url": "http://localhost:8765/health"}, sandbox, "task"
+        )
+
+    def test_domain_with_port_allows_matching_effective_port(self):
+        sandbox = {"http": {"allow_domains": ["api.example.com:443"]}}
+        _check_sandbox(
+            "http.get", {"url": "https://api.example.com/v1"}, sandbox, "task"
+        )
+
+    def test_domain_with_port_blocks_different_port(self):
+        sandbox = {"http": {"allow_domains": ["localhost:3000"]}}
+        with pytest.raises(OARunError) as exc_info:
+            _check_sandbox(
+                "http.get", {"url": "http://localhost:8080/admin"}, sandbox, "task"
+            )
+        assert exc_info.value.code == "SANDBOX_DOMAIN_VIOLATION"
+
+    def test_domain_and_port_matching_is_case_insensitive(self):
+        sandbox = {"http": {"allow_domains": ["API.Example.COM:443"]}}
+        _check_sandbox(
+            "http.get", {"url": "https://api.example.com/data"}, sandbox, "task"
+        )
+
     def test_domain_check_skipped_for_non_http_tool(self):
         sandbox = {"http": {"allow_domains": ["api.example.com"]}}
         # file.read with a "url"-like argument should not trigger domain check
@@ -170,6 +197,41 @@ class TestCheckSandboxDomainViolation:
     def test_no_allow_domains_permits_any_url(self):
         sandbox = {"http": {}}
         _check_sandbox("http.get", {"url": "https://any-domain.io"}, sandbox, "task")
+
+
+class TestMCPDomainPreflight:
+    def _spec(self, endpoint: str) -> dict:
+        return {
+            "tools": {"search": {"type": "mcp", "endpoint": endpoint}},
+            "tasks": {"run": {"tools": ["search"]}},
+        }
+
+    def test_allows_mcp_endpoint_on_allowlist(self):
+        sandbox = {"http": {"allow_domains": ["mcp.example.com:443"]}}
+        _check_mcp_endpoints(self._spec("https://mcp.example.com/rpc"), "run", sandbox)
+
+    def test_blocks_mcp_endpoint_outside_allowlist(self):
+        sandbox = {"http": {"allow_domains": ["mcp.example.com"]}}
+        with pytest.raises(OARunError) as exc_info:
+            _check_mcp_endpoints(
+                self._spec("https://evil.example.net/rpc"), "run", sandbox
+            )
+        err = exc_info.value
+        assert err.code == "SANDBOX_DOMAIN_VIOLATION"
+        assert "MCP tool 'search' endpoint" in str(err)
+
+    def test_blocks_mcp_endpoint_on_different_port(self):
+        sandbox = {"http": {"allow_domains": ["localhost:3000"]}}
+        with pytest.raises(OARunError) as exc_info:
+            _check_mcp_endpoints(
+                self._spec("http://localhost:9000/mcp"), "run", sandbox
+            )
+        assert exc_info.value.code == "SANDBOX_DOMAIN_VIOLATION"
+
+    def test_no_allowlist_does_not_restrict_mcp(self):
+        _check_mcp_endpoints(
+            self._spec("https://mcp.example.com/rpc"), "run", {"http": {}}
+        )
 
 
 # ── _check_sandbox — path enforcement ────────────────────────────────────────
@@ -318,6 +380,27 @@ class TestSandboxIntegration:
 
         mock_dispatch.assert_called_once()
         assert result["output"]["content"] == "hello"
+
+    def test_mcp_endpoint_violation_precedes_discovery_and_model_call(self):
+        spec = _minimal_spec(sandbox={"http": {"allow_domains": ["safe.example"]}})
+        spec["tools"] = {
+            "remote": {
+                "type": "mcp",
+                "endpoint": "https://blocked.example/mcp",
+            }
+        }
+        spec["tasks"]["run"]["tools"] = ["remote"]
+
+        with (
+            patch("oas_cli.runner.resolve_task_tools") as mock_resolve_tools,
+            patch("oas_cli.runner.invoke_intelligence") as mock_invoke,
+            pytest.raises(OARunError) as exc_info,
+        ):
+            run_task_from_spec(spec, task_name="run", input_data={})
+
+        assert exc_info.value.code == "SANDBOX_DOMAIN_VIOLATION"
+        mock_resolve_tools.assert_not_called()
+        mock_invoke.assert_not_called()
 
 
 # ── Chain-wide immutability ───────────────────────────────────────────────────

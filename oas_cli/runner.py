@@ -40,7 +40,8 @@ _OA_SCHEME = "oa://"
 
 logger = logging.getLogger(__name__)
 
-# Optional BCE integration — degrades gracefully when library is not installed.
+# Optional dependency at import time; specs that declare contracts fail closed
+# during preflight when the dependency is unavailable.
 try:
     from behavioural_contracts import validate_task_output  # type: ignore[import]
 
@@ -469,6 +470,26 @@ def _resolve_contract(
     return _merge_contracts(global_contract, task_contract)
 
 
+def _require_contract_support(spec_data: dict[str, Any], task_name: str) -> None:
+    """Fail before model execution when a declared contract cannot be enforced."""
+    if _resolve_contract(spec_data, task_name) is not None and not CONTRACTS_ENABLED:
+        raise OARunError(
+            "Behavioural contract enforcement is unavailable for task "
+            f"'{task_name}'. Install with: pip install 'open-agent-spec[contracts]'",
+            code="CONTRACTS_UNAVAILABLE",
+            stage="contract",
+            task=task_name,
+        )
+
+
+def _preflight_contract_support(spec_data: dict[str, Any], task_name: str) -> None:
+    """Check the selected task and every dependency before the chain starts."""
+    tasks = spec_data.get("tasks") or {}
+    task_def = tasks.get(task_name) or {}
+    for resolved_task in [*(task_def.get("depends_on") or []), task_name]:
+        _require_contract_support(spec_data, resolved_task)
+
+
 def _resolve_sandbox(spec_data: dict[str, Any], task_name: str) -> dict[str, Any]:
     """Effective sandbox for a task: root-level merged with task-level (task wins).
 
@@ -522,15 +543,7 @@ def _check_sandbox(
         allow_domains = (sandbox.get("http") or {}).get("allow_domains")
         if allow_domains is not None:
             url = arguments.get("url", "")
-            host = _urlparse(url).netloc.split(":")[0]
-            if not any(host == d or host.endswith(f".{d}") for d in allow_domains):
-                raise OARunError(
-                    f"Sandbox violation: domain '{host}' is not in allow_domains for task "
-                    f"'{task_name}'. Allowed: {allow_domains}",
-                    code="SANDBOX_DOMAIN_VIOLATION",
-                    stage="sandbox",
-                    task=task_name,
-                )
+            _check_url_domain(url, allow_domains, task_name)
 
     if tool_name in ("file.read", "file.write"):
         allow_paths = (sandbox.get("file") or {}).get("allow_paths")
@@ -547,6 +560,75 @@ def _check_sandbox(
                     stage="sandbox",
                     task=task_name,
                 )
+
+
+def _effective_port(parsed: Any) -> int | None:
+    """Return an explicit URL port, or the well-known port for HTTP(S)."""
+    try:
+        if parsed.port is not None:
+            return parsed.port
+    except ValueError:
+        return None
+    return {"http": 80, "https": 443}.get(parsed.scheme.lower())
+
+
+def _parse_domain_rule(rule: str) -> tuple[str, int | None]:
+    """Parse an allow_domains entry of the form host or host:port."""
+    parsed = _urlparse(f"//{rule.strip()}")
+    try:
+        port = parsed.port
+    except ValueError:
+        return "", None
+    return (parsed.hostname or "").lower().rstrip("."), port
+
+
+def _check_url_domain(
+    url: str, allow_domains: list[str], task_name: str, *, source: str = "HTTP request"
+) -> None:
+    """Enforce hostname and optional port rules for a network destination."""
+    parsed = _urlparse(url)
+    host = (parsed.hostname or "").lower().rstrip(".")
+    port = _effective_port(parsed)
+
+    def _matches(rule: str) -> bool:
+        allowed_host, allowed_port = _parse_domain_rule(rule)
+        host_matches = host == allowed_host or host.endswith(f".{allowed_host}")
+        return bool(
+            allowed_host
+            and host_matches
+            and (allowed_port is None or port == allowed_port)
+        )
+
+    if not any(_matches(str(rule)) for rule in allow_domains):
+        destination = f"{host}:{port}" if port is not None else host
+        raise OARunError(
+            f"Sandbox violation: {source} domain '{destination}' is not in "
+            f"allow_domains for task '{task_name}'. Allowed: {allow_domains}",
+            code="SANDBOX_DOMAIN_VIOLATION",
+            stage="sandbox",
+            task=task_name,
+        )
+
+
+def _check_mcp_endpoints(
+    spec_data: dict[str, Any], task_name: str, sandbox: dict[str, Any]
+) -> None:
+    """Preflight static MCP endpoints against the effective HTTP allowlist."""
+    allow_domains = (sandbox.get("http") or {}).get("allow_domains")
+    if allow_domains is None:
+        return
+    tasks = spec_data.get("tasks") or {}
+    task_tools = (tasks.get(task_name) or {}).get("tools") or []
+    spec_tools = spec_data.get("tools") or {}
+    for tool_name in task_tools:
+        tool_config = spec_tools.get(tool_name) or {}
+        if tool_config.get("type") == "mcp":
+            _check_url_domain(
+                str(tool_config.get("endpoint", "")),
+                allow_domains,
+                task_name,
+                source=f"MCP tool '{tool_name}' endpoint",
+            )
 
 
 _MAX_TOOL_ITERATIONS = 10
@@ -715,6 +797,7 @@ def _run_single_task(
 
     tasks = spec_data.get("tasks") or {}
     task_def = tasks.get(task_name) or {}
+    _require_contract_support(spec_data, task_name)
 
     # ── Spec delegation ───────────────────────────────────────────────────
     delegation_spec_ref: str | None = task_def.get("spec")
@@ -831,6 +914,7 @@ def _run_single_task(
     # history is a reserved input convention — never stored by OA, just forwarded.
     history: list[dict] | None = input_data.get("history") or None
     sandbox = _resolve_sandbox(spec_data, task_name)
+    _check_mcp_endpoints(spec_data, task_name, sandbox)
 
     # Token usage for this task's model call, attached to the envelope below.
     usage: dict[str, Any] | None = None
@@ -985,6 +1069,9 @@ def run_task_from_spec(
     # even when a chain merges upstream outputs into downstream inputs.
     base_input: dict[str, Any] = copy.deepcopy(dict(input_data or {}))
     chosen_task, _ = _choose_task(spec_data, task_name)
+    # Check the selected task before dependencies can spend tokens. Each
+    # dependency is checked again at its own task boundary.
+    _preflight_contract_support(spec_data, chosen_task)
 
     # Seed the visited set with the calling spec so direct self-delegation is caught.
     visited: frozenset[Path] = frozenset()

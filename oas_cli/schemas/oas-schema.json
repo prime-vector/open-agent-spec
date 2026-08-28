@@ -389,7 +389,7 @@
             },
             "behavioural_contract": {
               "type": "object",
-              "description": "Per-task behavioural contract. Merged with the top-level behavioural_contract (arrays are unioned, scalars use per-task-wins). Install behavioural-contracts to enable runtime enforcement."
+              "description": "Per-task behavioural contract. Merged with the top-level behavioural_contract (arrays are unioned, scalars use per-task-wins). A runtime without contract enforcement must fail closed before model execution."
             },
             "tools": {
               "type": "array",

@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Security
+- **Declared behavioural contracts now fail closed** — if a resolved task declares a contract but the `behavioural-contracts` enforcement dependency is unavailable, execution stops before any model call with `CONTRACTS_UNAVAILABLE` instead of logging a warning and continuing without the promised constraint. (#103)
+- **Sandbox domain rules cover ports and MCP endpoints** — `http.allow_domains` entries may pin `host:port` while bare hosts retain backwards-compatible any-port semantics. Statically configured MCP endpoints are preflighted against the effective allowlist before discovery or model execution. (#104)
+
 ### Fixed
 - **npm CLI accepts a bare spec path** — `oa validate <spec.yaml>` and `oa run <spec.yaml>` now work without `--spec` in the npm runtime, matching the Python CLI (1.6.0). Same guardrails: `--spec` unchanged, bare path + `--spec` together is an explicit error, and a non-YAML bare argument gets a clear error naming the valid forms. First Jest tests land with this (`npm/tests/`), and both CI and the npm publish workflow now run them. (#100)
 

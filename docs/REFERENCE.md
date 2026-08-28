@@ -455,7 +455,7 @@ Notes:
 
 Behavioural contracts let you declare constraints on a task's output — required fields, policy rules, behavioural flags — and have them enforced automatically at run time by the [`behavioural-contracts`](https://pypi.org/project/behavioural-contracts/) library.
 
-Contracts are **entirely optional**. Specs without them run exactly as before. When the library is not installed, OA logs a hard warning and continues.
+Contracts are **entirely optional**. Specs without them run exactly as before. When a resolved task declares a contract but the enforcement library is not installed, OA fails closed with `CONTRACTS_UNAVAILABLE` before making a model call.
 
 ### Install
 
@@ -528,12 +528,12 @@ summarize → [parse] → [contract check] → return result
 
 A contract violation on a dependency stops the chain immediately and raises `CONTRACT_VIOLATION` before the dependent task ever runs.
 
-### Skipped cases (with warning)
+### Skipped and unavailable cases
 
 | Condition | Behaviour |
 |---|---|
 | `response_format: text` | Validation skipped — field checks are meaningless on raw strings |
-| `behavioural-contracts` not installed | Hard warning logged; execution continues |
+| `behavioural-contracts` not installed | Execution fails before the first affected model call with `CONTRACTS_UNAVAILABLE` |
 | Output is not a dict (JSON parse failed) | Validation skipped with warning |
 
 ### Error on violation
@@ -566,7 +566,8 @@ sandbox:
     # deny: [file.write]           # denylist alternative (use one or the other)
   http:
     allow_domains:
-      - api.example.com            # exact match or any subdomain
+      - api.example.com            # exact match or any subdomain, any port
+      - localhost:3000             # optional port pinning
   file:
     allow_paths:
       - ./data/                    # resolved to absolute paths at check time
@@ -597,10 +598,12 @@ All sandbox violations raise `OARunError` immediately with one of three structur
 | Code | Trigger |
 |------|---------|
 | `SANDBOX_TOOL_VIOLATION` | Tool name not in `allow` list, or in `deny` list |
-| `SANDBOX_DOMAIN_VIOLATION` | HTTP host not in `allow_domains` (for `http.get` / `http.post`) |
+| `SANDBOX_DOMAIN_VIOLATION` | HTTP or MCP destination not in `allow_domains`; `host:port` rules require that port |
 | `SANDBOX_PATH_VIOLATION` | File path outside `allow_paths` (for `file.read` / `file.write`) |
 
 Path traversal (`../../`) is caught automatically — paths are resolved to absolute before comparison.
+
+MCP endpoints are static spec configuration and are checked against the effective `http.allow_domains` policy before tool discovery or model execution. A bare hostname preserves the original any-port behaviour; use `host:port` when the agent must reach only one service on that host.
 
 ### Input immutability
 
