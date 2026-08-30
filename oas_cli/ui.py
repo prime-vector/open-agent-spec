@@ -310,7 +310,8 @@ def print_help_panel(console: Console, version: str = "") -> None:
         f"  [{_C_BRAND}]oa test[/]   [white]agent.test.yaml[/]\n"
         f"  [{_C_BRAND}]oa update[/] [white]--spec path.yaml --output dir/[/]\n"
         "\n"
-        f"  [dim]--quiet / -q[/]  [dim]JSON-only output for pipes and CI[/]"
+        f"  [dim]--quiet / -q[/]  [dim]JSON-only output for pipes and CI[/]\n"
+        f"  [dim]--usage PATH[/]  [dim]write usage JSON (leaf, chain, total)[/]"
     )
     console.print(
         Panel.fit(

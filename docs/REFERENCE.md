@@ -358,8 +358,29 @@ so you can track and budget spend without a separate accounting layer:
   growing history, so the sum reflects what is actually billed).
 
 `oa run` (without `--quiet`) shows a compact `<total> tok · ~$<cost>` summary in
-the result panel; `--quiet` emits only the task output, so read `usage` from the
-full envelope returned by the Python API when scripting.
+the result panel. `--quiet` still emits only the task output on stdout (clean
+for `| jq`); pass `--usage PATH` to write a JSON file with the leaf `usage`,
+any `depends_on` chain, and a rolled-up `total` so a script can meter spend
+without under-counting chained tasks:
+
+```bash
+oa run --spec .agents/example.yaml --task greet \
+  --input '{"name":"Alice"}' --quiet --usage /tmp/usage.json
+```
+
+```json
+{
+  "task": "summarize",
+  "usage": {"prompt_tokens": 10, "completion_tokens": 5, "total_tokens": 15},
+  "chain": {
+    "extract": {
+      "task": "extract",
+      "usage": {"prompt_tokens": 20, "completion_tokens": 10, "total_tokens": 30}
+    }
+  },
+  "total": {"prompt_tokens": 30, "completion_tokens": 15, "total_tokens": 45}
+}
+```
 
 #### Overriding the cost rate
 

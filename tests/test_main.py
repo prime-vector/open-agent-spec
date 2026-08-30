@@ -231,3 +231,170 @@ def test_run_output_is_valid_json_in_quiet_mode(tmp_path):
     assert result.exit_code == 0, result.output
     parsed = json.loads(result.output)
     assert parsed.get("response") == "Hello Alice!"
+
+
+# ---------------------------------------------------------------------------
+# oa run --usage PATH
+# ---------------------------------------------------------------------------
+
+_CHAIN_SPEC = """\
+open_agent_spec: "1.5.0"
+
+agent:
+  name: test-agent
+  description: test agent
+
+intelligence:
+  type: llm
+  engine: openai
+  model: gpt-4o
+
+tasks:
+  extract:
+    description: extract facts
+    output:
+      type: object
+      properties:
+        facts: { type: string }
+      required: [facts]
+    prompts:
+      user: "extract facts"
+  summarize:
+    description: summarize facts
+    depends_on: [extract]
+    output:
+      type: object
+      properties:
+        summary: { type: string }
+      required: [summary]
+
+prompts:
+  system: "you summarize"
+  user: "{{ facts }}"
+"""
+
+
+def test_run_usage_flag_writes_file_and_leaves_quiet_stdout_clean(tmp_path):
+    """--usage writes the report to a file; --quiet stdout stays output-only."""
+    spec_file = _write_spec(tmp_path)
+    usage_file = tmp_path / "usage.json"
+
+    def fake_invoke(system: str, user: str, config: dict, history=None) -> str:
+        from oas_cli.providers.registry import record_usage
+
+        record_usage(
+            {"prompt_tokens": 10, "completion_tokens": 5, "total_tokens": 15},
+            "gpt-4o",
+        )
+        return '{"response": "Hello Alice!"}'
+
+    with patch("oas_cli.runner.invoke_intelligence", fake_invoke):
+        result = runner.invoke(
+            app,
+            [
+                "run",
+                "--spec",
+                str(spec_file),
+                "--task",
+                "greet",
+                "--input",
+                '{"name": "Alice"}',
+                "--quiet",
+                "--usage",
+                str(usage_file),
+            ],
+        )
+
+    assert result.exit_code == 0, result.output
+    parsed = json.loads(result.output)
+    assert parsed == {"response": "Hello Alice!"}
+    assert "usage" not in parsed
+    report = json.loads(usage_file.read_text(encoding="utf-8"))
+    assert report["task"] == "greet"
+    assert report["usage"]["total_tokens"] == 15
+    assert report["total"]["total_tokens"] == 15
+    assert "chain" not in report
+
+
+def test_run_usage_flag_rolls_up_depends_on_chain(tmp_path):
+    """--usage total includes dependency spend, not just the leaf task."""
+    spec_file = tmp_path / "agent.yaml"
+    spec_file.write_text(_CHAIN_SPEC)
+    usage_file = tmp_path / "usage.json"
+
+    def fake_invoke(system: str, user: str, config: dict, history=None) -> str:
+        from oas_cli.providers.registry import record_usage
+
+        if "extract facts" in user:
+            record_usage(
+                {"prompt_tokens": 20, "completion_tokens": 10, "total_tokens": 30},
+                "gpt-4o",
+            )
+            return '{"facts": "the sky is blue"}'
+        record_usage(
+            {"prompt_tokens": 10, "completion_tokens": 5, "total_tokens": 15},
+            "gpt-4o",
+        )
+        return '{"summary": "sky=blue"}'
+
+    with patch("oas_cli.runner.invoke_intelligence", fake_invoke):
+        result = runner.invoke(
+            app,
+            [
+                "run",
+                "--spec",
+                str(spec_file),
+                "--task",
+                "summarize",
+                "--quiet",
+                "--usage",
+                str(usage_file),
+            ],
+        )
+
+    assert result.exit_code == 0, result.output
+    parsed = json.loads(result.output)
+    assert parsed == {"summary": "sky=blue"}
+    report = json.loads(usage_file.read_text(encoding="utf-8"))
+    assert report["task"] == "summarize"
+    assert report["usage"]["total_tokens"] == 15
+    assert report["chain"]["extract"]["usage"]["total_tokens"] == 30
+    assert report["total"]["total_tokens"] == 45
+    assert report["total"]["total_tokens"] != report["usage"]["total_tokens"]
+    assert "estimated_cost_usd" in report["total"]
+
+
+def test_run_usage_flag_works_without_quiet(tmp_path):
+    """--usage writes the same report in non-quiet mode."""
+    spec_file = _write_spec(tmp_path)
+    usage_file = tmp_path / "usage.json"
+
+    def fake_invoke(system: str, user: str, config: dict, history=None) -> str:
+        from oas_cli.providers.registry import record_usage
+
+        record_usage(
+            {"prompt_tokens": 8, "completion_tokens": 2, "total_tokens": 10},
+            "gpt-4o",
+        )
+        return '{"response": "hi"}'
+
+    with patch("oas_cli.runner.invoke_intelligence", fake_invoke):
+        result = runner.invoke(
+            app,
+            [
+                "run",
+                "--spec",
+                str(spec_file),
+                "--task",
+                "greet",
+                "--input",
+                '{"name": "Alice"}',
+                "--usage",
+                str(usage_file),
+            ],
+        )
+
+    assert result.exit_code == 0, result.output
+    report = json.loads(usage_file.read_text(encoding="utf-8"))
+    assert report["usage"]["total_tokens"] == 10
+    assert report["total"]["total_tokens"] == 10

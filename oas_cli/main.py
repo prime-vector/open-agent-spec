@@ -29,6 +29,7 @@ from .ui import (
     print_result_panel,
     print_run_header,
 )
+from .usage import report_from_envelope
 
 app = typer.Typer(help="Open Agent (OA) CLI")
 console = Console()
@@ -635,6 +636,14 @@ def run(
         "-q",
         help="No banner; print only the task output JSON to stdout (clean for | jq)",
     ),
+    usage_path: Path | None = typer.Option(
+        None,
+        "--usage",
+        help=(
+            "Write usage JSON (leaf, depends_on chain, and rolled-up total) "
+            "to this path. stdout is unchanged."
+        ),
+    ),
 ):
     """Run a single task directly from an Open Agent Spec file.
 
@@ -751,6 +760,13 @@ def run(
                 sys.stdout = real_stdout
 
         elapsed = time.monotonic() - t0
+
+        if usage_path is not None:
+            usage_path.parent.mkdir(parents=True, exist_ok=True)
+            usage_path.write_text(
+                json.dumps(report_from_envelope(result), indent=2) + "\n",
+                encoding="utf-8",
+            )
 
         if quiet:
             # Print only the agent's output for clean piping.

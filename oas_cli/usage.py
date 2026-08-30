@@ -34,6 +34,7 @@ from __future__ import annotations
 
 import json
 import os
+from typing import Any
 
 CanonicalUsage = dict[str, int]
 
@@ -123,6 +124,65 @@ _PRICE_PER_M: dict[str, tuple[float, float]] = {
     # xAI
     "grok-3": (3.00, 15.00),
 }
+
+
+def report_from_envelope(result: dict[str, Any]) -> dict[str, Any]:
+    """Build a metering report from a task-result envelope.
+
+    Mirrors the envelope's usage tree (the leaf task plus any ``chain`` of
+    ``depends_on`` envelopes) and includes a rolled-up ``total`` so a script
+    metering a chained task cannot under-count by reading the leaf block
+    alone. ``estimated_cost_usd`` is included on ``total`` only when every
+    contributing block has a numeric cost — a silently incomplete dollar
+    figure is worse than none.
+    """
+    report = _usage_node(result)
+    report["total"] = _sum_usage(_collect_usage(result))
+    return report
+
+
+def _usage_node(result: dict[str, Any]) -> dict[str, Any]:
+    """Leaf of the usage tree: task name, usage, and nested chain if present."""
+    node: dict[str, Any] = {
+        "task": result.get("task"),
+        "usage": result.get("usage"),
+    }
+    chain = result.get("chain")
+    if isinstance(chain, dict) and chain:
+        node["chain"] = {
+            name: _usage_node(dep) if isinstance(dep, dict) else dep
+            for name, dep in chain.items()
+        }
+    return node
+
+
+def _collect_usage(result: dict[str, Any]) -> list[dict[str, Any]]:
+    """Walk the envelope (leaf then chain) collecting non-null usage dicts."""
+    blocks: list[dict[str, Any]] = []
+    usage = result.get("usage")
+    if isinstance(usage, dict):
+        blocks.append(usage)
+    chain = result.get("chain")
+    if isinstance(chain, dict):
+        for dep in chain.values():
+            if isinstance(dep, dict):
+                blocks.extend(_collect_usage(dep))
+    return blocks
+
+
+def _sum_usage(blocks: list[dict[str, Any]]) -> dict[str, Any] | None:
+    """Sum token counts across *blocks*. Cost is omitted unless every block has one."""
+    if not blocks:
+        return None
+    total: dict[str, Any] = {
+        "prompt_tokens": sum(int(b.get("prompt_tokens") or 0) for b in blocks),
+        "completion_tokens": sum(int(b.get("completion_tokens") or 0) for b in blocks),
+        "total_tokens": sum(int(b.get("total_tokens") or 0) for b in blocks),
+    }
+    costs = [b.get("estimated_cost_usd") for b in blocks]
+    if costs and all(isinstance(c, (int, float)) for c in costs):
+        total["estimated_cost_usd"] = round(sum(float(c) for c in costs), 6)
+    return total
 
 
 def estimate_cost_usd(
