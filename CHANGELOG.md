@@ -25,6 +25,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed (older, pre-1.4 notes)
 - Removed broken references to non-existent `security-threat-analyzer.yaml` template and `SECURITY_TEMPLATES.md` from REFERENCE.md.
 
+## [1.6.1] - 2026-08-31
+
+### Security
+- **Declared behavioural contracts now fail closed** — if a resolved task declares a contract but the `behavioural-contracts` enforcement dependency is unavailable, execution stops before the affected model call with `CONTRACTS_UNAVAILABLE` instead of logging a warning and continuing without the promised constraint. Direct dependencies and locally delegated tasks are preflighted before their chain starts. (#103)
+- **Sandbox domain rules cover ports and MCP endpoints** — `http.allow_domains` entries may pin `host:port` while bare hosts retain backwards-compatible any-port semantics. Statically configured MCP endpoints are preflighted across the selected task and direct dependencies before discovery or model execution. Malformed allowlist entries now fail validation. (#104)
+
+### Breaking
+- Existing specs that combine MCP tools with `sandbox.http.allow_domains` must add each MCP endpoint host (or `host:port`) to the effective allowlist. Runtimes now enforce the declared network boundary for MCP instead of limiting it to native HTTP tools.
+- Specs that declare `behavioural_contract` must install `open-agent-spec[contracts]`; execution no longer continues without enforcement.
+
 ## [1.6.0] - 2026-07-28
 
 ### Added

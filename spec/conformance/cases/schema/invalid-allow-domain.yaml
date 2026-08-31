@@ -1,0 +1,28 @@
+description: "allow_domains entries must be host or host:port, not URLs"
+spec_section: "11.2"
+
+spec: |
+  open_agent_spec: "1.6.0"
+  agent:
+    name: invalid-domain
+    description: test
+  intelligence:
+    type: llm
+    engine: openai
+    model: gpt-4o
+  sandbox:
+    http:
+      allow_domains: [https://api.example.com]
+  tasks:
+    run:
+      description: run
+      output: {type: object}
+      prompts: {system: "Run.", user: "run"}
+
+invoke:
+  task: run
+  input: {}
+
+expect_error:
+  code: SPEC_LOAD_ERROR
+  stage: load

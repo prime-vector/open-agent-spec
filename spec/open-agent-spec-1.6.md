@@ -577,7 +577,7 @@ sandbox:                             # root level — applies to all tasks
     allow: [file.read, http.get]     # only these tools may be called
     deny: [env.read]                 # these tools may never be called
   http:
-    allow_domains: [api.example.com] # http.get/http.post restricted to these hosts
+    allow_domains: [api.example.com] # HTTP and MCP restricted to these hosts
   file:
     allow_paths: [./data/]           # file.read/file.write restricted to these prefixes
 
@@ -598,7 +598,7 @@ tasks:
 |-----|-----------|-----------|
 | `tools.allow` | every tool dispatch | If present, a tool not in the list MUST be refused (`SANDBOX_TOOL_VIOLATION`) |
 | `tools.deny` | every tool dispatch | If present, a tool in the list MUST be refused (`SANDBOX_TOOL_VIOLATION`). Deny is checked in addition to allow. |
-| `http.allow_domains` | `http.get`, `http.post` | The request URL's hostname MUST equal a listed domain or be a subdomain of one (`host == d` or `host` ends with `.d`); otherwise `SANDBOX_DOMAIN_VIOLATION` |
+| `http.allow_domains` | `http.get`, `http.post`, MCP endpoints | The destination hostname MUST equal a listed domain or be a subdomain. A bare hostname permits any port for backwards compatibility; a `host:port` entry MUST match the destination's effective port. Otherwise raise `SANDBOX_DOMAIN_VIOLATION`. |
 | `file.allow_paths` | `file.read`, `file.write` | The resolved absolute path MUST fall under one of the listed path prefixes (after resolving symlinks and `..`); otherwise `SANDBOX_PATH_VIOLATION` |
 
 An absent constraint key imposes no restriction of that type. An empty `allow` list denies everything of that type.
@@ -611,6 +611,7 @@ A runtime that supports sandboxing MUST:
 2. Enforce path constraints against the **resolved** path (symlinks and relative segments resolved), not the literal argument.
 3. Surface violations as structured errors with stage `sandbox` and the specific code for the constraint type (Section 13.2) — never as a generic run failure.
 4. Continue to enforce the sandbox regardless of what the model requests; sandbox constraints are not visible to or negotiable by the model.
+5. Validate statically configured MCP endpoints against `http.allow_domains` before MCP tool discovery or model execution.
 
 **Honesty rule.** A runtime that does not implement sandboxing MUST refuse to run a spec that declares a `sandbox:` block, rather than silently ignoring it. Silent degradation of a declared security constraint is itself a conformance violation (see `spec/conformance/PROTOCOL.md`).
 
@@ -713,7 +714,8 @@ Note the asymmetry with sandbox resolution (Section 11.1): contracts **merge** (
 **Contract enforcement is skipped when:**
 - `response_format: "text"` (field checks are meaningless on raw strings)
 - The output could not be parsed as a dict (warning logged, execution continues)
-- The behavioural contracts library is not installed (warning logged, execution continues)
+
+If a resolved task declares a contract but the runtime's contract-enforcement capability is unavailable, the runtime MUST fail before that task's model execution with `CONTRACTS_UNAVAILABLE`. Statically resolvable local delegated tasks SHOULD be preflighted before their containing dependency chain starts; remote delegated tasks MUST be checked immediately after fetch and before their model execution. A runtime MUST NOT silently ignore the declared contract.
 
 A contract violation MUST raise `CONTRACT_VIOLATION`.
 
@@ -744,13 +746,14 @@ A runtime MUST surface errors as structured objects with the following fields:
 | `CHAIN_CYCLE_ERROR` | `routing` | Circular `depends_on` chain detected |
 | `CHAIN_INPUT_MISSING` | `input_validation` | Required input field missing after dependency merge |
 | `CONTRACT_VIOLATION` | `contract` | Task output failed behavioural contract validation |
+| `CONTRACTS_UNAVAILABLE` | `contract` | A resolved task declares a behavioural contract but enforcement is unavailable |
 | `DELEGATION_CYCLE_ERROR` | `delegation` | Circular spec delegation detected (A→B→A) |
 | `PRICING_CONFIG_ERROR` | `cost` | A cost-rate override (`config.pricing` or an implementation-defined global override) is present but invalid |
 | `SANDBOX_TOOL_VIOLATION` | `sandbox` | Tool blocked by the effective `tools.allow`/`tools.deny` sandbox constraint |
-| `SANDBOX_DOMAIN_VIOLATION` | `sandbox` | HTTP request host not permitted by `http.allow_domains` |
+| `SANDBOX_DOMAIN_VIOLATION` | `sandbox` | HTTP or MCP destination host/port not permitted by `http.allow_domains` |
 | `SANDBOX_PATH_VIOLATION` | `sandbox` | File path outside `file.allow_paths` after resolution |
 
-A runtime MUST detect and raise `CHAIN_CYCLE_ERROR`, `DELEGATION_CYCLE_ERROR`, and `PRICING_CONFIG_ERROR` before any model call is made.
+A runtime MUST detect and raise `CHAIN_CYCLE_ERROR`, `DELEGATION_CYCLE_ERROR`, and `PRICING_CONFIG_ERROR` before any model call is made. It MUST raise `CONTRACTS_UNAVAILABLE` before the affected task invokes a model; statically resolvable tasks SHOULD be checked before their containing chain starts.
 
 ---
 

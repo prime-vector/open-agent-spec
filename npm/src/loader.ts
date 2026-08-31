@@ -42,8 +42,32 @@ const VERSION_PATTERN = /^(1\.(0\.[4-9]|[1-9]\.[0-9]+)|[2-9]\.[0-9]+\.[0-9]+)$/;
 // Spec features this runtime does not implement. Per the conformance honesty
 // rule, specs declaring them are REFUSED rather than silently degraded —
 // particularly important for sandbox, which is a security feature.
-const UNSUPPORTED_ROOT_KEYS = ["tools", "sandbox", "behavioural_contract"] as const;
-const UNSUPPORTED_TASK_KEYS = ["tools", "sandbox", "behavioural_contract"] as const;
+const UNSUPPORTED_ROOT_KEYS = ["tools", "sandbox"] as const;
+const UNSUPPORTED_TASK_KEYS = ["tools", "sandbox"] as const;
+const ALLOW_DOMAIN_PATTERN = /^(?![A-Za-z][A-Za-z0-9+.-]*:\/\/)(?:\[[^\]]+\]|[^:/\s]+)(?::[0-9]{1,5})?$/;
+
+function validateAllowDomains(sandbox: unknown, source: string): void {
+  if (!sandbox || typeof sandbox !== "object" || Array.isArray(sandbox)) return;
+  const http = (sandbox as Record<string, unknown>)["http"];
+  if (!http || typeof http !== "object" || Array.isArray(http)) return;
+  const rules = (http as Record<string, unknown>)["allow_domains"];
+  if (rules === undefined) return;
+  if (!Array.isArray(rules)) {
+    fail(source, "sandbox.http.allow_domains must be an array");
+  }
+  for (const [index, rule] of rules.entries()) {
+    if (typeof rule !== "string" || !ALLOW_DOMAIN_PATTERN.test(rule)) {
+      fail(source, `sandbox.http.allow_domains[${index}] must be a host or host:port`);
+    }
+    const portMatch = rule.match(/:([0-9]{1,5})$/);
+    if (portMatch) {
+      const port = Number(portMatch[1]);
+      if (port < 1 || port > 65535) {
+        fail(source, `sandbox.http.allow_domains[${index}] port must be between 1 and 65535`);
+      }
+    }
+  }
+}
 
 export function loadSpecFromFile(specPath: string): OASpec {
   let raw: string;
@@ -133,6 +157,38 @@ function validateSpec(data: Record<string, unknown>, source: string): void {
   const taskMap = tasks as Record<string, unknown>;
   if (Object.keys(taskMap).length === 0) {
     fail(source, "'tasks' must contain at least one task");
+  }
+
+  validateAllowDomains(data["sandbox"], source);
+  for (const [taskName, taskDef] of Object.entries(taskMap)) {
+    if (taskDef && typeof taskDef === "object") {
+      validateAllowDomains(
+        (taskDef as Record<string, unknown>)["sandbox"],
+        `${source}: task '${taskName}'`,
+      );
+    }
+  }
+
+  if ("behavioural_contract" in data) {
+    throw new OAError(
+      `${source}: spec declares 'behavioural_contract:' but this runtime cannot enforce contracts.`,
+      "CONTRACTS_UNAVAILABLE",
+      "contract",
+    );
+  }
+  for (const [taskName, taskDef] of Object.entries(taskMap)) {
+    if (
+      taskDef &&
+      typeof taskDef === "object" &&
+      "behavioural_contract" in (taskDef as Record<string, unknown>)
+    ) {
+      throw new OAError(
+        `${source}: task '${taskName}' declares 'behavioural_contract:' but this runtime cannot enforce contracts.`,
+        "CONTRACTS_UNAVAILABLE",
+        "contract",
+        taskName,
+      );
+    }
   }
 
   // ── Unsupported feature guard (conformance honesty rule) ───────────────

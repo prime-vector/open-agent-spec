@@ -389,7 +389,7 @@
             },
             "behavioural_contract": {
               "type": "object",
-              "description": "Per-task behavioural contract. Merged with the top-level behavioural_contract (arrays are unioned, scalars use per-task-wins). Install behavioural-contracts to enable runtime enforcement."
+              "description": "Per-task behavioural contract. Merged with the top-level behavioural_contract (arrays are unioned, scalars use per-task-wins). A runtime without contract enforcement must fail closed before model execution."
             },
             "tools": {
               "type": "array",
@@ -586,12 +586,13 @@
             "allow_domains": {
               "type": "array",
               "items": {
-                "type": "string"
+                "type": "string",
+                "pattern": "^(?![A-Za-z][A-Za-z0-9+.-]*://)(?:\\[[^\\]]+\\]|[^:/\\s]+)(?::[0-9]{1,5})?$"
               },
-              "description": "Hosts permitted for http.get/http.post. A request host must equal a listed domain or be a subdomain of one; otherwise SANDBOX_DOMAIN_VIOLATION."
+              "description": "Hosts or host:port destinations permitted for http.get/http.post and MCP endpoints. A destination host must equal a listed domain or be a subdomain; an optional port must match the effective destination port. Otherwise SANDBOX_DOMAIN_VIOLATION."
             }
           },
-          "description": "HTTP constraints for the native http.get/http.post tools."
+          "description": "Network destination constraints for native HTTP tools and MCP endpoints."
         },
         "file": {
           "type": "object",

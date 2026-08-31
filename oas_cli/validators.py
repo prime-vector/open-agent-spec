@@ -5,6 +5,7 @@
 
 import json
 import logging
+from urllib.parse import urlparse
 
 from jsonschema import validate
 from jsonschema.exceptions import SchemaError, ValidationError
@@ -124,6 +125,49 @@ def _validate_behavioural_contract(spec_data: dict) -> None:
 
 _VALID_TOOL_TYPES = {"native", "mcp", "custom"}
 _VALID_NATIVE_IDS = {"file.read", "file.write", "http.get", "http.post", "env.read"}
+
+
+def _validate_allow_domain(rule: object, location: str) -> None:
+    if not isinstance(rule, str) or not rule.strip():
+        raise ValueError(f"{location} must be a non-empty host or host:port string.")
+    value = rule.strip()
+    if "://" in value or any(char in value for char in "/?#@"):
+        raise ValueError(
+            f"{location} must be a host or host:port, not a URL: '{rule}'."
+        )
+    parsed = urlparse(f"//{value}")
+    try:
+        port = parsed.port
+    except ValueError as exc:
+        raise ValueError(f"{location} has an invalid port in '{rule}'.") from exc
+    if not parsed.hostname:
+        raise ValueError(f"{location} has an invalid host in '{rule}'.")
+    if port is not None and not 1 <= port <= 65535:
+        raise ValueError(f"{location} port must be between 1 and 65535.")
+
+
+def _validate_sandbox_domains(spec_data: dict) -> None:
+    """Validate root and task-level allow_domains entries."""
+
+    def _validate_block(sandbox: object, location: str) -> None:
+        if not isinstance(sandbox, dict):
+            return
+        http = sandbox.get("http")
+        if not isinstance(http, dict) or "allow_domains" not in http:
+            return
+        rules = http["allow_domains"]
+        if not isinstance(rules, list):
+            raise ValueError(f"{location}.http.allow_domains must be a list.")
+        for index, rule in enumerate(rules):
+            _validate_allow_domain(rule, f"{location}.http.allow_domains[{index}]")
+
+    _validate_block(spec_data.get("sandbox"), "sandbox")
+    tasks = spec_data.get("tasks") or {}
+    if not isinstance(tasks, dict):
+        return  # _validate_tasks provides the canonical type error.
+    for task_name, task_def in tasks.items():
+        if isinstance(task_def, dict):
+            _validate_block(task_def.get("sandbox"), f"tasks.{task_name}.sandbox")
 
 
 def _validate_tools(spec_data: dict) -> None:
@@ -459,6 +503,7 @@ def validate_spec(spec_data: dict) -> tuple[str, str]:
         _validate_agent(spec_data)
         _validate_behavioural_contract(spec_data)
         _validate_tools(spec_data)
+        _validate_sandbox_domains(spec_data)
         _validate_tasks(spec_data)
         _validate_integration(spec_data)
         _validate_prompts(spec_data)

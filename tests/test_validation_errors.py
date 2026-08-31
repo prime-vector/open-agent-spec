@@ -146,6 +146,38 @@ class TestToolErrors:
             validate_spec(spec)
 
 
+class TestSandboxDomainErrors:
+    @pytest.mark.parametrize(
+        "rule",
+        ["localhost:abc", "https://api.example.com", "api.example.com/path", ""],
+    )
+    def test_rejects_malformed_root_allow_domain(self, rule):
+        spec = _valid_spec(
+            sandbox={"http": {"allow_domains": ["api.example.com", rule]}}
+        )
+        with pytest.raises(ValueError, match=r"allow_domains\[1\]"):
+            validate_spec(spec)
+
+    def test_rejects_out_of_range_port(self):
+        spec = _valid_spec(sandbox={"http": {"allow_domains": ["localhost:70000"]}})
+        with pytest.raises(ValueError, match=r"invalid port|between 1 and 65535"):
+            validate_spec(spec)
+
+    def test_accepts_host_and_host_port(self):
+        spec = _valid_spec(
+            sandbox={"http": {"allow_domains": ["api.example.com", "localhost:3000"]}}
+        )
+        validate_spec(spec)
+
+    def test_rejects_malformed_task_allow_domain(self):
+        spec = _valid_spec()
+        spec["tasks"]["task1"]["sandbox"] = {
+            "http": {"allow_domains": ["https://api.example.com"]}
+        }
+        with pytest.raises(ValueError, match=r"tasks\.task1\.sandbox"):
+            validate_spec(spec)
+
+
 # -- Task validation ---------------------------------------------------
 
 

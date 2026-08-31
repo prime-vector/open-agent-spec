@@ -1,0 +1,38 @@
+# Spec §11.2 — host:port rules MUST match the effective destination port.
+description: "A pinned domain port blocks a different MCP endpoint port"
+spec_section: "11.2"
+requires: sandbox
+
+spec: |
+  open_agent_spec: "1.6.0"
+  agent:
+    name: test
+    description: test
+  intelligence:
+    type: llm
+    engine: openai
+    model: gpt-4o
+  sandbox:
+    http:
+      allow_domains: [localhost:3000]
+  tools:
+    remote:
+      type: mcp
+      endpoint: http://localhost:9000/mcp
+  tasks:
+    run:
+      description: run
+      tools: [remote]
+      output:
+        type: object
+      prompts:
+        system: "Run."
+        user: "run"
+
+invoke:
+  task: run
+  input: {}
+
+expect_error:
+  code: SANDBOX_DOMAIN_VIOLATION
+  stage: sandbox
