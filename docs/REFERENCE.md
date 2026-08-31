@@ -455,7 +455,7 @@ Notes:
 
 Behavioural contracts let you declare constraints on a task's output — required fields, policy rules, behavioural flags — and have them enforced automatically at run time by the [`behavioural-contracts`](https://pypi.org/project/behavioural-contracts/) library.
 
-Contracts are **entirely optional**. Specs without them run exactly as before. When a resolved task declares a contract but the enforcement library is not installed, OA fails closed with `CONTRACTS_UNAVAILABLE` before making a model call.
+Contracts are **entirely optional**. Specs without them run exactly as before. When a resolved task declares a contract but the enforcement library is not installed, OA fails closed with `CONTRACTS_UNAVAILABLE` before the affected task makes a model call. Locally delegated tasks are recursively preflighted before their containing chain starts; remote delegated tasks are checked immediately after fetch.
 
 ### Install
 
@@ -533,7 +533,7 @@ A contract violation on a dependency stops the chain immediately and raises `CON
 | Condition | Behaviour |
 |---|---|
 | `response_format: text` | Validation skipped — field checks are meaningless on raw strings |
-| `behavioural-contracts` not installed | Execution fails before the first affected model call with `CONTRACTS_UNAVAILABLE` |
+| `behavioural-contracts` not installed | Execution fails before the affected task's model call with `CONTRACTS_UNAVAILABLE` |
 | Output is not a dict (JSON parse failed) | Validation skipped with warning |
 
 ### Error on violation

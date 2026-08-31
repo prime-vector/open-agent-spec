@@ -158,6 +158,10 @@ list). The harness skips cases whose requirements are not in the adapter's
 declared capabilities and reports them as **UNSUPPORTED** — distinct from PASS
 and FAIL. Cases without `requires:` are implicitly `core`.
 
+Honesty cases may also declare `requires_absent:`. Such a case runs only when
+the named capability is not declared, allowing the suite to verify that a
+runtime refuses a feature it cannot enforce instead of silently degrading it.
+
 **Honesty rule:** a runtime MUST NOT declare a capability it does not enforce.
 In particular, a runtime that does not implement `sandbox` MUST refuse to run
 specs that declare a `sandbox:` block (rather than silently ignoring it).

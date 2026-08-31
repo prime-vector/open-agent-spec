@@ -856,6 +856,59 @@ class TestContractEnforcementUnavailable:
         assert err.code == "CONTRACTS_UNAVAILABLE"
         assert err.task == "prepare"
 
+    def test_local_delegated_contract_is_preflighted_before_chain(
+        self, monkeypatch, tmp_path
+    ):
+        delegated = tmp_path / "delegated.yaml"
+        delegated.write_text(
+            """
+open_agent_spec: "1.6.0"
+agent: {name: delegated, description: test}
+intelligence: {type: llm, engine: openai, model: gpt-4o}
+tasks:
+  work:
+    description: delegated work
+    behavioural_contract:
+      version: "1.0"
+      response_contract:
+        output_format: {required_fields: [result]}
+    output: {type: object}
+    prompts: {system: delegated, user: work}
+""".strip()
+        )
+        spec = self._contract_spec()
+        spec["tasks"]["run"].pop("behavioural_contract")
+        spec["tasks"]["first"] = {
+            "description": "first",
+            "output": {"type": "object"},
+            "prompts": {"system": "first", "user": "first"},
+        }
+        spec["tasks"]["delegated"] = {
+            "description": "delegated",
+            "spec": "delegated.yaml",
+            "task": "work",
+        }
+        spec["tasks"]["run"]["depends_on"] = ["first", "delegated"]
+        calls: list[str] = []
+
+        def invoke(*args, **kwargs):
+            calls.append("called")
+            return "{}"
+
+        monkeypatch.setattr("oas_cli.runner.CONTRACTS_ENABLED", False)
+        monkeypatch.setattr("oas_cli.runner.invoke_intelligence", invoke)
+
+        with pytest.raises(OARunError) as exc_info:
+            run_task_from_spec(
+                spec,
+                task_name="run",
+                spec_path=tmp_path / "main.yaml",
+            )
+
+        assert exc_info.value.code == "CONTRACTS_UNAVAILABLE"
+        assert exc_info.value.task == "work"
+        assert calls == []
+
 
 @pytest.mark.skipif(not CONTRACTS_ENABLED, reason="behavioural-contracts not installed")
 class TestContractEnforcementLive:

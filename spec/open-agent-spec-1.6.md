@@ -715,7 +715,7 @@ Note the asymmetry with sandbox resolution (Section 11.1): contracts **merge** (
 - `response_format: "text"` (field checks are meaningless on raw strings)
 - The output could not be parsed as a dict (warning logged, execution continues)
 
-If a resolved task declares a contract but the runtime's contract-enforcement capability is unavailable, the runtime MUST fail before model execution with `CONTRACTS_UNAVAILABLE`. It MUST NOT silently ignore the declared contract.
+If a resolved task declares a contract but the runtime's contract-enforcement capability is unavailable, the runtime MUST fail before that task's model execution with `CONTRACTS_UNAVAILABLE`. Statically resolvable local delegated tasks SHOULD be preflighted before their containing dependency chain starts; remote delegated tasks MUST be checked immediately after fetch and before their model execution. A runtime MUST NOT silently ignore the declared contract.
 
 A contract violation MUST raise `CONTRACT_VIOLATION`.
 
@@ -750,10 +750,10 @@ A runtime MUST surface errors as structured objects with the following fields:
 | `DELEGATION_CYCLE_ERROR` | `delegation` | Circular spec delegation detected (A→B→A) |
 | `PRICING_CONFIG_ERROR` | `cost` | A cost-rate override (`config.pricing` or an implementation-defined global override) is present but invalid |
 | `SANDBOX_TOOL_VIOLATION` | `sandbox` | Tool blocked by the effective `tools.allow`/`tools.deny` sandbox constraint |
-| `SANDBOX_DOMAIN_VIOLATION` | `sandbox` | HTTP request host not permitted by `http.allow_domains` |
+| `SANDBOX_DOMAIN_VIOLATION` | `sandbox` | HTTP or MCP destination host/port not permitted by `http.allow_domains` |
 | `SANDBOX_PATH_VIOLATION` | `sandbox` | File path outside `file.allow_paths` after resolution |
 
-A runtime MUST detect and raise `CHAIN_CYCLE_ERROR`, `DELEGATION_CYCLE_ERROR`, `PRICING_CONFIG_ERROR`, and `CONTRACTS_UNAVAILABLE` before any model call is made.
+A runtime MUST detect and raise `CHAIN_CYCLE_ERROR`, `DELEGATION_CYCLE_ERROR`, and `PRICING_CONFIG_ERROR` before any model call is made. It MUST raise `CONTRACTS_UNAVAILABLE` before the affected task invokes a model; statically resolvable tasks SHOULD be checked before their containing chain starts.
 
 ---
 

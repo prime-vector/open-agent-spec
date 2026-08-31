@@ -375,6 +375,8 @@ See [`examples/sandboxed-agent/`](examples/sandboxed-agent/).
 
 Declare what the model output must contain. The `behavioural-contracts` library enforces the contract after parsing, before the result is returned.
 
+Declared contracts fail closed with `CONTRACTS_UNAVAILABLE` before the affected task invokes a model when enforcement is unavailable.
+
 ```yaml
 behavioural_contract:
   version: "1.0"

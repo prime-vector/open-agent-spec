@@ -1,0 +1,47 @@
+# Spec §11.3 — MCP endpoints MUST be checked before discovery/model execution.
+description: "A blocked MCP dependency endpoint fails during chain preflight"
+spec_section: "11.3"
+requires: sandbox
+
+spec: |
+  open_agent_spec: "1.6.0"
+  agent:
+    name: test
+    description: test
+  intelligence:
+    type: llm
+    engine: openai
+    model: gpt-4o
+  sandbox:
+    http:
+      allow_domains: [safe.example]
+  tools:
+    remote:
+      type: mcp
+      endpoint: https://blocked.example/mcp
+  tasks:
+    first:
+      description: first
+      output: {type: object}
+      prompts: {system: "First.", user: "first"}
+    remote_task:
+      description: remote
+      tools: [remote]
+      output: {type: object}
+      prompts: {system: "Remote.", user: "remote_task"}
+    run:
+      description: run
+      depends_on: [first, remote_task]
+      output: {type: object}
+      prompts: {system: "Run.", user: "run"}
+
+mock_responses:
+  first: '{}'
+
+invoke:
+  task: run
+  input: {}
+
+expect_error:
+  code: SANDBOX_DOMAIN_VIOLATION
+  stage: sandbox

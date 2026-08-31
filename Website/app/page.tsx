@@ -252,7 +252,7 @@ tasks:
 
               <div className="rounded-lg border border-stone-300/60 bg-stone-50/80 p-3">
                 <div className="mb-1 text-xs font-semibold text-stone-900">Behavioural contracts (optional)</div>
-                <p className="text-xs text-stone-600">Attach output contracts to tasks with the <code className="rounded bg-stone-200 px-1">behavioural-contracts</code> library. Validate required fields, confidence scores, and custom rules, after parsing, before returning. Degrades gracefully when not installed.</p>
+                <p className="text-xs text-stone-600">Attach output contracts to tasks with the <code className="rounded bg-stone-200 px-1">behavioural-contracts</code> library. Validate required fields, confidence scores, and custom rules after parsing and before returning. Declared contracts fail closed when enforcement is unavailable.</p>
               </div>
 
               <div className="rounded-lg border border-stone-300/60 bg-stone-50/80 p-3">

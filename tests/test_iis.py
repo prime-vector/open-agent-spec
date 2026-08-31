@@ -402,6 +402,44 @@ class TestSandboxIntegration:
         mock_resolve_tools.assert_not_called()
         mock_invoke.assert_not_called()
 
+    def test_mcp_dependency_violation_is_preflighted_before_chain(self):
+        spec = _minimal_spec(sandbox={"http": {"allow_domains": ["safe.example"]}})
+        spec["tools"] = {
+            "remote": {
+                "type": "mcp",
+                "endpoint": "https://blocked.example/mcp",
+            }
+        }
+        spec["tasks"] = {
+            "first": {
+                "description": "would spend tokens",
+                "output": {"type": "object"},
+                "prompts": {"system": "first", "user": "first"},
+            },
+            "mcp_task": {
+                "description": "blocked MCP task",
+                "tools": ["remote"],
+                "output": {"type": "object"},
+                "prompts": {"system": "mcp", "user": "mcp"},
+            },
+            "run": {
+                "description": "run",
+                "depends_on": ["first", "mcp_task"],
+                "output": {"type": "object"},
+                "prompts": {"system": "run", "user": "run"},
+            },
+        }
+
+        with (
+            patch("oas_cli.runner.invoke_intelligence") as mock_invoke,
+            pytest.raises(OARunError) as exc_info,
+        ):
+            run_task_from_spec(spec, task_name="run", input_data={})
+
+        assert exc_info.value.code == "SANDBOX_DOMAIN_VIOLATION"
+        assert exc_info.value.task == "mcp_task"
+        mock_invoke.assert_not_called()
+
 
 # ── Chain-wide immutability ───────────────────────────────────────────────────
 

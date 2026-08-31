@@ -1,0 +1,38 @@
+# Spec §12.4 / §13.2 — unsupported declared contracts MUST fail closed.
+description: "A runtime without contract capability raises CONTRACTS_UNAVAILABLE"
+spec_section: "12.4"
+requires_absent: contracts
+
+spec: |
+  open_agent_spec: "1.6.0"
+  agent:
+    name: test
+    description: test
+  intelligence:
+    type: llm
+    engine: openai
+    model: gpt-4o
+  behavioural_contract:
+    version: "1.0"
+    response_contract:
+      output_format:
+        required_fields: [answer]
+  tasks:
+    analyse:
+      description: analyse
+      output:
+        type: object
+      prompts:
+        system: "Analyse."
+        user: "analyse"
+
+mock_responses:
+  analyse: '{"answer": "yes"}'
+
+invoke:
+  task: analyse
+  input: {}
+
+expect_error:
+  code: CONTRACTS_UNAVAILABLE
+  stage: contract

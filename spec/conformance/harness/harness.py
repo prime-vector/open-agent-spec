@@ -82,6 +82,16 @@ def _case_requirements(case: dict) -> set[str]:
     return set(req)
 
 
+def _case_absent_requirements(case: dict) -> set[str]:
+    """Capabilities that must be absent for an honesty case to apply."""
+    req = case.get("requires_absent")
+    if req is None:
+        return set()
+    if isinstance(req, str):
+        return {req}
+    return set(req)
+
+
 def discover_cases(category: str | None = None) -> list[tuple[str, Path]]:
     cases: list[tuple[str, Path]] = []
     categories = [category] if category else _CATEGORIES
@@ -291,6 +301,9 @@ def run_case_against(adapter: Adapter, case: dict, case_path: Path) -> tuple[str
     missing = requirements - adapter.capabilities
     if missing:
         return UNSUPPORTED, f"requires {sorted(missing)}"
+    unexpectedly_present = _case_absent_requirements(case) & adapter.capabilities
+    if unexpectedly_present:
+        return UNSUPPORTED, f"requires absent {sorted(unexpectedly_present)}"
 
     invoke = case["invoke"]
     payload: dict[str, Any] = {

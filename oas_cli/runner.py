@@ -482,12 +482,51 @@ def _require_contract_support(spec_data: dict[str, Any], task_name: str) -> None
         )
 
 
-def _preflight_contract_support(spec_data: dict[str, Any], task_name: str) -> None:
-    """Check the selected task and every dependency before the chain starts."""
+def _preflight_runtime_guards(
+    spec_data: dict[str, Any],
+    task_name: str,
+    *,
+    spec_path: Path | None = None,
+    _visited_specs: frozenset[Path] = frozenset(),
+) -> None:
+    """Check static runtime guards before any task in a chain invokes a model.
+
+    The selected task and its direct dependencies are checked together. Local
+    delegated specs are recursively inspectable and are therefore included in
+    the same preflight. Remote specs are guarded after fetch at their execution
+    boundary because their contents are not locally available.
+    """
     tasks = spec_data.get("tasks") or {}
     task_def = tasks.get(task_name) or {}
     for resolved_task in [*(task_def.get("depends_on") or []), task_name]:
         _require_contract_support(spec_data, resolved_task)
+        sandbox = _resolve_sandbox(spec_data, resolved_task)
+        _check_mcp_endpoints(spec_data, resolved_task, sandbox)
+
+        resolved_def = tasks.get(resolved_task) or {}
+        delegation_ref = resolved_def.get("spec")
+        if not isinstance(delegation_ref, str) or not delegation_ref.strip():
+            continue
+        raw_ref = delegation_ref.strip()
+        if _is_remote_ref(raw_ref):
+            continue
+
+        delegated_path = Path(raw_ref)
+        if not delegated_path.is_absolute() and spec_path is not None:
+            delegated_path = (spec_path.parent / delegated_path).resolve()
+        else:
+            delegated_path = delegated_path.resolve()
+        if delegated_path in _visited_specs:
+            continue
+
+        delegated_spec = _load_spec(delegated_path)
+        delegated_task = resolved_def.get("task") or resolved_task
+        _preflight_runtime_guards(
+            delegated_spec,
+            delegated_task,
+            spec_path=delegated_path,
+            _visited_specs=_visited_specs | {delegated_path},
+        )
 
 
 def _resolve_sandbox(spec_data: dict[str, Any], task_name: str) -> dict[str, Any]:
@@ -1071,7 +1110,12 @@ def run_task_from_spec(
     chosen_task, _ = _choose_task(spec_data, task_name)
     # Check the selected task before dependencies can spend tokens. Each
     # dependency is checked again at its own task boundary.
-    _preflight_contract_support(spec_data, chosen_task)
+    _preflight_runtime_guards(
+        spec_data,
+        chosen_task,
+        spec_path=spec_path,
+        _visited_specs=frozenset({spec_path.resolve()}) if spec_path else frozenset(),
+    )
 
     # Seed the visited set with the calling spec so direct self-delegation is caught.
     visited: frozenset[Path] = frozenset()
