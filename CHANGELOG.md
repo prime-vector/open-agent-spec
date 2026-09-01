@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Security
+- **Remote delegated-spec fetches respect the sandbox** — `http://`, `https://`, and resolved `oa://` destinations are checked against the delegating task's effective `sandbox.http.allow_domains` before any network request. (#112)
+
+### Documentation
+- Stamp the OA 1.6 normative document and schema metadata as 1.6.1, add revision history, and narrow the compatibility statement to acknowledge stricter `allow_domains` validation. (#111)
+
 ### Fixed
 - **npm CLI accepts a bare spec path** — `oa validate <spec.yaml>` and `oa run <spec.yaml>` now work without `--spec` in the npm runtime, matching the Python CLI (1.6.0). Same guardrails: `--spec` unchanged, bare path + `--spec` together is an explicit error, and a non-YAML bare argument gets a clear error naming the valid forms. First Jest tests land with this (`npm/tests/`), and both CI and the npm publish workflow now run them. (#100)
 

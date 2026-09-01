@@ -224,6 +224,41 @@ class TestRemoteDelegation:
         assert result["task"] == "delegate"
         assert "https://example.com" in result["delegated_to"]
 
+    def test_blocked_remote_dependency_is_preflighted_before_fetch_or_model(
+        self, tmp_path
+    ):
+        coordinator_spec = _make_coordinator_spec("https://blocked.example/spec.yaml")
+        coordinator_spec["sandbox"] = {"http": {"allow_domains": ["safe.example"]}}
+        coordinator_spec["tasks"] = {
+            "first": {
+                "description": "would spend tokens",
+                "output": {"type": "object"},
+                "prompts": {"system": "first", "user": "first"},
+            },
+            "delegate": coordinator_spec["tasks"]["delegate"],
+            "run": {
+                "description": "chain",
+                "depends_on": ["first", "delegate"],
+                "output": {"type": "object"},
+                "prompts": {"system": "run", "user": "run"},
+            },
+        }
+        coordinator = tmp_path / "coordinator.yaml"
+        coordinator.write_text(yaml.dump(coordinator_spec))
+
+        with (
+            patch("oas_cli.runner._fetch_remote_spec") as mock_fetch,
+            patch("oas_cli.runner.invoke_intelligence") as mock_invoke,
+            pytest.raises(OARunError) as exc_info,
+        ):
+            run_task_from_file(coordinator, task_name="run")
+
+        assert exc_info.value.code == "SANDBOX_DOMAIN_VIOLATION"
+        assert exc_info.value.stage == "sandbox"
+        assert exc_info.value.task == "delegate"
+        mock_fetch.assert_not_called()
+        mock_invoke.assert_not_called()
+
     def test_remote_cycle_detection(self, tmp_path):
         """A remote spec that delegates back to the same URL raises DELEGATION_CYCLE_ERROR."""
         remote_url = "https://example.com/cycle.yaml"

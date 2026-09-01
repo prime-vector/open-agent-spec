@@ -493,8 +493,9 @@ def _preflight_runtime_guards(
 
     The selected task and its direct dependencies are checked together. Local
     delegated specs are recursively inspectable and are therefore included in
-    the same preflight. Remote specs are guarded after fetch at their execution
-    boundary because their contents are not locally available.
+    the same preflight. Remote delegation destinations are checked before
+    fetch; guards requiring remote contents run after fetch at the execution
+    boundary because those contents are not locally available.
     """
     tasks = spec_data.get("tasks") or {}
     task_def = tasks.get(task_name) or {}
@@ -509,6 +510,7 @@ def _preflight_runtime_guards(
             continue
         raw_ref = delegation_ref.strip()
         if _is_remote_ref(raw_ref):
+            _check_remote_spec_endpoint(raw_ref, sandbox, resolved_task)
             continue
 
         delegated_path = Path(raw_ref)
@@ -668,6 +670,21 @@ def _check_mcp_endpoints(
                 task_name,
                 source=f"MCP tool '{tool_name}' endpoint",
             )
+
+
+def _check_remote_spec_endpoint(
+    ref: str, sandbox: dict[str, Any], task_name: str
+) -> None:
+    """Preflight a remote delegated-spec destination before network access."""
+    allow_domains = (sandbox.get("http") or {}).get("allow_domains")
+    if allow_domains is None:
+        return
+    _check_url_domain(
+        _resolve_spec_url(ref),
+        allow_domains,
+        task_name,
+        source="Delegated spec",
+    )
 
 
 _MAX_TOOL_ITERATIONS = 10
@@ -853,6 +870,8 @@ def _run_single_task(
 
         # ── Remote spec (oa:// or https://) ──────────────────────────────
         if _is_remote_ref(raw_ref):
+            sandbox = _resolve_sandbox(spec_data, task_name)
+            _check_remote_spec_endpoint(raw_ref, sandbox, task_name)
             url = _resolve_spec_url(raw_ref)
             # Use URL string as the cycle-detection key.
             canonical_key: Any = url

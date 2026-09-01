@@ -2,7 +2,7 @@
   "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "https://openagents.org/schemas/oas-schema.json",
   "title": "Open Agent Spec",
-  "description": "Schema for Open Agent Spec YAML files (OA 1.6.0)",
+  "description": "Schema for Open Agent Spec YAML files (OA 1.6.1)",
   "type": "object",
   "required": [
     "open_agent_spec",
@@ -589,10 +589,10 @@
                 "type": "string",
                 "pattern": "^(?![A-Za-z][A-Za-z0-9+.-]*://)(?:\\[[^\\]]+\\]|[^:/\\s]+)(?::[0-9]{1,5})?$"
               },
-              "description": "Hosts or host:port destinations permitted for http.get/http.post and MCP endpoints. A destination host must equal a listed domain or be a subdomain; an optional port must match the effective destination port. Otherwise SANDBOX_DOMAIN_VIOLATION."
+              "description": "Hosts or host:port destinations permitted for http.get/http.post, MCP endpoints, and remote delegated-spec fetches. A destination host must equal a listed domain or be a subdomain; an optional port must match the effective destination port. Otherwise SANDBOX_DOMAIN_VIOLATION."
             }
           },
-          "description": "Network destination constraints for native HTTP tools and MCP endpoints."
+          "description": "Network destination constraints for native HTTP tools, MCP endpoints, and remote delegated-spec fetches."
         },
         "file": {
           "type": "object",
