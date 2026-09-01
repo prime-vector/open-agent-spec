@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **`oa run --usage PATH`** — writes a usage JSON file (leaf task, `depends_on` chain, and rolled-up `total`) without changing stdout, so `--quiet` scripts can meter spend. Leaf-only would under-count chained tasks; `estimated_cost_usd` is included on `total` only when every contributing block has a cost. (#106)
+
 ### Fixed
 - **npm CLI accepts a bare spec path** — `oa validate <spec.yaml>` and `oa run <spec.yaml>` now work without `--spec` in the npm runtime, matching the Python CLI (1.6.0). Same guardrails: `--spec` unchanged, bare path + `--spec` together is an explicit error, and a non-YAML bare argument gets a clear error naming the valid forms. First Jest tests land with this (`npm/tests/`), and both CI and the npm publish workflow now run them. (#100)
 
