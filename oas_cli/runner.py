@@ -676,11 +676,12 @@ def _check_remote_spec_endpoint(
     ref: str, sandbox: dict[str, Any], task_name: str
 ) -> None:
     """Preflight a remote delegated-spec destination before network access."""
+    url = _resolve_spec_url(ref)
     allow_domains = (sandbox.get("http") or {}).get("allow_domains")
     if allow_domains is None:
         return
     _check_url_domain(
-        _resolve_spec_url(ref),
+        url,
         allow_domains,
         task_name,
         source="Delegated spec",

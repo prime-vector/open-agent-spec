@@ -598,12 +598,12 @@ All sandbox violations raise `OARunError` immediately with one of three structur
 | Code | Trigger |
 |------|---------|
 | `SANDBOX_TOOL_VIOLATION` | Tool name not in `allow` list, or in `deny` list |
-| `SANDBOX_DOMAIN_VIOLATION` | HTTP, MCP, or remote delegated-spec destination not in `allow_domains`; `host:port` rules require that port |
+| `SANDBOX_DOMAIN_VIOLATION` | HTTP, MCP, or declared/resolved remote delegated-spec destination not in `allow_domains`; `host:port` rules require that port |
 | `SANDBOX_PATH_VIOLATION` | File path outside `allow_paths` (for `file.read` / `file.write`) |
 
 Path traversal (`../../`) is caught automatically — paths are resolved to absolute before comparison.
 
-MCP endpoints and remote delegated-spec URLs are static spec configuration and are checked against the effective `http.allow_domains` policy before discovery, fetch, or model execution. For `oa://` references, allow the resolved registry host (`openagentspec.dev`). A bare hostname preserves the original any-port behaviour; use `host:port` when the agent must reach only one service on that host.
+MCP endpoints and declared remote delegated-spec URLs are static spec configuration and are checked against the current task's effective `http.allow_domains` policy before discovery, the initial fetch, or model execution. For `oa://` references, allow the resolved registry host (`openagentspec.dev`). Redirect destinations and sandbox inheritance across delegated documents are separate concerns. A bare hostname preserves the original any-port behaviour; use `host:port` when the agent must reach only one service on that host.
 
 ### Input immutability
 

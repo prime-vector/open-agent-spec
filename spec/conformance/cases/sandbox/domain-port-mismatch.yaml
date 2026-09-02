@@ -4,7 +4,7 @@ spec_section: "11.2"
 requires: sandbox
 
 spec: |
-  open_agent_spec: "1.6.0"
+  open_agent_spec: "1.6.1"
   agent:
     name: test
     description: test

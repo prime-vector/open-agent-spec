@@ -1,16 +1,16 @@
 # Open Agent Spec — Formal Specification
 
 **Version:** 1.6.1
-**Status:** Release
-**Date:** 2026-08-31
+**Status:** Release Candidate
+**Date:** Unreleased
 
 ---
 
 ## Abstract
 
-This document defines the Open Agent Spec (OA) 1.6.0. It specifies the structure of an OA document, the semantics that a conforming runtime MUST implement, and the boundaries of what OA deliberately does not do. An independent implementor MUST be able to build a conforming runtime from this document alone.
+This document defines the Open Agent Spec (OA) 1.6.1. It specifies the structure of an OA document, the semantics that a conforming runtime MUST implement, and the boundaries of what OA deliberately does not do. An independent implementor MUST be able to build a conforming runtime from this document alone.
 
-OA 1.6.0 consolidates the runtime definition around four pillars: a **typed contract** (schemas validated on both sides of every model call), a **deterministic execution pipeline** (no hidden control flow), **first-class cost observability** (normalised token usage and best-effort spend reporting on every result), and **declarative safety constraints** (sandboxing enforced before I/O). This revision formalises features that previous drafts left implementation-defined — sandboxing, history threading, input immutability — and promotes usage/cost reporting from an envelope footnote to a runtime obligation.
+OA 1.6.1 consolidates the runtime definition around four pillars: a **typed contract** (schemas validated on both sides of every model call), a **deterministic execution pipeline** (no hidden control flow), **first-class cost observability** (normalised token usage and best-effort spend reporting on every result), and **declarative safety constraints** (sandboxing enforced before I/O). This revision formalises features that previous drafts left implementation-defined — sandboxing, history threading, input immutability — and promotes usage/cost reporting from an envelope footnote to a runtime obligation.
 
 ---
 
@@ -379,7 +379,8 @@ Delegation semantics:
 1. Resolve the `spec:` reference:
    - Local path: resolve relative to the calling spec's directory.
    - `oa://namespace/name` or `oa://namespace/name@version`: expand to the registry URL.
-   - `http://` or `https://`: fetch directly.
+   - `http://` or `https://`: use the declared URL directly.
+   - Before fetching a remote reference, enforce the delegating task's effective sandbox against the declared or resolved URL as required by Section 11.3(6).
 2. Load the referenced spec.
 3. Identify the target task: use `task:` if provided, else use the calling task's name.
 4. Validate the target task exists in the referenced spec. Raise `TASK_NOT_FOUND` if not.
@@ -612,7 +613,7 @@ A runtime that supports sandboxing MUST:
 3. Surface violations as structured errors with stage `sandbox` and the specific code for the constraint type (Section 13.2) — never as a generic run failure.
 4. Continue to enforce the sandbox regardless of what the model requests; sandbox constraints are not visible to or negotiable by the model.
 5. Validate statically configured MCP endpoints against `http.allow_domains` before MCP tool discovery or model execution.
-6. Validate remote delegated-spec destinations against the delegating task's effective `http.allow_domains` before fetching the delegated document.
+6. Validate the declared URL for an `http://` or `https://` delegated spec, or the resolved registry URL for an `oa://` reference, against the delegating task's effective `http.allow_domains` before the initial fetch. Redirect destinations are outside this requirement. This per-task check does not define whether sandbox constraints propagate across a delegation boundary.
 
 **Honesty rule.** A runtime that does not implement sandboxing MUST refuse to run a spec that declares a `sandbox:` block, rather than silently ignoring it. Silent degradation of a declared security constraint is itself a conformance violation (see `spec/conformance/PROTOCOL.md`).
 
@@ -801,7 +802,7 @@ OA 1.6 remains behaviourally compatible with 1.5.x. OA 1.6.1 tightens validation
 
 ### 14.4 Revision History
 
-- **1.6.1 (2026-08-31):** Contracts fail closed when enforcement is unavailable; sandbox domain rules cover host/port-pinned MCP endpoints and remote delegated-spec fetches; malformed `allow_domains` entries are rejected.
+- **1.6.1 (Unreleased):** Contracts fail closed when enforcement is unavailable; sandbox domain rules cover host/port-pinned MCP endpoints and declared or resolved remote delegated-spec URLs; malformed `allow_domains` entries are rejected.
 - **1.6.0 (2026-07-28):** Initial OA 1.6 specification.
 
 ---

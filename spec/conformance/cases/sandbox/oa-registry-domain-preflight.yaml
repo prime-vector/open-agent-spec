@@ -1,6 +1,6 @@
-# Spec §11.3 — MCP endpoints MUST be checked before discovery/model execution.
-description: "A blocked MCP dependency endpoint fails during chain preflight"
-spec_section: "11.3"
+# Spec §11.2/§11.3 — oa:// references check their resolved registry destination.
+description: "A blocked oa registry destination fails during chain preflight"
+spec_section: "11.2, 11.3"
 requires: sandbox
 
 spec: |
@@ -15,23 +15,18 @@ spec: |
   sandbox:
     http:
       allow_domains: [safe.example]
-  tools:
-    remote:
-      type: mcp
-      endpoint: https://blocked.example/mcp
   tasks:
     first:
       description: first
       output: {type: object}
       prompts: {system: "First.", user: "first"}
-    remote_task:
-      description: remote
-      tools: [remote]
-      output: {type: object}
-      prompts: {system: "Remote.", user: "remote_task"}
+    delegated:
+      description: blocked registry delegation
+      spec: oa://prime-vector/summariser
+      task: work
     run:
       description: run
-      depends_on: [first, remote_task]
+      depends_on: [first, delegated]
       output: {type: object}
       prompts: {system: "Run.", user: "run"}
 

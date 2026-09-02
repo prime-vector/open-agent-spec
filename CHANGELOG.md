@@ -7,15 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Security
-- **Remote delegated-spec fetches respect the sandbox** — `http://`, `https://`, and resolved `oa://` destinations are checked against the delegating task's effective `sandbox.http.allow_domains` before any network request. (#112)
-
-### Documentation
-- Stamp the OA 1.6 normative document and schema metadata as 1.6.1, add revision history, and narrow the compatibility statement to acknowledge stricter `allow_domains` validation. (#111)
-
-### Fixed
-- **npm CLI accepts a bare spec path** — `oa validate <spec.yaml>` and `oa run <spec.yaml>` now work without `--spec` in the npm runtime, matching the Python CLI (1.6.0). Same guardrails: `--spec` unchanged, bare path + `--spec` together is an explicit error, and a non-YAML bare argument gets a clear error naming the valid forms. First Jest tests land with this (`npm/tests/`), and both CI and the npm publish workflow now run them. (#100)
-
 ### Added (older, pre-1.4 notes)
 - This changelog.
 - **Agents-as-code documentation** — new section in REFERENCE.md explaining the `.agents/` pattern, bundled examples table, and scaffold/run/generate workflows.
@@ -31,14 +22,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed (older, pre-1.4 notes)
 - Removed broken references to non-existent `security-threat-analyzer.yaml` template and `SECURITY_TEMPLATES.md` from REFERENCE.md.
 
-## [1.6.1] - 2026-08-31
+## [1.6.1] - Unreleased
 
 ### Security
 - **Declared behavioural contracts now fail closed** — if a resolved task declares a contract but the `behavioural-contracts` enforcement dependency is unavailable, execution stops before the affected model call with `CONTRACTS_UNAVAILABLE` instead of logging a warning and continuing without the promised constraint. Direct dependencies and locally delegated tasks are preflighted before their chain starts. (#103)
 - **Sandbox domain rules cover ports and MCP endpoints** — `http.allow_domains` entries may pin `host:port` while bare hosts retain backwards-compatible any-port semantics. Statically configured MCP endpoints are preflighted across the selected task and direct dependencies before discovery or model execution. Malformed allowlist entries now fail validation. (#104)
+- **Declared remote delegated-spec URLs respect the delegating task's sandbox** — `http://`, `https://`, and resolved `oa://` destinations are checked against that task's effective `sandbox.http.allow_domains` before the initial request. Redirect destinations remain tracked in #114; cross-document sandbox inheritance remains tracked in #110. (#112)
+
+### Fixed
+- **npm CLI accepts a bare spec path** — `oa validate <spec.yaml>` and `oa run <spec.yaml>` now work without `--spec` in the npm runtime, matching the Python CLI (1.6.0). Same guardrails: `--spec` unchanged, bare path + `--spec` together is an explicit error, and a non-YAML bare argument gets a clear error naming the valid forms. First Jest tests land with this (`npm/tests/`), and both CI and the npm publish workflow now run them. (#100)
+
+### Documentation
+- Stamp the OA 1.6 normative document and schema metadata as 1.6.1, add revision history, and narrow the compatibility statement to acknowledge stricter `allow_domains` validation. (#111)
 
 ### Breaking
 - Existing specs that combine MCP tools with `sandbox.http.allow_domains` must add each MCP endpoint host (or `host:port`) to the effective allowlist. Runtimes now enforce the declared network boundary for MCP instead of limiting it to native HTTP tools.
+- Existing specs that combine `oa://` delegation with `sandbox.http.allow_domains` must add `openagentspec.dev` to the delegating task's effective allowlist so the registry URL can be fetched.
 - Specs that declare `behavioural_contract` must install `open-agent-spec[contracts]`; execution no longer continues without enforcement.
 
 ## [1.6.0] - 2026-07-28
