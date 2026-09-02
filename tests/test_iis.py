@@ -18,6 +18,7 @@ import pytest
 from oas_cli.runner import (
     OARunError,
     _check_mcp_endpoints,
+    _check_remote_spec_endpoint,
     _check_sandbox,
     _resolve_sandbox,
     run_task_from_spec,
@@ -232,6 +233,38 @@ class TestMCPDomainPreflight:
         _check_mcp_endpoints(
             self._spec("https://mcp.example.com/rpc"), "run", {"http": {}}
         )
+
+
+class TestRemoteSpecEndpointSandbox:
+    def test_https_destination_is_allowed(self):
+        sandbox = {"http": {"allow_domains": ["specs.example"]}}
+        _check_remote_spec_endpoint(
+            "https://specs.example/agent.yaml", sandbox, "delegate"
+        )
+
+    def test_https_destination_is_blocked(self):
+        sandbox = {"http": {"allow_domains": ["safe.example"]}}
+        with pytest.raises(OARunError) as exc_info:
+            _check_remote_spec_endpoint(
+                "https://blocked.example/spec.yaml", sandbox, "delegate"
+            )
+
+        assert exc_info.value.code == "SANDBOX_DOMAIN_VIOLATION"
+        assert exc_info.value.stage == "sandbox"
+        assert exc_info.value.task == "delegate"
+
+    def test_oa_reference_checks_resolved_registry_destination(self):
+        sandbox = {"http": {"allow_domains": ["openagentspec.dev"]}}
+        _check_remote_spec_endpoint("oa://prime-vector/summariser", sandbox, "delegate")
+
+    def test_oa_reference_requires_registry_in_allowlist(self):
+        sandbox = {"http": {"allow_domains": ["safe.example"]}}
+        with pytest.raises(OARunError) as exc_info:
+            _check_remote_spec_endpoint(
+                "oa://prime-vector/summariser", sandbox, "delegate"
+            )
+
+        assert exc_info.value.code == "SANDBOX_DOMAIN_VIOLATION"
 
 
 # ── _check_sandbox — path enforcement ────────────────────────────────────────
