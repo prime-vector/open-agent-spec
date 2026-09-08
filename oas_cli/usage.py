@@ -180,8 +180,9 @@ def _sum_usage(blocks: list[dict[str, Any]]) -> dict[str, Any] | None:
         "total_tokens": sum(int(b.get("total_tokens") or 0) for b in blocks),
     }
     costs = [b.get("estimated_cost_usd") for b in blocks]
-    if costs and all(isinstance(c, (int, float)) for c in costs):
-        total["estimated_cost_usd"] = round(sum(float(c) for c in costs), 6)
+    numeric = [c for c in costs if isinstance(c, (int, float))]
+    if numeric and len(numeric) == len(costs):
+        total["estimated_cost_usd"] = round(sum(float(c) for c in numeric), 6)
     return total
 
 
