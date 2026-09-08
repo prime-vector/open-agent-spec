@@ -1,16 +1,16 @@
 # Open Agent Spec — Formal Specification
 
-**Version:** 1.6.0
-**Status:** Release
-**Date:** 2026-07-12
+**Version:** 1.6.1
+**Status:** Release Candidate
+**Date:** Unreleased
 
 ---
 
 ## Abstract
 
-This document defines the Open Agent Spec (OA) 1.6.0. It specifies the structure of an OA document, the semantics that a conforming runtime MUST implement, and the boundaries of what OA deliberately does not do. An independent implementor MUST be able to build a conforming runtime from this document alone.
+This document defines the Open Agent Spec (OA) 1.6.1. It specifies the structure of an OA document, the semantics that a conforming runtime MUST implement, and the boundaries of what OA deliberately does not do. An independent implementor MUST be able to build a conforming runtime from this document alone.
 
-OA 1.6.0 consolidates the runtime definition around four pillars: a **typed contract** (schemas validated on both sides of every model call), a **deterministic execution pipeline** (no hidden control flow), **first-class cost observability** (normalised token usage and best-effort spend reporting on every result), and **declarative safety constraints** (sandboxing enforced before I/O). This revision formalises features that previous drafts left implementation-defined — sandboxing, history threading, input immutability — and promotes usage/cost reporting from an envelope footnote to a runtime obligation.
+OA 1.6.1 consolidates the runtime definition around four pillars: a **typed contract** (schemas validated on both sides of every model call), a **deterministic execution pipeline** (no hidden control flow), **first-class cost observability** (normalised token usage and best-effort spend reporting on every result), and **declarative safety constraints** (sandboxing enforced before I/O). This revision formalises features that previous drafts left implementation-defined — sandboxing, history threading, input immutability — and promotes usage/cost reporting from an envelope footnote to a runtime obligation.
 
 ---
 
@@ -379,7 +379,8 @@ Delegation semantics:
 1. Resolve the `spec:` reference:
    - Local path: resolve relative to the calling spec's directory.
    - `oa://namespace/name` or `oa://namespace/name@version`: expand to the registry URL.
-   - `http://` or `https://`: fetch directly.
+   - `http://` or `https://`: use the declared URL directly.
+   - Before fetching a remote reference, enforce the delegating task's effective sandbox against the declared or resolved URL as required by Section 11.3(6).
 2. Load the referenced spec.
 3. Identify the target task: use `task:` if provided, else use the calling task's name.
 4. Validate the target task exists in the referenced spec. Raise `TASK_NOT_FOUND` if not.
@@ -577,7 +578,7 @@ sandbox:                             # root level — applies to all tasks
     allow: [file.read, http.get]     # only these tools may be called
     deny: [env.read]                 # these tools may never be called
   http:
-    allow_domains: [api.example.com] # http.get/http.post restricted to these hosts
+    allow_domains: [api.example.com] # HTTP and MCP restricted to these hosts
   file:
     allow_paths: [./data/]           # file.read/file.write restricted to these prefixes
 
@@ -598,7 +599,7 @@ tasks:
 |-----|-----------|-----------|
 | `tools.allow` | every tool dispatch | If present, a tool not in the list MUST be refused (`SANDBOX_TOOL_VIOLATION`) |
 | `tools.deny` | every tool dispatch | If present, a tool in the list MUST be refused (`SANDBOX_TOOL_VIOLATION`). Deny is checked in addition to allow. |
-| `http.allow_domains` | `http.get`, `http.post` | The request URL's hostname MUST equal a listed domain or be a subdomain of one (`host == d` or `host` ends with `.d`); otherwise `SANDBOX_DOMAIN_VIOLATION` |
+| `http.allow_domains` | `http.get`, `http.post`, MCP endpoints, remote delegated-spec fetches | The destination hostname MUST equal a listed domain or be a subdomain. A bare hostname permits any port for backwards compatibility; a `host:port` entry MUST match the destination's effective port. Otherwise raise `SANDBOX_DOMAIN_VIOLATION`. For an `oa://` reference, the resolved registry URL is the destination checked. |
 | `file.allow_paths` | `file.read`, `file.write` | The resolved absolute path MUST fall under one of the listed path prefixes (after resolving symlinks and `..`); otherwise `SANDBOX_PATH_VIOLATION` |
 
 An absent constraint key imposes no restriction of that type. An empty `allow` list denies everything of that type.
@@ -611,6 +612,8 @@ A runtime that supports sandboxing MUST:
 2. Enforce path constraints against the **resolved** path (symlinks and relative segments resolved), not the literal argument.
 3. Surface violations as structured errors with stage `sandbox` and the specific code for the constraint type (Section 13.2) — never as a generic run failure.
 4. Continue to enforce the sandbox regardless of what the model requests; sandbox constraints are not visible to or negotiable by the model.
+5. Validate statically configured MCP endpoints against `http.allow_domains` before MCP tool discovery or model execution.
+6. Validate the declared URL for an `http://` or `https://` delegated spec, or the resolved registry URL for an `oa://` reference, against the delegating task's effective `http.allow_domains` before the initial fetch. Redirect destinations are outside this requirement. This per-task check does not define whether sandbox constraints propagate across a delegation boundary.
 
 **Honesty rule.** A runtime that does not implement sandboxing MUST refuse to run a spec that declares a `sandbox:` block, rather than silently ignoring it. Silent degradation of a declared security constraint is itself a conformance violation (see `spec/conformance/PROTOCOL.md`).
 
@@ -713,7 +716,8 @@ Note the asymmetry with sandbox resolution (Section 11.1): contracts **merge** (
 **Contract enforcement is skipped when:**
 - `response_format: "text"` (field checks are meaningless on raw strings)
 - The output could not be parsed as a dict (warning logged, execution continues)
-- The behavioural contracts library is not installed (warning logged, execution continues)
+
+If a resolved task declares a contract but the runtime's contract-enforcement capability is unavailable, the runtime MUST fail before that task's model execution with `CONTRACTS_UNAVAILABLE`. Statically resolvable local delegated tasks SHOULD be preflighted before their containing dependency chain starts; remote delegated tasks MUST be checked immediately after fetch and before their model execution. A runtime MUST NOT silently ignore the declared contract.
 
 A contract violation MUST raise `CONTRACT_VIOLATION`.
 
@@ -744,13 +748,14 @@ A runtime MUST surface errors as structured objects with the following fields:
 | `CHAIN_CYCLE_ERROR` | `routing` | Circular `depends_on` chain detected |
 | `CHAIN_INPUT_MISSING` | `input_validation` | Required input field missing after dependency merge |
 | `CONTRACT_VIOLATION` | `contract` | Task output failed behavioural contract validation |
+| `CONTRACTS_UNAVAILABLE` | `contract` | A resolved task declares a behavioural contract but enforcement is unavailable |
 | `DELEGATION_CYCLE_ERROR` | `delegation` | Circular spec delegation detected (A→B→A) |
 | `PRICING_CONFIG_ERROR` | `cost` | A cost-rate override (`config.pricing` or an implementation-defined global override) is present but invalid |
 | `SANDBOX_TOOL_VIOLATION` | `sandbox` | Tool blocked by the effective `tools.allow`/`tools.deny` sandbox constraint |
-| `SANDBOX_DOMAIN_VIOLATION` | `sandbox` | HTTP request host not permitted by `http.allow_domains` |
+| `SANDBOX_DOMAIN_VIOLATION` | `sandbox` | HTTP, MCP, or remote delegated-spec destination host/port not permitted by `http.allow_domains` |
 | `SANDBOX_PATH_VIOLATION` | `sandbox` | File path outside `file.allow_paths` after resolution |
 
-A runtime MUST detect and raise `CHAIN_CYCLE_ERROR`, `DELEGATION_CYCLE_ERROR`, and `PRICING_CONFIG_ERROR` before any model call is made.
+A runtime MUST detect and raise `CHAIN_CYCLE_ERROR`, `DELEGATION_CYCLE_ERROR`, and `PRICING_CONFIG_ERROR` before any model call is made. It MUST raise `CONTRACTS_UNAVAILABLE` before the affected task invokes a model; statically resolvable tasks SHOULD be checked before their containing chain starts.
 
 ---
 
@@ -758,7 +763,7 @@ A runtime MUST detect and raise `CHAIN_CYCLE_ERROR`, `DELEGATION_CYCLE_ERROR`, a
 
 ### 14.1 Conformance Requirements
 
-A runtime conforms to OA 1.6.0 if it:
+A runtime conforms to OA 1.6.1 if it:
 
 1. **MUST** accept spec documents that validate against `spec/schema/oas-schema-1.6.json` and reject documents that do not.
 2. **MUST** implement the execution pipeline defined in Section 7.1, raising all statically detectable errors before any model call.
@@ -793,7 +798,12 @@ The `open_agent_spec` field in a document declares the minimum spec version requ
 
 The version string MUST conform to Semantic Versioning. Minor and patch increments MUST be backward compatible. Major increments MAY introduce breaking changes.
 
-OA 1.6.0 is additive over 1.5.x: every valid 1.5.x document is a valid 1.6.0 document.
+OA 1.6 remains behaviourally compatible with 1.5.x. OA 1.6.1 tightens validation of `sandbox.http.allow_domains`: entries MUST use `host` or `host:port` form rather than a full URL or malformed port. Documents that relied on previously unconstrained strings in that field require correction before validation.
+
+### 14.4 Revision History
+
+- **1.6.1 (Unreleased):** Contracts fail closed when enforcement is unavailable; sandbox domain rules cover host/port-pinned MCP endpoints and declared or resolved remote delegated-spec URLs; malformed `allow_domains` entries are rejected.
+- **1.6.0 (2026-07-28):** Initial OA 1.6 specification.
 
 ---
 

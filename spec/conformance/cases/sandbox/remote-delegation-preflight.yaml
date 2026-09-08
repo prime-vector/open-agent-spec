@@ -1,0 +1,42 @@
+# Spec §11.3 — remote delegated specs MUST be checked before fetch/model execution.
+description: "A blocked remote delegated-spec dependency fails during chain preflight"
+spec_section: "11.3"
+requires: sandbox
+
+spec: |
+  open_agent_spec: "1.6.1"
+  agent:
+    name: test
+    description: test
+  intelligence:
+    type: llm
+    engine: openai
+    model: gpt-4o
+  sandbox:
+    http:
+      allow_domains: [safe.example]
+  tasks:
+    first:
+      description: first
+      output: {type: object}
+      prompts: {system: "First.", user: "first"}
+    delegated:
+      description: blocked remote delegation
+      spec: https://blocked.example/spec.yaml
+      task: work
+    run:
+      description: run
+      depends_on: [first, delegated]
+      output: {type: object}
+      prompts: {system: "Run.", user: "run"}
+
+mock_responses:
+  first: '{}'
+
+invoke:
+  task: run
+  input: {}
+
+expect_error:
+  code: SANDBOX_DOMAIN_VIOLATION
+  stage: sandbox

@@ -375,6 +375,8 @@ See [`examples/sandboxed-agent/`](examples/sandboxed-agent/).
 
 Declare what the model output must contain. The `behavioural-contracts` library enforces the contract after parsing, before the result is returned.
 
+Declared contracts fail closed with `CONTRACTS_UNAVAILABLE` before the affected task invokes a model when enforcement is unavailable.
+
 ```yaml
 behavioural_contract:
   version: "1.0"
@@ -617,7 +619,7 @@ The formal specification defines what a conforming OA runtime must do, independe
 
 | Resource | Contents |
 |----------|----------|
-| [spec/open-agent-spec-1.6.md](spec/open-agent-spec-1.6.md) | Formal specification — normative MUST/SHOULD/MAY requirements for OA 1.6.0 |
+| [spec/open-agent-spec-1.6.md](spec/open-agent-spec-1.6.md) | Formal specification — normative MUST/SHOULD/MAY requirements for OA 1.6.1 |
 | [spec/schema/oas-schema-1.6.json](spec/schema/oas-schema-1.6.json) | Canonical JSON Schema for validating spec documents |
 | [spec/conformance/README.md](spec/conformance/README.md) | Conformance test structure and contribution guide |
 | [spec/conformance/PROTOCOL.md](spec/conformance/PROTOCOL.md) | Runtime-agnostic adapter protocol — certify any runtime, in any language |

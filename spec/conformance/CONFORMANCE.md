@@ -1,7 +1,8 @@
 # OA Conformance Matrix
 
-| Case | python-reference 1.5.2 | npm 1.5.2 |
+| Case | python-reference 1.6.1 | npm 1.6.1 |
 |---|---|---|
+| schema/invalid-allow-domain | ✅ PASS | ✅ PASS |
 | schema/invalid-engine | ✅ PASS | ✅ PASS |
 | schema/invalid-version | ✅ PASS | ✅ PASS |
 | schema/missing-agent | ✅ PASS | ✅ PASS |
@@ -33,14 +34,19 @@
 | errors/chain-cycle | ✅ PASS | ✅ PASS |
 | errors/chain-input-missing | ✅ PASS | ✅ PASS |
 | errors/contract-violation | ✅ PASS | ⬜ UNSUPPORTED |
+| errors/contracts-unavailable | ⬜ UNSUPPORTED | ✅ PASS |
 | errors/error-structure | ✅ PASS | ✅ PASS |
 | errors/task-not-found | ✅ PASS | ✅ PASS |
+| sandbox/domain-port-mismatch | ✅ PASS | ⬜ UNSUPPORTED |
+| sandbox/mcp-domain-preflight | ✅ PASS | ⬜ UNSUPPORTED |
+| sandbox/oa-registry-domain-preflight | ✅ PASS | ⬜ UNSUPPORTED |
+| sandbox/remote-delegation-preflight | ✅ PASS | ⬜ UNSUPPORTED |
 
 ## Summary
 
 | Runtime | Pass | Fail | Unsupported | Adapter errors |
 |---|---|---|---|---|
-| python-reference 1.5.2 | 33 | 0 | 0 | 0 |
-| npm 1.5.2 | 31 | 0 | 2 | 0 |
+| python-reference 1.6.1 | 38 | 0 | 1 | 0 |
+| npm 1.6.1 | 33 | 0 | 6 | 0 |
 
 Legend: ✅ PASS · ❌ FAIL · ⬜ UNSUPPORTED (capability not declared) · 💥 adapter error

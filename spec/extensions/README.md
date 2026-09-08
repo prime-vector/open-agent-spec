@@ -81,7 +81,7 @@ tasks:
 pip install 'open-agent-spec[contracts]'
 ```
 
-When the library is not installed, contract validation is skipped with a warning — the runtime degrades gracefully.
+When a resolved task declares a contract and the library is not installed, the runtime fails closed with `CONTRACTS_UNAVAILABLE` before model execution. Specs without contracts are unaffected.
 
 ---
 

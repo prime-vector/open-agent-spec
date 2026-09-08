@@ -5,7 +5,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "open-agent-spec"
-version = "1.6.0"
+version = "1.6.1"
 description = "YAML-first agent specs: run with `oa run` or generate a full Python project with `oa init`."
 authors = [{ name = "Andrew Whitehouse", email = "andrewswhitehouse@gmail.com" }]
 license = { text = "MIT" }
@@ -124,4 +124,3 @@ ignore = [
 
 [tool.ruff.lint.per-file-ignores]
 "examples/multi-agent/*" = ["N999"]  # directory name contains hyphen
-
