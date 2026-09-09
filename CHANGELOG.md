@@ -29,6 +29,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Sandbox domain rules cover ports and MCP endpoints** — `http.allow_domains` entries may pin `host:port` while bare hosts retain backwards-compatible any-port semantics. Statically configured MCP endpoints are preflighted across the selected task and direct dependencies before discovery or model execution. Malformed allowlist entries now fail validation. (#104)
 - **Declared remote delegated-spec URLs respect the delegating task's sandbox** — `http://`, `https://`, and resolved `oa://` destinations are checked against that task's effective `sandbox.http.allow_domains` before the initial request. Redirect destinations remain tracked in #114; cross-document sandbox inheritance remains tracked in #110. (#112)
 
+### Added
+- **`oa run --usage PATH`** — writes a usage JSON file (leaf task, `depends_on` chain, and rolled-up `total`) without changing stdout, so `--quiet` scripts can meter spend. Leaf-only would under-count chained tasks; `estimated_cost_usd` is included on `total` only when every contributing block has a cost. (#106)
+
 ### Fixed
 - **npm CLI accepts a bare spec path** — `oa validate <spec.yaml>` and `oa run <spec.yaml>` now work without `--spec` in the npm runtime, matching the Python CLI (1.6.0). Same guardrails: `--spec` unchanged, bare path + `--spec` together is an explicit error, and a non-YAML bare argument gets a clear error naming the valid forms. First Jest tests land with this (`npm/tests/`), and both CI and the npm publish workflow now run them. (#100)
 

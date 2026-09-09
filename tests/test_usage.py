@@ -20,6 +20,7 @@ from oas_cli.usage import (
     estimate_cost_usd,
     from_anthropic,
     from_openai,
+    report_from_envelope,
 )
 
 # ---------------------------------------------------------------------------
@@ -426,6 +427,87 @@ class TestToolLoopUsage:
         # The context var was consumed at the raise site — no residue leaks into
         # the next task on this context.
         assert pop_last_usage() is None
+
+
+class TestReportFromEnvelope:
+    """CLI --usage report: usage tree plus a rolled-up total, never leaf-only."""
+
+    def test_leaf_only_total_matches_usage(self):
+        report = report_from_envelope(
+            {
+                "task": "greet",
+                "usage": {
+                    "prompt_tokens": 10,
+                    "completion_tokens": 5,
+                    "total_tokens": 15,
+                    "estimated_cost_usd": 0.0001,
+                },
+            }
+        )
+        assert report["task"] == "greet"
+        assert report["usage"]["total_tokens"] == 15
+        assert report["total"] == report["usage"]
+        assert "chain" not in report
+
+    def test_chain_total_includes_dependencies(self):
+        report = report_from_envelope(
+            {
+                "task": "summarize",
+                "usage": {
+                    "prompt_tokens": 10,
+                    "completion_tokens": 5,
+                    "total_tokens": 15,
+                    "estimated_cost_usd": 0.000075,
+                },
+                "chain": {
+                    "extract": {
+                        "task": "extract",
+                        "usage": {
+                            "prompt_tokens": 20,
+                            "completion_tokens": 10,
+                            "total_tokens": 30,
+                            "estimated_cost_usd": 0.00015,
+                        },
+                    }
+                },
+            }
+        )
+        assert report["usage"]["total_tokens"] == 15
+        assert report["chain"]["extract"]["usage"]["total_tokens"] == 30
+        assert report["total"]["total_tokens"] == 45
+        assert report["total"]["prompt_tokens"] == 30
+        assert report["total"]["completion_tokens"] == 15
+        assert report["total"]["estimated_cost_usd"] == 0.000225
+
+    def test_omits_total_cost_when_any_block_lacks_it(self):
+        report = report_from_envelope(
+            {
+                "task": "summarize",
+                "usage": {
+                    "prompt_tokens": 10,
+                    "completion_tokens": 5,
+                    "total_tokens": 15,
+                },
+                "chain": {
+                    "extract": {
+                        "task": "extract",
+                        "usage": {
+                            "prompt_tokens": 20,
+                            "completion_tokens": 10,
+                            "total_tokens": 30,
+                            "estimated_cost_usd": 0.00015,
+                        },
+                    }
+                },
+            }
+        )
+        assert report["total"]["total_tokens"] == 45
+        assert "estimated_cost_usd" not in report["total"]
+
+    def test_null_usage_yields_null_total(self):
+        report = report_from_envelope({"task": "greet", "usage": None})
+        assert report["usage"] is None
+        assert report["total"] is None
 
 
 class TestErrorPanelUsage:
