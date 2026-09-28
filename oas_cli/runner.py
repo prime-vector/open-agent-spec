@@ -883,7 +883,6 @@ def _invoke_with_tools(
                     tool_observation.succeed(
                         **{
                             "oa.tool.result": "succeeded",
-                            "oa.conformance.status": CONFORMANT,
                         }
                     )
             messages.append(
@@ -1064,7 +1063,7 @@ def _run_single_task_impl(
         with telemetry.agent_run(
             delegated_spec, delegated_task
         ) as delegated_observation:
-            telemetry.conformance(CONFORMANT)
+            telemetry.conformance(INDETERMINATE)
             try:
                 result = _run_single_task(
                     delegated_spec,
@@ -1094,6 +1093,7 @@ def _run_single_task_impl(
                     },
                 )
                 raise
+            telemetry.conformance(CONFORMANT)
             delegated_observation.succeed(**{"oa.execution.result": "succeeded"})
         # Surface the coordinator's task name so the envelope is consistent
         # from the caller's perspective.
@@ -1397,7 +1397,7 @@ def run_task_from_spec(
     adapter = telemetry or NOOP_TELEMETRY
     chosen_task, _ = _choose_task(spec_data, task_name)
     with adapter.agent_run(spec_data, chosen_task) as agent_observation:
-        adapter.conformance(CONFORMANT)
+        adapter.conformance(INDETERMINATE)
         try:
             result = _run_task_from_spec_impl(
                 spec_data,
@@ -1434,6 +1434,7 @@ def run_task_from_spec(
                 },
             )
             raise
+        adapter.conformance(CONFORMANT)
         agent_observation.succeed(**{"oa.execution.result": "succeeded"})
         return result
 

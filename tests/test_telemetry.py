@@ -101,8 +101,12 @@ def test_spec_identity_is_canonical_and_sensitive_to_declaration():
 def test_model_and_validation_spans_use_metadata_only(monkeypatch, captured_telemetry):
     adapter, exporter = captured_telemetry
     spec = _spec()
+    statuses_seen_during_execution: list[str | None] = []
 
     def fake_invoke(*args, **kwargs):
+        statuses_seen_during_execution.append(
+            adapter._agent_spans.get()[-1].attributes.get("oa.conformance.status")
+        )
         record_usage(
             {"prompt_tokens": 11, "completion_tokens": 4, "total_tokens": 15},
             "test-model",
@@ -126,6 +130,7 @@ def test_model_and_validation_spans_use_metadata_only(monkeypatch, captured_tele
     assert agent.attributes["gen_ai.operation.name"] == "invoke_agent"
     assert agent.attributes["oa.spec.hash"] == spec_identity(spec)
     assert agent.attributes["oa.conformance.status"] == "conformant"
+    assert statuses_seen_during_execution == ["indeterminate"]
     assert agent.attributes["oa.telemetry.content_capture"] is False
     assert model.attributes["gen_ai.provider.name"] == "openai"
     assert model.attributes["gen_ai.request.model"] == "test-model"
@@ -274,6 +279,27 @@ def test_schema_failure_is_nonconformant_not_provider_failure(
     assert agent.attributes["oa.conformance.reason"] == "output_schema_error"
 
 
+def test_provider_failure_remains_indeterminate(monkeypatch, captured_telemetry):
+    adapter, exporter = captured_telemetry
+
+    def fail_invoke(*args, **kwargs):
+        raise RuntimeError("provider unavailable")
+
+    monkeypatch.setattr(runner, "invoke_intelligence", fail_invoke)
+
+    with pytest.raises(OARunError) as caught:
+        run_task_from_spec(
+            _spec(),
+            "review",
+            {"text": "private"},
+            telemetry=adapter,
+        )
+
+    assert caught.value.code == "RUN_ERROR"
+    agent = _spans_by_name(exporter)["invoke_agent reviewer"]
+    assert agent.attributes["oa.conformance.status"] == "indeterminate"
+
+
 def test_contract_result_is_recorded(monkeypatch, captured_telemetry):
     adapter, exporter = captured_telemetry
     monkeypatch.setattr(
@@ -293,6 +319,61 @@ def test_contract_result_is_recorded(monkeypatch, captured_telemetry):
     contract = _spans_by_name(exporter)["oa.contract.evaluate"]
     assert contract.attributes["oa.contract.enabled"] is True
     assert contract.attributes["oa.contract.result"] == "passed"
+
+
+def test_delegated_execution_has_its_own_lifecycle_and_identity(
+    monkeypatch, captured_telemetry, tmp_path
+):
+    adapter, exporter = captured_telemetry
+    delegated_path = tmp_path / "delegated.yaml"
+    delegated_spec = _spec()
+    delegated_spec["agent"]["name"] = "delegated-reviewer"
+    delegated_path.write_text("agent: {}\n")
+
+    # The runner receives parsed delegated data from _load_spec; the file only
+    # supplies the path used for cycle/relative-reference handling.
+    monkeypatch.setattr(runner, "_load_spec", lambda path: delegated_spec)
+    statuses_seen_during_execution: list[tuple[str | None, ...]] = []
+
+    def fake_invoke(*args, **kwargs):
+        statuses_seen_during_execution.append(
+            tuple(
+                span.attributes.get("oa.conformance.status")
+                for span in adapter._agent_spans.get()
+            )
+        )
+        return '{"summary":"delegated"}'
+
+    monkeypatch.setattr(runner, "invoke_intelligence", fake_invoke)
+    root_spec = {
+        "open_agent_spec": "1.6.1",
+        "agent": {"name": "coordinator"},
+        "tasks": {"review": {"spec": delegated_path.name}},
+    }
+
+    run_task_from_spec(
+        root_spec,
+        "review",
+        {"text": "private"},
+        spec_path=tmp_path / "root.yaml",
+        telemetry=adapter,
+    )
+
+    spans = _spans_by_name(exporter)
+    assert statuses_seen_during_execution == [("indeterminate", "indeterminate")]
+    assert spans["invoke_agent coordinator"].attributes["oa.conformance.status"] == (
+        "conformant"
+    )
+    assert (
+        spans["invoke_agent delegated-reviewer"].attributes["oa.conformance.status"]
+        == "conformant"
+    )
+    assert spans["invoke_agent coordinator"].attributes[
+        "oa.spec.hash"
+    ] == spec_identity(root_spec)
+    assert spans["invoke_agent delegated-reviewer"].attributes[
+        "oa.spec.hash"
+    ] == spec_identity(delegated_spec)
 
 
 def test_noop_telemetry_is_available_without_sdk_calls():

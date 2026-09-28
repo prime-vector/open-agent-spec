@@ -55,7 +55,7 @@ OA adds only facts that OA can know and evaluate itself:
 | --- | --- |
 | `oa.spec.name` | Agent name from the declaration |
 | `oa.spec.version` | `open_agent_spec` declaration value |
-| `oa.spec.hash` | SHA-256 of canonical JSON for the parsed effective spec |
+| `oa.spec.hash` | SHA-256 identity of the canonical parsed OA specification |
 | `oa.task.name` | Task being executed |
 | `oa.task.declared_tools` | Tools declared on that task |
 | `oa.contract.enabled` / `oa.contract.result` | BCE presence and deterministic result |
@@ -64,13 +64,19 @@ OA adds only facts that OA can know and evaluate itself:
 | `oa.conformance.status` / `oa.conformance.reason` | OA's declaration-versus-observation result |
 
 The hash is over the parsed YAML object after YAML resolution, so formatting and
-map ordering do not change identity. Delegated specs get their own span and
-identity. Runtime input, CLI prompt overrides, prompts, outputs, tool arguments,
-tool results, secrets and environment values are not included in telemetry.
+map ordering do not change identity. It identifies the specification supplied to
+that execution; it does not claim to include every invocation-specific override
+or runtime-resolved value. Delegated specs get their own span and identity.
+Runtime input, CLI prompt overrides, prompts, outputs, tool arguments, tool
+results, secrets and environment values are not included in telemetry.
 
 ## Conformance outcomes
 
 OA does not call every error a policy violation:
+
+Agent execution spans begin as `indeterminate` and are promoted to
+`conformant` only after successful completion. A more specific prevented or
+nonconformant result is retained if one was recorded during execution.
 
 - `conformant` means the deterministic observations completed within the
   declaration.

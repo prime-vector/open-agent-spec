@@ -130,12 +130,13 @@ NOOP_TELEMETRY = NoOpTelemetry()
 
 
 def spec_identity(spec: dict[str, Any]) -> str:
-    """Return a stable hash of the effective parsed OA declaration.
+    """Return the SHA-256 identity of the canonical parsed OA specification.
 
     Canonical JSON makes key ordering and YAML presentation irrelevant while
-    preserving every executable declaration.  Runtime input, prompt overrides,
-    provider responses, and environment configuration are not part of *spec* and
-    therefore cannot enter the identity.
+    preserving the supplied declaration. Runtime input, prompt overrides,
+    provider responses, and environment configuration are not part of *spec*
+    and therefore cannot enter the identity. The identity does not claim to
+    include every invocation-specific or runtime-resolved value.
     """
 
     canonical = json.dumps(
@@ -151,6 +152,19 @@ def _clean_attributes(attributes: dict[str, Any]) -> dict[str, Any]:
     """Drop unset values; OTEL attributes cannot contain ``None``."""
 
     return {key: value for key, value in attributes.items() if value is not None}
+
+
+_SPECIFIC_CONFORMANCE = {NONCONFORMANT, VIOLATION_PREVENTED}
+
+
+def _should_update_conformance(current: Any, new: str) -> bool:
+    """Keep specific execution outcomes from being replaced by a later default."""
+
+    if current in _SPECIFIC_CONFORMANCE:
+        return new in _SPECIFIC_CONFORMANCE and new == current
+    if new in _SPECIFIC_CONFORMANCE:
+        return True
+    return True
 
 
 @dataclass
@@ -275,6 +289,7 @@ class OpenTelemetryAdapter:
             "oa.contract.enabled": bool(
                 spec.get("behavioural_contract") or task.get("behavioural_contract")
             ),
+            "oa.conformance.status": INDETERMINATE,
             "oa.telemetry.content_capture": False,
         }
         with self._span(
@@ -365,9 +380,11 @@ class OpenTelemetryAdapter:
             }
         )
         current = self._trace.get_current_span()
-        for key, value in attributes.items():
-            current.set_attribute(key, value)
-        for span in self._agent_spans.get():
+        spans = (current, *self._agent_spans.get())
+        for span in spans:
+            current_status = span.attributes.get("oa.conformance.status")
+            if not _should_update_conformance(current_status, status):
+                continue
             for key, value in attributes.items():
                 span.set_attribute(key, value)
 
