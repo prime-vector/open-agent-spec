@@ -21,6 +21,7 @@ from .core import validate_spec_file
 from .exceptions import AgentGenerationError
 from .runner import OARunError, _choose_task, _load_spec, run_task_from_file
 from .spec_test import SpecTestError, run_cases_from_file
+from .telemetry import TelemetryUnavailableError, create_telemetry
 from .ui import (
     inference_spinner,
     print_banner,
@@ -644,6 +645,14 @@ def run(
             "to this path. stdout is unchanged."
         ),
     ),
+    telemetry: bool = typer.Option(
+        False,
+        "--telemetry",
+        help=(
+            "Emit metadata-only OpenTelemetry traces via OTLP. Configure the "
+            "destination with standard OTEL_* environment variables."
+        ),
+    ),
 ):
     """Run a single task directly from an Open Agent Spec file.
 
@@ -660,6 +669,12 @@ def run(
     if not quiet:
         cli_version = get_version_from_pyproject()
         print_banner(console, cli_version)
+
+    try:
+        telemetry_adapter = create_telemetry(telemetry)
+    except TelemetryUnavailableError as err:
+        print_error_panel(console, "Telemetry unavailable", str(err))
+        raise typer.Exit(2) from err
 
     try:
         input_data: dict[str, Any] | None = None
@@ -745,6 +760,7 @@ def run(
                     input_data=input_data,
                     override_system=system_prompt,
                     override_user=user_prompt,
+                    telemetry=telemetry_adapter,
                 )
             else:
                 with inference_spinner(console, _model, _task_label):
@@ -754,6 +770,7 @@ def run(
                         input_data=input_data,
                         override_system=system_prompt,
                         override_user=user_prompt,
+                        telemetry=telemetry_adapter,
                     )
         finally:
             if quiet:
@@ -798,6 +815,8 @@ def run(
         else:
             print_error_panel(console, "Unexpected error", str(err))
         raise typer.Exit(1)
+    finally:
+        telemetry_adapter.close()
 
 
 @app.command()

@@ -26,6 +26,14 @@ from .providers import (
     record_usage,
 )
 from .providers.registry import get_provider
+from .telemetry import (
+    CONFORMANT,
+    INDETERMINATE,
+    NONCONFORMANT,
+    NOOP_TELEMETRY,
+    VIOLATION_PREVENTED,
+    TelemetryAdapter,
+)
 from .tool_providers import (
     ToolError,
     dispatch_tool_call,
@@ -354,6 +362,7 @@ def _resolve_chain(
     *,
     spec_path: Path | None = None,
     _visited_specs: frozenset[Path] = frozenset(),
+    telemetry: TelemetryAdapter = NOOP_TELEMETRY,
 ) -> tuple[dict[str, Any], dict[str, Any]]:
     """Resolve depends_on chain and return (merged_input, chain_results).
 
@@ -414,6 +423,7 @@ def _resolve_chain(
             override_user=None,
             spec_path=spec_path,
             _visited_specs=_visited_specs,
+            telemetry=telemetry,
         )
         chain[dep_name] = dep_result
         dep_output = dep_result.get("output") or {}
@@ -700,6 +710,7 @@ def _invoke_with_tools(
     history: list[dict] | None = None,
     *,
     sandbox: dict[str, Any] | None = None,
+    telemetry: TelemetryAdapter = NOOP_TELEMETRY,
 ) -> str:
     """Multi-turn tool-call loop.
 
@@ -729,7 +740,15 @@ def _invoke_with_tools(
         augmented_system = (
             f"{system}\n\nYou have access to the following tools:\n{tool_descriptions}"
         )
-        return invoke_intelligence(augmented_system, user, intelligence_config, history)
+        with telemetry.model_call(
+            str(intelligence_config.get("engine") or "openai"),
+            str(intelligence_config.get("model") or "unknown"),
+        ) as model_observation:
+            text = invoke_intelligence(
+                augmented_system, user, intelligence_config, history
+            )
+            model_observation.succeed()
+            return text
 
     # Seed the message list: prior turns first, then current user turn.
     messages: list[dict[str, Any]] = []
@@ -751,12 +770,23 @@ def _invoke_with_tools(
         )
 
     for iteration in range(_MAX_TOOL_ITERATIONS):
-        result: InvokeResult = provider.invoke_with_tools(
-            system=system,
-            messages=messages,
-            tools=tool_defs,
-            config=intelligence_config,
-        )
+        with telemetry.model_call(
+            str(intelligence_config.get("engine") or "openai"),
+            str(intelligence_config.get("model") or "unknown"),
+        ) as model_observation:
+            result: InvokeResult = provider.invoke_with_tools(
+                system=system,
+                messages=messages,
+                tools=tool_defs,
+                config=intelligence_config,
+            )
+            usage_attributes: dict[str, Any] = {}
+            if result.usage:
+                usage_attributes = {
+                    "gen_ai.usage.input_tokens": result.usage.get("prompt_tokens"),
+                    "gen_ai.usage.output_tokens": result.usage.get("completion_tokens"),
+                }
+            model_observation.succeed(**usage_attributes)
 
         if result.usage:
             saw_usage = True
@@ -798,14 +828,64 @@ def _invoke_with_tools(
 
         # Execute every tool call and append results.
         for tc in result.tool_calls:
-            # Pre-dispatch sandbox check — hard block before any I/O.
-            if sandbox:
-                _check_sandbox(tc.name, tc.arguments, sandbox, task_name)
-            try:
-                tool_result = dispatch_tool_call(tc.name, tc.arguments, tools)
-            except ToolError as exc:
-                tool_result = f"[tool error] {exc}"
-                logger.warning("[tools] Tool '%s' raised: %s", tc.name, exc)
+            declared_tool_names = {definition.name for _, definition in tools}
+            with telemetry.tool_call(tc.name, tc.id) as tool_observation:
+                if tc.name not in declared_tool_names:
+                    telemetry.conformance(VIOLATION_PREVENTED, "undeclared_tool")
+                # Pre-dispatch sandbox check — hard block before any I/O.
+                if sandbox:
+                    try:
+                        _check_sandbox(tc.name, tc.arguments, sandbox, task_name)
+                    except OARunError as exc:
+                        telemetry.sandbox_decision(
+                            tool_name=tc.name,
+                            result="blocked",
+                            reason=exc.code.lower(),
+                        )
+                        telemetry.conformance(VIOLATION_PREVENTED, exc.code.lower())
+                        tool_observation.fail(
+                            exc,
+                            **{
+                                "oa.tool.result": "blocked",
+                                "oa.conformance.status": VIOLATION_PREVENTED,
+                                "oa.conformance.reason": exc.code.lower(),
+                            },
+                        )
+                        raise
+                    else:
+                        telemetry.sandbox_decision(
+                            tool_name=tc.name,
+                            result="allowed",
+                        )
+                try:
+                    tool_result = dispatch_tool_call(tc.name, tc.arguments, tools)
+                except ToolError as exc:
+                    tool_result = f"[tool error] {exc}"
+                    reason = (
+                        "undeclared_tool"
+                        if tc.name not in declared_tool_names
+                        else "tool_error"
+                    )
+                    tool_observation.fail(
+                        exc,
+                        **{
+                            "oa.tool.result": "blocked"
+                            if reason == "undeclared_tool"
+                            else "failed",
+                            "oa.conformance.status": VIOLATION_PREVENTED
+                            if reason == "undeclared_tool"
+                            else INDETERMINATE,
+                            "oa.conformance.reason": reason,
+                        },
+                    )
+                    logger.warning("[tools] Tool '%s' raised: %s", tc.name, exc)
+                else:
+                    tool_observation.succeed(
+                        **{
+                            "oa.tool.result": "succeeded",
+                            "oa.conformance.status": CONFORMANT,
+                        }
+                    )
             messages.append(
                 {
                     "role": "tool",
@@ -838,6 +918,53 @@ def _run_single_task(
     *,
     spec_path: Path | None = None,
     _visited_specs: frozenset[Path] = frozenset(),
+    telemetry: TelemetryAdapter = NOOP_TELEMETRY,
+) -> dict[str, Any]:
+    """Instrument one OA task boundary, then execute it unchanged."""
+
+    task_def = (spec_data.get("tasks") or {}).get(task_name) or {}
+    declared_tools = [str(name) for name in (task_def.get("tools") or [])]
+    with telemetry.task_run(task_name, declared_tools) as task_observation:
+        try:
+            result = _run_single_task_impl(
+                spec_data,
+                task_name,
+                input_data,
+                override_system,
+                override_user,
+                spec_path=spec_path,
+                _visited_specs=_visited_specs,
+                telemetry=telemetry,
+            )
+        except Exception as exc:
+            metadata: dict[str, Any] = {"oa.execution.result": "failed"}
+            if isinstance(exc, OARunError):
+                metadata.update(
+                    {
+                        "error.type": exc.code,
+                        "oa.error.stage": exc.stage,
+                    }
+                )
+            task_observation.fail(exc, **metadata)
+            raise
+        task_metadata: dict[str, Any] = {"oa.execution.result": "succeeded"}
+        usage = result.get("usage")
+        if isinstance(usage, dict) and usage.get("estimated_cost_usd") is not None:
+            task_metadata["oa.usage.estimated_cost_usd"] = usage["estimated_cost_usd"]
+        task_observation.succeed(**task_metadata)
+        return result
+
+
+def _run_single_task_impl(
+    spec_data: dict[str, Any],
+    task_name: str,
+    input_data: dict[str, Any],
+    override_system: str | None,
+    override_user: str | None,
+    *,
+    spec_path: Path | None = None,
+    _visited_specs: frozenset[Path] = frozenset(),
+    telemetry: TelemetryAdapter = NOOP_TELEMETRY,
 ) -> dict[str, Any]:
     """Execute one task (no chain resolution) and return the result envelope.
 
@@ -934,15 +1061,40 @@ def _run_single_task(
         # Relative references inside a remote spec will also resolve remotely.
         next_spec_path = canonical if isinstance(canonical, Path) else None
 
-        result = _run_single_task(
-            delegated_spec,
-            delegated_task,
-            input_data,
-            override_system,
-            override_user,
-            spec_path=next_spec_path,
-            _visited_specs=new_visited,
-        )
+        with telemetry.agent_run(
+            delegated_spec, delegated_task
+        ) as delegated_observation:
+            telemetry.conformance(CONFORMANT)
+            try:
+                result = _run_single_task(
+                    delegated_spec,
+                    delegated_task,
+                    input_data,
+                    override_system,
+                    override_user,
+                    spec_path=next_spec_path,
+                    _visited_specs=new_visited,
+                    telemetry=telemetry,
+                )
+            except OARunError as exc:
+                status = (
+                    VIOLATION_PREVENTED
+                    if exc.stage == "sandbox"
+                    else NONCONFORMANT
+                    if exc.stage in {"output_validation", "contract"}
+                    else INDETERMINATE
+                )
+                telemetry.conformance(status, exc.code.lower())
+                delegated_observation.fail(
+                    exc,
+                    **{
+                        "oa.execution.result": "failed",
+                        "error.type": exc.code,
+                        "oa.error.stage": exc.stage,
+                    },
+                )
+                raise
+            delegated_observation.succeed(**{"oa.execution.result": "succeeded"})
         # Surface the coordinator's task name so the envelope is consistent
         # from the caller's perspective.
         result["task"] = task_name
@@ -954,6 +1106,11 @@ def _run_single_task(
     required_fields: list[str] = inp_schema.get("required") or []
     missing = [f for f in required_fields if f not in input_data]
     if missing:
+        telemetry.validation_result(
+            kind="input_schema",
+            result="failed",
+            reason="missing_required_fields",
+        )
         raise OARunError(
             f"Missing required input field(s) for task '{task_name}': {', '.join(missing)}",
             code="CHAIN_INPUT_MISSING",
@@ -980,6 +1137,9 @@ def _run_single_task(
     try:
         tools = resolve_task_tools(spec_data, task_name)
         if tools:
+            tool_loop_kwargs: dict[str, Any] = {}
+            if telemetry is not NOOP_TELEMETRY:
+                tool_loop_kwargs["telemetry"] = telemetry
             raw_output = _invoke_with_tools(
                 system,
                 user,
@@ -988,14 +1148,28 @@ def _run_single_task(
                 task_name,
                 history,
                 sandbox=sandbox or None,
+                **tool_loop_kwargs,
             )
+            usage = pop_last_usage()
         else:
-            raw_output = invoke_intelligence(system, user, intelligence_config, history)
-        # Capture usage recorded by the call above. Covers all three paths: the
-        # no-tools path, the text-only-provider tool fallback (both routing
-        # through invoke_intelligence), and the native multi-turn tool loop
-        # (which records usage summed across every turn via _record()).
-        usage = pop_last_usage()
+            with telemetry.model_call(
+                str(intelligence_config.get("engine") or "openai"),
+                str(intelligence_config.get("model") or "unknown"),
+            ) as model_observation:
+                raw_output = invoke_intelligence(
+                    system, user, intelligence_config, history
+                )
+                usage = pop_last_usage()
+                # Usage is attached before the span closes. No content is recorded.
+                # Covers the no-tools path and any provider that reports counts.
+                usage_attributes: dict[str, Any] = {}
+                if usage:
+                    usage_attributes = {
+                        "gen_ai.usage.input_tokens": usage.get("prompt_tokens"),
+                        "gen_ai.usage.output_tokens": usage.get("completion_tokens"),
+                        "oa.usage.estimated_cost_usd": usage.get("estimated_cost_usd"),
+                    }
+                model_observation.succeed(**usage_attributes)
     except OARunError:
         # Structured errors (e.g. SANDBOX_* violations) pass through unchanged.
         raise
@@ -1051,12 +1225,26 @@ def _run_single_task(
 
             _schema_validate(instance=parsed_output, schema=output_schema)
         except _SchemaValidationError as exc:
+            telemetry.validation_result(
+                kind="output_schema",
+                result="failed",
+                reason="schema_validation_failed",
+            )
+            telemetry.conformance(NONCONFORMANT, "output_schema_failed")
             raise OARunError(
                 f"Output schema validation failed for task '{task_name}': {exc.message}",
                 code="OUTPUT_SCHEMA_ERROR",
                 stage="output_validation",
                 task=task_name,
             ) from exc
+        else:
+            telemetry.validation_result(kind="output_schema", result="passed")
+    elif output_schema:
+        telemetry.validation_result(
+            kind="output_schema",
+            result="skipped",
+            reason="non_object_output",
+        )
 
     # Behavioural contract validation — AFTER parsing, BEFORE returning.
     # Runs for every task including chain dependencies, so a bad dep output is
@@ -1064,18 +1252,33 @@ def _run_single_task(
     contract = _resolve_contract(spec_data, task_name)
     if contract is not None:
         if response_format == "text":
+            telemetry.contract_result(
+                enabled=True,
+                result="skipped",
+                reason="text_response",
+            )
             logger.warning(
                 "[warning] Contract validation skipped for task '%s': "
                 "response_format is 'text' — field validation is meaningless on raw strings.",
                 task_name,
             )
         elif not isinstance(parsed_output, dict):
+            telemetry.contract_result(
+                enabled=True,
+                result="skipped",
+                reason="non_object_output",
+            )
             logger.warning(
                 "[warning] Contract validation skipped for task '%s': "
                 "output could not be parsed as a dict.",
                 task_name,
             )
         elif not CONTRACTS_ENABLED:
+            telemetry.contract_result(
+                enabled=True,
+                result="unavailable",
+                reason="dependency_unavailable",
+            )
             logger.warning(
                 "[warning] behavioural-contracts not installed — "
                 "contract validation for task '%s' will be skipped. "
@@ -1086,12 +1289,20 @@ def _run_single_task(
             try:
                 validate_task_output(parsed_output, contract)
             except Exception as exc:
+                telemetry.contract_result(
+                    enabled=True,
+                    result="failed",
+                    reason="contract_violation",
+                )
+                telemetry.conformance(NONCONFORMANT, "behavioural_contract_failed")
                 raise OARunError(
                     str(exc),
                     code="CONTRACT_VIOLATION",
                     stage="contract",
                     task=task_name,
                 ) from exc
+            else:
+                telemetry.contract_result(enabled=True, result="passed")
 
     return {
         "task": task_name,
@@ -1105,7 +1316,7 @@ def _run_single_task(
     }
 
 
-def run_task_from_spec(
+def _run_task_from_spec_impl(
     spec_data: dict[str, Any],
     task_name: str | None = None,
     input_data: dict[str, Any] | None = None,
@@ -1113,6 +1324,7 @@ def run_task_from_spec(
     override_user: str | None = None,
     *,
     spec_path: Path | None = None,
+    telemetry: TelemetryAdapter = NOOP_TELEMETRY,
 ) -> dict[str, Any]:
     """Run a task defined in the spec, resolving any depends_on chain first.
 
@@ -1150,6 +1362,7 @@ def run_task_from_spec(
         override_user,
         spec_path=spec_path,
         _visited_specs=visited,
+        telemetry=telemetry,
     )
 
     result = _run_single_task(
@@ -1160,6 +1373,7 @@ def run_task_from_spec(
         override_user=override_user,
         spec_path=spec_path,
         _visited_specs=visited,
+        telemetry=telemetry,
     )
 
     if chain:
@@ -1168,12 +1382,70 @@ def run_task_from_spec(
     return result
 
 
+def run_task_from_spec(
+    spec_data: dict[str, Any],
+    task_name: str | None = None,
+    input_data: dict[str, Any] | None = None,
+    override_system: str | None = None,
+    override_user: str | None = None,
+    *,
+    spec_path: Path | None = None,
+    telemetry: TelemetryAdapter | None = None,
+) -> dict[str, Any]:
+    """Run a task and optionally emit metadata-only execution evidence."""
+
+    adapter = telemetry or NOOP_TELEMETRY
+    chosen_task, _ = _choose_task(spec_data, task_name)
+    with adapter.agent_run(spec_data, chosen_task) as agent_observation:
+        adapter.conformance(CONFORMANT)
+        try:
+            result = _run_task_from_spec_impl(
+                spec_data,
+                task_name=chosen_task,
+                input_data=input_data,
+                override_system=override_system,
+                override_user=override_user,
+                spec_path=spec_path,
+                telemetry=adapter,
+            )
+        except OARunError as exc:
+            if exc.stage == "sandbox":
+                adapter.conformance(VIOLATION_PREVENTED, exc.code.lower())
+            elif exc.stage in {"output_validation", "contract"}:
+                adapter.conformance(NONCONFORMANT, exc.code.lower())
+            else:
+                adapter.conformance(INDETERMINATE, "execution_failed")
+            agent_observation.fail(
+                exc,
+                **{
+                    "oa.execution.result": "failed",
+                    "error.type": exc.code,
+                    "oa.error.stage": exc.stage,
+                },
+            )
+            raise
+        except Exception as exc:
+            adapter.conformance(INDETERMINATE, "execution_failed")
+            agent_observation.fail(
+                exc,
+                **{
+                    "oa.execution.result": "failed",
+                    "error.type": type(exc).__name__,
+                },
+            )
+            raise
+        agent_observation.succeed(**{"oa.execution.result": "succeeded"})
+        return result
+
+
 def run_task_from_file(
     spec_path: Path,
     task_name: str | None = None,
     input_data: dict[str, Any] | None = None,
     override_system: str | None = None,
     override_user: str | None = None,
+    *,
+    telemetry: TelemetryAdapter | None = None,
 ) -> dict[str, Any]:
     """Convenience wrapper to load a spec from disk and run a task."""
     resolved = spec_path.resolve()
@@ -1185,4 +1457,5 @@ def run_task_from_file(
         override_system=override_system,
         override_user=override_user,
         spec_path=resolved,
+        telemetry=telemetry,
     )

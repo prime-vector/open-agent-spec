@@ -72,6 +72,24 @@ With OA you can:
 - keep `.agents/*.yaml` in your repo and call them from CI
 - generate a Python project scaffold when you want to customize implementation
 
+### Optional OpenTelemetry execution evidence
+
+OA can emit standard OpenTelemetry traces that connect the declared spec to
+runtime observations. Install the optional exporter support and opt in per run:
+
+```bash
+pip install 'open-agent-spec[otel]'
+export OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4318
+oa run --spec examples/telemetry/agent.yaml \
+  --input examples/telemetry/input.json --telemetry
+```
+
+The trace uses standard GenAI attributes for model and tool observations, plus a
+small `oa.*` namespace for spec identity, declaration evidence, sandbox/schema/
+contract decisions, and conformance status. Telemetry is metadata-only by
+default. See [docs/TELEMETRY.md](docs/TELEMETRY.md) and the
+[minimal example](examples/telemetry/README.md).
+
 ## First Run
 
 Shortest path from install to a working agent:
