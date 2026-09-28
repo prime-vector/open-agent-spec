@@ -13,10 +13,12 @@ from __future__ import annotations
 import hashlib
 import json
 import os
+import sys
 from collections.abc import Iterator
 from contextlib import contextmanager
 from contextvars import ContextVar
 from dataclasses import dataclass
+from importlib.metadata import PackageNotFoundError, version
 from typing import Any, Protocol
 
 CONFORMANT = "conformant"
@@ -65,6 +67,8 @@ class TelemetryAdapter(Protocol):
     ) -> None: ...
 
     def conformance(self, status: str, reason: str | None = None) -> None: ...
+
+    def prompt_override(self, kind: str) -> None: ...
 
     def close(self) -> None: ...
 
@@ -122,6 +126,9 @@ class NoOpTelemetry:
     def conformance(self, status: str, reason: str | None = None) -> None:
         return None
 
+    def prompt_override(self, kind: str) -> None:
+        return None
+
     def close(self) -> None:
         return None
 
@@ -154,17 +161,33 @@ def _clean_attributes(attributes: dict[str, Any]) -> dict[str, Any]:
     return {key: value for key, value in attributes.items() if value is not None}
 
 
-_SPECIFIC_CONFORMANCE = {NONCONFORMANT, VIOLATION_PREVENTED}
+_CONFORMANCE_RANK = {
+    INDETERMINATE: 0,
+    CONFORMANT: 1,
+    VIOLATION_PREVENTED: 2,
+    NONCONFORMANT: 3,
+}
 
 
-def _should_update_conformance(current: Any, new: str) -> bool:
-    """Keep specific execution outcomes from being replaced by a later default."""
+def _should_update_conformance(
+    current: str | None, current_reason: str | None, new: str
+) -> bool:
+    """Prefer the most specific outcome recorded for an agent execution."""
 
-    if current in _SPECIFIC_CONFORMANCE:
-        return new in _SPECIFIC_CONFORMANCE and new == current
-    if new in _SPECIFIC_CONFORMANCE:
+    if current is None:
         return True
-    return True
+    if current == INDETERMINATE and current_reason and new == CONFORMANT:
+        return False
+    if current == CONFORMANT and new == INDETERMINATE and current_reason:
+        return True
+    return _CONFORMANCE_RANK.get(new, 0) >= _CONFORMANCE_RANK.get(current, 0)
+
+
+@dataclass
+class _AgentState:
+    span: Any
+    status: str = INDETERMINATE
+    reason: str | None = None
 
 
 @dataclass
@@ -175,16 +198,25 @@ class _OtelObservation:
     finished: bool = False
 
     def succeed(self, **metadata: Any) -> None:
-        for key, value in _clean_attributes(metadata).items():
-            self.span.set_attribute(key, value)
-        self.span.set_status(self.status_type(self.status_code.OK))
+        try:
+            for key, value in _clean_attributes(metadata).items():
+                self.span.set_attribute(key, value)
+            self.span.set_status(self.status_type(self.status_code.OK))
+        except Exception:
+            # Telemetry must never alter OA execution semantics.
+            pass
         self.finished = True
 
     def fail(self, error: BaseException, **metadata: Any) -> None:
-        for key, value in _clean_attributes(metadata).items():
-            self.span.set_attribute(key, value)
-        self.span.record_exception(error)
-        self.span.set_status(self.status_type(self.status_code.ERROR, str(error)))
+        safe_metadata = {"error.type": type(error).__name__, **metadata}
+        try:
+            for key, value in _clean_attributes(safe_metadata).items():
+                self.span.set_attribute(key, value)
+            self.span.record_exception(error)
+            self.span.set_status(self.status_type(self.status_code.ERROR, str(error)))
+        except Exception:
+            # Telemetry must never alter OA execution semantics.
+            pass
         self.finished = True
 
 
@@ -214,6 +246,10 @@ class OpenTelemetryAdapter:
         self._status = Status
         self._status_code = StatusCode
         self._owned_provider: Any | None = None
+        try:
+            self._instrumentation_version = version("open-agent-spec")
+        except PackageNotFoundError:  # pragma: no cover - source checkout
+            self._instrumentation_version = "unknown"
 
         if tracer_provider is None:
             resource = Resource.create(
@@ -239,9 +275,14 @@ class OpenTelemetryAdapter:
                 )
 
         self._tracer_provider = tracer_provider
-        self._tracer = tracer_provider.get_tracer("open-agent-spec", "1.6.1")
+        self._tracer = tracer_provider.get_tracer(
+            "open-agent-spec", self._instrumentation_version
+        )
         self._agent_spans: ContextVar[tuple[Any, ...]] = ContextVar(
             "oa_telemetry_agent_spans", default=()
+        )
+        self._agent_states: ContextVar[tuple[_AgentState, ...]] = ContextVar(
+            "oa_telemetry_agent_states", default=()
         )
 
     @contextmanager
@@ -251,28 +292,41 @@ class OpenTelemetryAdapter:
         *,
         attributes: dict[str, Any] | None = None,
         kind: Any = None,
-    ) -> Iterator[_OtelObservation]:
-        with self._tracer.start_as_current_span(
-            name,
-            kind=kind or self._span_kind.INTERNAL,
-            attributes=_clean_attributes(attributes or {}),
-        ) as span:
-            observation = _OtelObservation(
-                span=span,
-                status_type=self._status,
-                status_code=self._status_code,
+    ) -> Iterator[_OtelObservation | _NoOpObservation]:
+        try:
+            span_context = self._tracer.start_as_current_span(
+                name,
+                kind=kind if kind is not None else self._span_kind.INTERNAL,
+                attributes=_clean_attributes(attributes or {}),
             )
+            span = span_context.__enter__()
+        except Exception:
+            # A broken or unavailable tracer is equivalent to disabled telemetry.
+            yield _NoOpObservation()
+            return
+
+        observation = _OtelObservation(
+            span=span,
+            status_type=self._status,
+            status_code=self._status_code,
+        )
+        error_info: tuple[Any, Any, Any] = (None, None, None)
+        try:
+            yield observation
+        except Exception as exc:
+            error_info = sys.exc_info()
+            if not observation.finished:
+                observation.fail(exc)
+            raise
+        finally:
             try:
-                yield observation
-            except Exception as exc:
-                if not observation.finished:
-                    observation.fail(exc)
-                raise
+                span_context.__exit__(*error_info)
+            except Exception:
+                # Export/finalisation failures must not change OA semantics.
+                pass
 
     @contextmanager
-    def agent_run(
-        self, spec: dict[str, Any], task_name: str
-    ) -> Iterator[_OtelObservation]:
+    def agent_run(self, spec: dict[str, Any], task_name: str) -> Iterator[Observation]:
         agent = spec.get("agent") or {}
         agent_name = str(agent.get("name") or "unnamed-agent")
         task = (spec.get("tasks") or {}).get(task_name) or {}
@@ -290,17 +344,24 @@ class OpenTelemetryAdapter:
                 spec.get("behavioural_contract") or task.get("behavioural_contract")
             ),
             "oa.conformance.status": INDETERMINATE,
+            "oa.prompt.override": "none",
             "oa.telemetry.content_capture": False,
         }
         with self._span(
             f"invoke_agent {agent_name}", attributes=attributes
         ) as observation:
+            observation_span = getattr(observation, "span", None)
             stack = self._agent_spans.get()
-            token = self._agent_spans.set((*stack, observation.span))
+            token = self._agent_spans.set((*stack, observation_span))
+            state_stack = self._agent_states.get()
+            state_token = self._agent_states.set(
+                (*state_stack, _AgentState(observation_span))
+            )
             try:
                 yield observation
             finally:
                 self._agent_spans.reset(token)
+                self._agent_states.reset(state_token)
 
     def task_run(self, task_name: str, declared_tools: list[str]) -> Any:
         return self._span(
@@ -312,13 +373,25 @@ class OpenTelemetryAdapter:
         )
 
     def model_call(self, provider: str, model: str) -> Any:
+        provider_alias = str(provider).strip().lower()
+        standard_provider = {
+            "anthropic": "anthropic",
+            "azure": "azure.ai.openai",
+            "azure_openai": "azure.ai.openai",
+            "gemini": "google",
+            "google": "google",
+            "grok": "x_ai",
+            "openai": "openai",
+            "xai": "x_ai",
+        }.get(provider_alias, provider_alias)
         return self._span(
             f"chat {model}",
             kind=self._span_kind.CLIENT,
             attributes={
                 "gen_ai.operation.name": "chat",
-                "gen_ai.provider.name": provider,
+                "gen_ai.provider.name": standard_provider,
                 "gen_ai.request.model": model,
+                "oa.engine.name": provider,
             },
         )
 
@@ -373,20 +446,47 @@ class OpenTelemetryAdapter:
             observation.succeed()
 
     def conformance(self, status: str, reason: str | None = None) -> None:
-        attributes = _clean_attributes(
-            {
-                "oa.conformance.status": status,
-                "oa.conformance.reason": reason,
-            }
-        )
-        current = self._trace.get_current_span()
-        spans = (current, *self._agent_spans.get())
-        for span in spans:
-            current_status = span.attributes.get("oa.conformance.status")
-            if not _should_update_conformance(current_status, status):
-                continue
-            for key, value in attributes.items():
-                span.set_attribute(key, value)
+        try:
+            states = list(self._agent_states.get())
+            current = self._trace.get_current_span()
+            attributes = _clean_attributes(
+                {
+                    "oa.conformance.status": status,
+                    "oa.conformance.reason": reason,
+                }
+            )
+            updated = False
+            if status in {NONCONFORMANT, VIOLATION_PREVENTED} or (
+                status == INDETERMINATE and reason
+            ):
+                targets = states
+            else:
+                targets = states[-1:] if states else []
+            for state in targets:
+                if not _should_update_conformance(state.status, state.reason, status):
+                    continue
+                state.status = status
+                state.reason = reason
+                updated = True
+                for key, value in attributes.items():
+                    state.span.set_attribute(key, value)
+            # Preserve the current child observation's evidence as well, while
+            # never reading attributes from a possibly non-recording span.
+            if updated or not states:
+                for key, value in attributes.items():
+                    current.set_attribute(key, value)
+        except Exception:
+            # A sampled-out or otherwise unavailable span must not break a run.
+            return None
+
+    def prompt_override(self, kind: str) -> None:
+        try:
+            for state in self._agent_states.get():
+                state.span.set_attribute("oa.prompt.override", kind)
+            if not self._agent_states.get():
+                self._trace.get_current_span().set_attribute("oa.prompt.override", kind)
+        except Exception:
+            return None
 
     def close(self) -> None:
         if self._owned_provider is not None:

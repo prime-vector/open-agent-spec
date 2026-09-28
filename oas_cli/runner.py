@@ -40,7 +40,7 @@ from .tool_providers import (
     resolve_task_tools,
 )
 from .tool_providers.base import InvokeResult
-from .usage import InvalidPricingError
+from .usage import InvalidPricingError, estimate_cost_usd
 
 # ── Registry constants ────────────────────────────────────────────────────────
 _REGISTRY_BASE = "https://openagentspec.dev/registry"
@@ -56,6 +56,30 @@ try:
     CONTRACTS_ENABLED = True
 except ImportError:
     CONTRACTS_ENABLED = False
+
+
+def _prompt_override_kind(
+    override_system: str | None, override_user: str | None
+) -> str:
+    if override_system is not None and override_user is not None:
+        return "both"
+    if override_system is not None:
+        return "system"
+    if override_user is not None:
+        return "user"
+    return "none"
+
+
+def _record_prompt_override(
+    telemetry: TelemetryAdapter,
+    override_system: str | None,
+    override_user: str | None,
+) -> None:
+    try:
+        telemetry.prompt_override(_prompt_override_kind(override_system, override_user))
+    except Exception:
+        # Telemetry is advisory and must never change execution semantics.
+        logger.debug("Unable to record prompt override metadata", exc_info=True)
 
 
 class OARunError(Exception):
@@ -785,6 +809,11 @@ def _invoke_with_tools(
                 usage_attributes = {
                     "gen_ai.usage.input_tokens": result.usage.get("prompt_tokens"),
                     "gen_ai.usage.output_tokens": result.usage.get("completion_tokens"),
+                    "oa.usage.estimated_cost_usd": estimate_cost_usd(
+                        intelligence_config.get("model"),
+                        result.usage,
+                        pricing=intelligence_config.get("pricing"),
+                    ),
                 }
             model_observation.succeed(**usage_attributes)
 
@@ -831,7 +860,7 @@ def _invoke_with_tools(
             declared_tool_names = {definition.name for _, definition in tools}
             with telemetry.tool_call(tc.name, tc.id) as tool_observation:
                 if tc.name not in declared_tool_names:
-                    telemetry.conformance(VIOLATION_PREVENTED, "undeclared_tool")
+                    telemetry.conformance(INDETERMINATE, "undeclared_tool_observed")
                 # Pre-dispatch sandbox check — hard block before any I/O.
                 if sandbox:
                     try:
@@ -866,16 +895,22 @@ def _invoke_with_tools(
                         if tc.name not in declared_tool_names
                         else "tool_error"
                     )
+                    telemetry.conformance(
+                        INDETERMINATE,
+                        "undeclared_tool_observed"
+                        if reason == "undeclared_tool"
+                        else reason,
+                    )
                     tool_observation.fail(
                         exc,
                         **{
-                            "oa.tool.result": "blocked"
-                            if reason == "undeclared_tool"
-                            else "failed",
-                            "oa.conformance.status": VIOLATION_PREVENTED
-                            if reason == "undeclared_tool"
-                            else INDETERMINATE,
-                            "oa.conformance.reason": reason,
+                            "oa.tool.result": "failed",
+                            "oa.conformance.status": INDETERMINATE,
+                            "oa.conformance.reason": (
+                                "undeclared_tool_observed"
+                                if reason == "undeclared_tool"
+                                else reason
+                            ),
                         },
                     )
                     logger.warning("[tools] Tool '%s' raised: %s", tc.name, exc)
@@ -1063,6 +1098,7 @@ def _run_single_task_impl(
         with telemetry.agent_run(
             delegated_spec, delegated_task
         ) as delegated_observation:
+            _record_prompt_override(telemetry, override_system, override_user)
             telemetry.conformance(INDETERMINATE)
             try:
                 result = _run_single_task(
@@ -1083,7 +1119,12 @@ def _run_single_task_impl(
                     if exc.stage in {"output_validation", "contract"}
                     else INDETERMINATE
                 )
-                telemetry.conformance(status, exc.code.lower())
+                reason = (
+                    "input_requirements_missing"
+                    if exc.stage == "input_validation"
+                    else exc.code.lower()
+                )
+                telemetry.conformance(status, reason)
                 delegated_observation.fail(
                     exc,
                     **{
@@ -1136,6 +1177,9 @@ def _run_single_task_impl(
     usage: dict[str, Any] | None = None
     try:
         tools = resolve_task_tools(spec_data, task_name)
+        output_schema = task_def.get("output")
+        contract = _resolve_contract(spec_data, task_name)
+        has_deterministic_check = bool(tools or sandbox or output_schema or contract)
         if tools:
             tool_loop_kwargs: dict[str, Any] = {}
             if telemetry is not NOOP_TELEMETRY:
@@ -1217,7 +1261,6 @@ def _run_single_task_impl(
 
     # Output schema validation — AFTER parsing, BEFORE contract enforcement.
     # Only applies when response_format is "json" and an output schema is declared.
-    output_schema = task_def.get("output")
     if response_format == "json" and output_schema and isinstance(parsed_output, dict):
         try:
             from jsonschema import validate as _schema_validate
@@ -1245,11 +1288,11 @@ def _run_single_task_impl(
             result="skipped",
             reason="non_object_output",
         )
+        telemetry.conformance(INDETERMINATE, "validation_skipped")
 
     # Behavioural contract validation — AFTER parsing, BEFORE returning.
     # Runs for every task including chain dependencies, so a bad dep output is
     # caught before it can be merged into the next task's input.
-    contract = _resolve_contract(spec_data, task_name)
     if contract is not None:
         if response_format == "text":
             telemetry.contract_result(
@@ -1257,6 +1300,7 @@ def _run_single_task_impl(
                 result="skipped",
                 reason="text_response",
             )
+            telemetry.conformance(INDETERMINATE, "validation_skipped")
             logger.warning(
                 "[warning] Contract validation skipped for task '%s': "
                 "response_format is 'text' — field validation is meaningless on raw strings.",
@@ -1268,6 +1312,7 @@ def _run_single_task_impl(
                 result="skipped",
                 reason="non_object_output",
             )
+            telemetry.conformance(INDETERMINATE, "validation_skipped")
             logger.warning(
                 "[warning] Contract validation skipped for task '%s': "
                 "output could not be parsed as a dict.",
@@ -1279,6 +1324,7 @@ def _run_single_task_impl(
                 result="unavailable",
                 reason="dependency_unavailable",
             )
+            telemetry.conformance(INDETERMINATE, "validation_skipped")
             logger.warning(
                 "[warning] behavioural-contracts not installed — "
                 "contract validation for task '%s' will be skipped. "
@@ -1303,6 +1349,9 @@ def _run_single_task_impl(
                 ) from exc
             else:
                 telemetry.contract_result(enabled=True, result="passed")
+
+    if not has_deterministic_check:
+        telemetry.conformance(INDETERMINATE, "validation_skipped")
 
     return {
         "task": task_name,
@@ -1397,6 +1446,7 @@ def run_task_from_spec(
     adapter = telemetry or NOOP_TELEMETRY
     chosen_task, _ = _choose_task(spec_data, task_name)
     with adapter.agent_run(spec_data, chosen_task) as agent_observation:
+        _record_prompt_override(adapter, override_system, override_user)
         adapter.conformance(INDETERMINATE)
         try:
             result = _run_task_from_spec_impl(
@@ -1413,6 +1463,8 @@ def run_task_from_spec(
                 adapter.conformance(VIOLATION_PREVENTED, exc.code.lower())
             elif exc.stage in {"output_validation", "contract"}:
                 adapter.conformance(NONCONFORMANT, exc.code.lower())
+            elif exc.stage == "input_validation":
+                adapter.conformance(INDETERMINATE, "input_requirements_missing")
             else:
                 adapter.conformance(INDETERMINATE, "execution_failed")
             agent_observation.fail(

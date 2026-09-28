@@ -29,6 +29,7 @@ from opentelemetry.sdk.trace.export import (  # noqa: E402
 from opentelemetry.sdk.trace.export.in_memory_span_exporter import (  # noqa: E402
     InMemorySpanExporter,
 )
+from opentelemetry.sdk.trace.sampling import ALWAYS_OFF  # noqa: E402
 
 
 def _spec(*, tools: bool = False, sandbox: dict[str, Any] | None = None) -> dict:
@@ -146,12 +147,78 @@ def test_model_and_validation_spans_use_metadata_only(monkeypatch, captured_tele
     assert "SECRET MODEL RESPONSE" not in serialized_attributes
 
 
+def test_sampled_out_trace_does_not_change_execution(monkeypatch):
+    provider = TracerProvider(sampler=ALWAYS_OFF)
+    adapter = OpenTelemetryAdapter(tracer_provider=provider, configure_otlp=False)
+    monkeypatch.setattr(
+        runner, "invoke_intelligence", lambda *args, **kwargs: '{"summary":"ok"}'
+    )
+
+    try:
+        result = run_task_from_spec(
+            _spec(),
+            "review",
+            {"text": "t"},
+            telemetry=adapter,
+        )
+    finally:
+        provider.shutdown()
+
+    assert result["output"] == {"summary": "ok"}
+
+
+def test_provider_alias_and_prompt_override_use_metadata(captured_telemetry):
+    adapter, exporter = captured_telemetry
+    with adapter.agent_run(_spec(), "review"):
+        adapter.prompt_override("both")
+        with adapter.model_call("grok", "grok-3") as observation:
+            observation.succeed()
+
+    spans = _spans_by_name(exporter)
+    agent = spans["invoke_agent reviewer"]
+    model = spans["chat grok-3"]
+    assert agent.attributes["oa.prompt.override"] == "both"
+    assert model.attributes["gen_ai.provider.name"] == "x_ai"
+    assert model.attributes["oa.engine.name"] == "grok"
+
+
+def test_delegated_success_does_not_mask_later_parent_failure(captured_telemetry):
+    adapter, exporter = captured_telemetry
+    parent = _spec()
+    parent["agent"]["name"] = "parent"
+    child = _spec()
+    child["agent"]["name"] = "child"
+
+    with adapter.agent_run(parent, "review"):
+        adapter.conformance("indeterminate")
+        with adapter.agent_run(child, "review"):
+            adapter.conformance("indeterminate")
+            adapter.conformance("conformant")
+        adapter.conformance("indeterminate", "parent_failure")
+
+    spans = _spans_by_name(exporter)
+    assert spans["invoke_agent child"].attributes["oa.conformance.status"] == (
+        "conformant"
+    )
+    assert spans["invoke_agent parent"].attributes["oa.conformance.status"] == (
+        "indeterminate"
+    )
+    assert spans["invoke_agent parent"].attributes["oa.conformance.reason"] == (
+        "parent_failure"
+    )
+
+
 class _ToolProvider(ToolProvider):
     def describe(self):
         return [ToolDefinition(name="http.get", description="Fetch a URL")]
 
     def call(self, tool_name: str, arguments: dict[str, Any]) -> str:
         return "SECRET TOOL RESULT"
+
+
+class _FailingToolProvider(_ToolProvider):
+    def call(self, tool_name: str, arguments: dict[str, Any]) -> str:
+        raise runner.ToolError("tool unavailable")
 
 
 class _ToolCallingModel:
@@ -223,6 +290,37 @@ def test_declared_tool_and_allowed_sandbox_are_conformant(
         spans["invoke_agent reviewer"].attributes["oa.conformance.status"]
         == "conformant"
     )
+
+
+def test_failed_tool_span_records_error_type(monkeypatch, captured_telemetry):
+    adapter, exporter = captured_telemetry
+    model = _ToolCallingModel("https://allowed.example/data")
+    monkeypatch.setattr(runner, "get_provider", lambda config: model)
+    monkeypatch.setattr(
+        runner,
+        "resolve_task_tools",
+        lambda spec, task: [(_FailingToolProvider(), _ToolProvider().describe()[0])],
+    )
+
+    run_task_from_spec(
+        _spec(
+            tools=True,
+            sandbox={
+                "tools": {"allow": ["http.get"]},
+                "http": {"allow_domains": ["allowed.example"]},
+            },
+        ),
+        "review",
+        {"text": "private"},
+        telemetry=adapter,
+    )
+
+    tool = _spans_by_name(exporter)["execute_tool http.get"]
+    assert tool.attributes["error.type"] == "ToolError"
+    assert tool.attributes["oa.tool.result"] == "failed"
+    agent = _spans_by_name(exporter)["invoke_agent reviewer"]
+    assert agent.attributes["oa.conformance.status"] == "indeterminate"
+    assert agent.attributes["oa.conformance.reason"] == "tool_error"
 
 
 def test_blocked_sandbox_action_is_violation_prevented(monkeypatch, captured_telemetry):
@@ -298,6 +396,90 @@ def test_provider_failure_remains_indeterminate(monkeypatch, captured_telemetry)
     assert caught.value.code == "RUN_ERROR"
     agent = _spans_by_name(exporter)["invoke_agent reviewer"]
     assert agent.attributes["oa.conformance.status"] == "indeterminate"
+    assert _spans_by_name(exporter)["chat test-model"].attributes["error.type"] == (
+        "RuntimeError"
+    )
+
+
+def test_skipped_validation_does_not_promote_to_conformant(
+    monkeypatch, captured_telemetry
+):
+    adapter, exporter = captured_telemetry
+    spec = _spec()
+    spec["tasks"]["review"]["response_format"] = "text"
+    monkeypatch.setattr(runner, "invoke_intelligence", lambda *a, **k: "cut off")
+
+    run_task_from_spec(spec, "review", {"text": "t"}, telemetry=adapter)
+
+    agent = _spans_by_name(exporter)["invoke_agent reviewer"]
+    assert agent.attributes["oa.conformance.status"] == "indeterminate"
+    assert agent.attributes["oa.conformance.reason"] == "validation_skipped"
+
+
+def test_no_declared_boundary_checks_remain_indeterminate(
+    monkeypatch, captured_telemetry
+):
+    adapter, exporter = captured_telemetry
+    spec = _spec()
+    spec["tasks"]["review"].pop("output")
+    spec["tasks"]["review"]["response_format"] = "text"
+    monkeypatch.setattr(runner, "invoke_intelligence", lambda *a, **k: "ok")
+
+    run_task_from_spec(spec, "review", {"text": "t"}, telemetry=adapter)
+
+    agent = _spans_by_name(exporter)["invoke_agent reviewer"]
+    assert agent.attributes["oa.conformance.status"] == "indeterminate"
+    assert agent.attributes["oa.conformance.reason"] == "validation_skipped"
+
+
+def test_missing_required_input_has_specific_indeterminate_reason(captured_telemetry):
+    adapter, exporter = captured_telemetry
+
+    with pytest.raises(OARunError) as caught:
+        run_task_from_spec(_spec(), "review", {}, telemetry=adapter)
+
+    assert caught.value.code == "CHAIN_INPUT_MISSING"
+    agent = _spans_by_name(exporter)["invoke_agent reviewer"]
+    assert agent.attributes["oa.conformance.status"] == "indeterminate"
+    assert agent.attributes["oa.conformance.reason"] == "input_requirements_missing"
+
+
+def test_output_failure_outranks_earlier_undeclared_tool_observation(
+    monkeypatch, captured_telemetry
+):
+    adapter, exporter = captured_telemetry
+    turns = iter(
+        [
+            InvokeResult(
+                is_final=False,
+                tool_calls=[ToolCall(id="c1", name="not.a.tool", arguments={})],
+            ),
+            InvokeResult(is_final=True, text='{"wrong": 1}'),
+        ]
+    )
+
+    class _Model:
+        def supports_tools(self):
+            return True
+
+        def invoke_with_tools(self, **kwargs):
+            return next(turns)
+
+    monkeypatch.setattr(runner, "get_provider", lambda config: _Model())
+    monkeypatch.setattr(
+        runner,
+        "resolve_task_tools",
+        lambda spec, task: [(_ToolProvider(), _ToolProvider().describe()[0])],
+    )
+
+    with pytest.raises(OARunError) as err:
+        run_task_from_spec(
+            _spec(tools=True), "review", {"text": "t"}, telemetry=adapter
+        )
+
+    assert err.value.code == "OUTPUT_SCHEMA_ERROR"
+    agent = _spans_by_name(exporter)["invoke_agent reviewer"]
+    assert agent.attributes["oa.conformance.status"] == "nonconformant"
 
 
 def test_contract_result_is_recorded(monkeypatch, captured_telemetry):

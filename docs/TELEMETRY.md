@@ -58,6 +58,9 @@ OA adds only facts that OA can know and evaluate itself:
 | `oa.spec.hash` | SHA-256 identity of the canonical parsed OA specification |
 | `oa.task.name` | Task being executed |
 | `oa.task.declared_tools` | Tools declared on that task |
+| `oa.engine.name` | Original OA engine alias before provider normalisation |
+| `oa.prompt.override` | `none`, `system`, `user`, or `both`; never the prompt content |
+| `oa.usage.estimated_cost_usd` | Best-effort cost estimate when pricing is known |
 | `oa.contract.enabled` / `oa.contract.result` | BCE presence and deterministic result |
 | `oa.sandbox.enabled` / `oa.sandbox.result` | IIS presence and allow/block decision |
 | `oa.validation.kind` / `oa.validation.result` | Input/output schema observation |
@@ -78,10 +81,13 @@ Agent execution spans begin as `indeterminate` and are promoted to
 `conformant` only after successful completion. A more specific prevented or
 nonconformant result is retained if one was recorded during execution.
 
-- `conformant` means the deterministic observations completed within the
-  declaration.
-- `violation_prevented` means an undeclared or sandbox-forbidden action was
-  attempted and stopped before I/O.
+- `conformant` means the declared deterministic checks completed successfully
+  within the declaration. If a declared check was skipped, OA keeps the result
+  `indeterminate` with reason `validation_skipped`.
+- `violation_prevented` means a sandbox-forbidden action was attempted and
+  stopped before I/O. An undeclared tool name that reaches dispatch is recorded
+  as `indeterminate` with reason `undeclared_tool_observed`, because the trace
+  cannot claim that an external boundary prevented it.
 - `nonconformant` means a declared output boundary failed, such as output JSON
   schema validation or a behavioural contract.
 - `indeterminate` means execution failed for a provider/runtime reason and OA
@@ -102,15 +108,22 @@ OpenTelemetry SDK. Library callers can pass a custom `TelemetryAdapter` to
 `run_task_from_spec` if they already own SDK setup; this keeps OA from replacing
 an application's tracer provider.
 
+Telemetry is best-effort. Sampled-out spans and exporter/provider failures do
+not change the OA run result. Batch exporters may take a short time to flush on
+`close()`; configure the exporter and shutdown behavior according to the hosting
+process when using an unreachable collector.
+
 ## Library use
 
 ```python
+from pathlib import Path
+
 from oas_cli.runner import run_task_from_file
 from oas_cli.telemetry import create_telemetry
 
 telemetry = create_telemetry(enabled=True)
 try:
-    result = run_task_from_file("agent.yaml", telemetry=telemetry)
+    result = run_task_from_file(Path("agent.yaml"), telemetry=telemetry)
 finally:
     telemetry.close()
 ```
