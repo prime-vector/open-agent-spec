@@ -84,6 +84,9 @@ nonconformant result is retained if one was recorded during execution.
 - `conformant` means the declared deterministic checks completed successfully
   within the declaration. If a declared check was skipped, OA keeps the result
   `indeterminate` with reason `validation_skipped`.
+- Tasks that bind tools without declaring a sandbox remain `indeterminate` with
+  reason `sandbox_not_declared`; tool calls are not treated as checked merely
+  because they were registered.
 - `violation_prevented` means a sandbox-forbidden action was attempted and
   stopped before I/O. An undeclared tool name that reaches dispatch is recorded
   as `indeterminate` with reason `undeclared_tool_observed`, because the trace

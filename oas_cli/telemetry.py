@@ -178,8 +178,6 @@ def _should_update_conformance(
         return True
     if current == INDETERMINATE and current_reason and new == CONFORMANT:
         return False
-    if current == CONFORMANT and new == INDETERMINATE and current_reason:
-        return True
     return _CONFORMANCE_RANK.get(new, 0) >= _CONFORMANCE_RANK.get(current, 0)
 
 

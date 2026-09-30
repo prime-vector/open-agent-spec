@@ -1179,7 +1179,7 @@ def _run_single_task_impl(
         tools = resolve_task_tools(spec_data, task_name)
         output_schema = task_def.get("output")
         contract = _resolve_contract(spec_data, task_name)
-        has_deterministic_check = bool(tools or sandbox or output_schema or contract)
+        has_deterministic_check = bool((tools and sandbox) or output_schema or contract)
         if tools:
             tool_loop_kwargs: dict[str, Any] = {}
             if telemetry is not NOOP_TELEMETRY:
@@ -1350,7 +1350,9 @@ def _run_single_task_impl(
             else:
                 telemetry.contract_result(enabled=True, result="passed")
 
-    if not has_deterministic_check:
+    if tools and not sandbox:
+        telemetry.conformance(INDETERMINATE, "sandbox_not_declared")
+    elif not has_deterministic_check:
         telemetry.conformance(INDETERMINATE, "validation_skipped")
 
     return {

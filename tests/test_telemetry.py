@@ -292,6 +292,35 @@ def test_declared_tool_and_allowed_sandbox_are_conformant(
     )
 
 
+def test_tools_without_a_sandbox_are_not_conformant(monkeypatch, captured_telemetry):
+    adapter, exporter = captured_telemetry
+    monkeypatch.setattr(
+        runner,
+        "get_provider",
+        lambda config: _ToolCallingModel("https://anywhere.example/x"),
+    )
+    monkeypatch.setattr(
+        runner,
+        "resolve_task_tools",
+        lambda spec, task: [(_ToolProvider(), _ToolProvider().describe()[0])],
+    )
+
+    run_task_from_spec(
+        _spec(tools=True),
+        "review",
+        {"text": "t"},
+        telemetry=adapter,
+    )
+
+    spans = _spans_by_name(exporter)
+    assert spans["execute_tool http.get"].attributes["oa.tool.result"] == "succeeded"
+    assert "oa.sandbox.decision" not in spans
+    agent = spans["invoke_agent reviewer"]
+    assert agent.attributes["oa.sandbox.enabled"] is False
+    assert agent.attributes["oa.conformance.status"] == "indeterminate"
+    assert agent.attributes["oa.conformance.reason"] == "sandbox_not_declared"
+
+
 def test_failed_tool_span_records_error_type(monkeypatch, captured_telemetry):
     adapter, exporter = captured_telemetry
     model = _ToolCallingModel("https://allowed.example/data")
