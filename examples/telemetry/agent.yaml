@@ -1,0 +1,32 @@
+open_agent_spec: "1.6.1"
+
+agent:
+  name: telemetry-reviewer
+  description: Produces a short structured review while emitting OA execution evidence.
+  role: reviewer
+
+intelligence:
+  type: llm
+  engine: openai
+  model: gpt-4o-mini
+
+tasks:
+  review:
+    description: Reviews supplied text and returns a concise structured summary.
+    prompts:
+      system: >
+        Review the supplied text. Return only JSON with one field named
+        summary containing a concise review.
+      user: "Review this text:\n\n{text}"
+    input:
+      type: object
+      properties:
+        text:
+          type: string
+      required: [text]
+    output:
+      type: object
+      properties:
+        summary:
+          type: string
+      required: [summary]
