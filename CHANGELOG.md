@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.6.1] - 2026-10-04
+
+### Changed
+- Bumped the Python and npm runtime packages to 1.6.1 so the published
+  artifacts and GitHub release stay aligned.
+
 ### Spec
 - **OA 1.6.0 formal specification cut** — `spec/open-agent-spec-1.6.md` supersedes the 1.5 draft and redefines the runtime around four pillars: typed contracts, a deterministic execution pipeline (§7, with all statically detectable errors required before any tokens are spent), first-class usage/cost observability (§10, promoted from an envelope footnote to a runtime obligation with explicit design goals), and declarative sandboxing. Newly formalised, having previously been implemented but spec'd nowhere: `sandbox:`/IIS declaration, per-key override resolution and the three `SANDBOX_*` error codes (§11, §13.2), the reserved `history` input convention and its message-list injection semantics (§6.4, §8.3), chain-wide input immutability (§7.2), direct-only dependency execution with transitive cycle detection, diamond-DAG legality, and the linear-time cycle-check requirement (§7.3), per-engine default-endpoint isolation (§5.2), and certified conformance via the runtime-agnostic adapter protocol (§14.2).
 - **Canonical schema `spec/schema/oas-schema-1.6.json`** — 1.5 schema plus root-level and task-level `sandbox` definitions (`tools.allow/deny`, `http.allow_domains`, `file.allow_paths`), and `agent.role` loosened from a closed enum to a free-form string (role is informational; well-known values are RECOMMENDED). Additive: every valid 1.5.x document remains valid. The bundled runtime schema (`oas_cli/schemas/oas-schema.json`) is synced to the canonical 1.6 schema so `oa validate` and the formal spec share one source of truth.
