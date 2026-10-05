@@ -48,7 +48,7 @@ jobs:
 
           if [[ "$REF" != refs/tags/v* ]]; then
             echo "This workflow publishes only from a v* tag (got $REF)."
-            echo "Dispatch it against the release tag, e.g. --ref v1.6.0."
+            echo "Dispatch it against the release tag, e.g. --ref v1.6.2."
             exit 1
           fi
 

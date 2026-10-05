@@ -1,8 +1,8 @@
 # Open Agent Spec — Formal Specification
 
 **Version:** 1.6.1
-**Status:** Release Candidate
-**Date:** Unreleased
+**Status:** Released
+**Date:** 2026-10-02
 
 ---
 
@@ -802,7 +802,7 @@ OA 1.6 remains behaviourally compatible with 1.5.x. OA 1.6.1 tightens validation
 
 ### 14.4 Revision History
 
-- **1.6.1 (Unreleased):** Contracts fail closed when enforcement is unavailable; sandbox domain rules cover host/port-pinned MCP endpoints and declared or resolved remote delegated-spec URLs; malformed `allow_domains` entries are rejected.
+- **1.6.1 (2026-10-02):** Contracts fail closed when enforcement is unavailable; sandbox domain rules cover host/port-pinned MCP endpoints and declared or resolved remote delegated-spec URLs; malformed `allow_domains` entries are rejected.
 - **1.6.0 (2026-07-28):** Initial OA 1.6 specification.
 
 ---

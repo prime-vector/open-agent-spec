@@ -1,6 +1,6 @@
 # OA Conformance Matrix
 
-| Case | python-reference 1.6.1 | npm 1.6.1 |
+| Case | python-reference 1.6.2 | npm 1.6.2 |
 |---|---|---|
 | schema/invalid-allow-domain | ✅ PASS | ✅ PASS |
 | schema/invalid-engine | ✅ PASS | ✅ PASS |
@@ -46,7 +46,7 @@
 
 | Runtime | Pass | Fail | Unsupported | Adapter errors |
 |---|---|---|---|---|
-| python-reference 1.6.1 | 38 | 0 | 1 | 0 |
-| npm 1.6.1 | 33 | 0 | 6 | 0 |
+| python-reference 1.6.2 | 38 | 0 | 1 | 0 |
+| npm 1.6.2 | 33 | 0 | 6 | 0 |
 
 Legend: ✅ PASS · ❌ FAIL · ⬜ UNSUPPORTED (capability not declared) · 💥 adapter error

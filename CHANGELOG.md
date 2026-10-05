@@ -10,8 +10,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [1.6.2] - 2026-10-05
 
 ### Changed
-- Republished the npm runtime from the main branch so it includes the full
-  1.6.1 implementation and telemetry work.
+- Aligned the Python distribution with the already-published npm 1.6.2
+  runtime. This is a packaging release; the normative OA document remains
+  version 1.6.1.
 
 ### Added (older, pre-1.4 notes)
 - This changelog.
@@ -28,7 +29,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed (older, pre-1.4 notes)
 - Removed broken references to non-existent `security-threat-analyzer.yaml` template and `SECURITY_TEMPLATES.md` from REFERENCE.md.
 
-## [1.6.1] - Unreleased
+## [1.6.1] - 2026-10-02
 
 ### Security
 - **Declared behavioural contracts now fail closed** — if a resolved task declares a contract but the `behavioural-contracts` enforcement dependency is unavailable, execution stops before the affected model call with `CONTRACTS_UNAVAILABLE` instead of logging a warning and continuing without the promised constraint. Direct dependencies and locally delegated tasks are preflighted before their chain starts. (#103)
