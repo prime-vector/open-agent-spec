@@ -1,6 +1,6 @@
 [build-system]
 # hatchling >= 1.26.1 avoids License-File in metadata 2.3 (PyPI/twine reject that mix)
-requires = ["hatchling>=1.26.1"]
+requires = ["hatchling>=1.26.1,<1.27"]
 build-backend = "hatchling.build"
 
 [project]
