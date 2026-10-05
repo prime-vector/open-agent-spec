@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.6.2] - 2026-10-05
+
+### Changed
+- Republished the npm runtime from the main branch so it includes the full
+  1.6.1 implementation and telemetry work.
+
 ### Added (older, pre-1.4 notes)
 - This changelog.
 - **Agents-as-code documentation** — new section in REFERENCE.md explaining the `.agents/` pattern, bundled examples table, and scaffold/run/generate workflows.
